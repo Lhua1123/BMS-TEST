@@ -140,17 +140,21 @@ class BmsMonitorTab(QWidget):
         conn_layout.addWidget(self.interval_spin)
 
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
         self.connect_btn = QPushButton("连接")
+        self.connect_btn.setMinimumHeight(36)
         self.connect_btn.clicked.connect(self._connect)
         btn_row.addWidget(self.connect_btn)
 
         self.disconnect_btn = QPushButton("断开")
+        self.disconnect_btn.setMinimumHeight(36)
         self.disconnect_btn.setEnabled(False)
         self.disconnect_btn.clicked.connect(self._disconnect)
         btn_row.addWidget(self.disconnect_btn)
         conn_layout.addLayout(btn_row)
 
         self.poll_btn = QPushButton("开始监控")
+        self.poll_btn.setMinimumHeight(36)
         self.poll_btn.setEnabled(False)
         self.poll_btn.clicked.connect(self._toggle_polling)
         conn_layout.addWidget(self.poll_btn)
@@ -253,6 +257,7 @@ class BmsMonitorTab(QWidget):
             tab = QWidget()
             tab_layout = QVBoxLayout(tab)
             tab_layout.setContentsMargins(0, 0, 0, 0)
+            tab_layout.setSpacing(0)
 
             table = QTableWidget()
             table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
