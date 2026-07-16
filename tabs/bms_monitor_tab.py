@@ -114,6 +114,8 @@ class BmsMonitorTab(QWidget):
 
         conn_group = QGroupBox("连接设置")
         conn_layout = QVBoxLayout(conn_group)
+        conn_layout.setSpacing(4)
+        conn_layout.setContentsMargins(8, 12, 8, 8)
 
         conn_layout.addWidget(QLabel("COM口:"))
         self.port_combo = QComboBox()
@@ -285,17 +287,8 @@ class BmsMonitorTab(QWidget):
             """)
 
             header = table.horizontalHeader()
-            header.setSectionResizeMode(QHeaderView.Interactive)
-            table.setColumnWidth(0, 180)
-            table.setColumnWidth(1, 70)
-            table.setColumnWidth(2, 80)
-            table.setColumnWidth(3, 80)
-            table.setColumnWidth(4, 50)
-            table.setColumnWidth(5, 50)
-            table.setColumnWidth(6, 80)
-            for i in range(7):
-                header.setSectionResizeMode(i, QHeaderView.Fixed)
-            header.setSectionResizeMode(7, QHeaderView.Stretch)
+            for i in range(len(columns)):
+                header.setSectionResizeMode(i, QHeaderView.Stretch)
 
             table.setRowCount(len(signals))
             table.verticalHeader().setDefaultSectionSize(30)
@@ -353,7 +346,7 @@ class BmsMonitorTab(QWidget):
         """)
         self.reg_text.setLineWrapMode(QTextEdit.NoWrap)
         self.reg_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.reg_text.setMaximumHeight(160)
+        self.reg_text.setMaximumHeight(250)
         self.reg_text.setSizePolicy(
             QSizePolicy.Expanding,
             QSizePolicy.Fixed
