@@ -433,7 +433,10 @@ class BmsMonitorTab(QWidget):
     def _update_display(self):
         for tab_name, table in self.tab_tables.items():
             for idx in range(table.rowCount()):
-                signal_name = table.item(idx, 0).text()
+                item0 = table.item(idx, 0)
+                if not item0:
+                    continue
+                signal_name = item0.text()
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
                 addr, factor, offset, unit, dtype, bit_len = info
 
@@ -447,9 +450,15 @@ class BmsMonitorTab(QWidget):
 
                 physical = self.parsed_data.get(signal_name, "--")
 
-                table.item(idx, 2).setText(raw_hex)
-                table.item(idx, 3).setText(raw_dec)
-                table.item(idx, 6).setText(str(physical))
+                item2 = table.item(idx, 2)
+                item3 = table.item(idx, 3)
+                item6 = table.item(idx, 6)
+                if item2:
+                    item2.setText(raw_hex)
+                if item3:
+                    item3.setText(raw_dec)
+                if item6:
+                    item6.setText(str(physical))
 
         stats = self.comm.get_stats()
         self.tx_label.setText(f"TX: {stats['frames_sent']}")
