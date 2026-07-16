@@ -336,12 +336,13 @@ class BmsMonitorTab(QWidget):
             table.verticalHeader().setDefaultSectionSize(30)
             table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-            self._column_delegates = []
-            self._column_delegates.append(LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
-            table.setItemDelegateForColumn(0, self._column_delegates[0])
+            delegates = []
+            delegates.append(LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
+            table.setItemDelegateForColumn(0, delegates[0])
             for i in range(1, len(columns)):
-                self._column_delegates.append(LeftAlignDelegate(Qt.AlignCenter))
-                table.setItemDelegateForColumn(i, self._column_delegates[i])
+                delegates.append(LeftAlignDelegate(Qt.AlignCenter))
+                table.setItemDelegateForColumn(i, delegates[i])
+            self.tab_tables[tab_name] = (table, delegates)
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
@@ -368,7 +369,6 @@ class BmsMonitorTab(QWidget):
 
             tab_layout.addWidget(table)
             self.notebook.addTab(tab, tab_name)
-            self.tab_tables[tab_name] = table
 
         # 用 QVBoxLayout 分隔表格和寄存器视图，表格自动扩展
         right_layout = QVBoxLayout()
@@ -451,7 +451,7 @@ class BmsMonitorTab(QWidget):
         self.reg_text.setHtml(html)
 
     def _update_display(self):
-        for tab_name, table in self.tab_tables.items():
+        for tab_name, (table, _) in self.tab_tables.items():
             for idx in range(table.rowCount()):
                 signal_name = table.item(idx, 0).text()
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
