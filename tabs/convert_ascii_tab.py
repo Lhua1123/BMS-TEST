@@ -56,7 +56,7 @@ class ConvertAsciiTab(QWidget):
                 border: 1px solid {COLORS['border']};
                 padding: 8px;
                 font-family: {FONTS['mono'][0]};
-                font-size: {FONTS['mono'][1]}pt;
+                font-size: 14pt;
             }}
         """)
         gi.addWidget(self.txt_input)
@@ -107,12 +107,12 @@ class ConvertAsciiTab(QWidget):
             row_out = QHBoxLayout()
             lbl = QLabel(label + " :")
             lbl.setFixedWidth(100)
-            lbl.setFont(QFont(FONTS['heading'][0], FONTS['heading'][1], QFont.Bold))
+            lbl.setFont(QFont(FONTS['heading'][0], 12, QFont.Bold))
             row_out.addWidget(lbl)
 
             value = QLineEdit()
             value.setReadOnly(True)
-            value.setFont(QFont(FONTS['mono'][0], FONTS['mono'][1]))
+            value.setFont(QFont(FONTS['mono'][0], 14))
             value.setStyleSheet(f"background-color: {COLORS['bg_input']}; border: 1px solid {COLORS['border']}; padding: 6px;")
             row_out.addWidget(value, 1)
 

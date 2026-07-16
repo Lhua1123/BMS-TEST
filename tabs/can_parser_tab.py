@@ -109,7 +109,10 @@ class CanParserTab(QWidget):
         row_id.addWidget(self.btn_parse)
 
         self.btn_copy_parse = QPushButton("复制结果")
-        self.btn_copy_parse.setMaximumWidth(120)
+        self.btn_copy_parse.setMinimumWidth(120)
+        self.btn_copy_parse.setMaximumWidth(140)
+        self.btn_copy_parse.setMinimumHeight(42)
+        self.btn_copy_parse.setCursor(Qt.PointingHandCursor)
         row_id.addWidget(self.btn_copy_parse)
 
         gp.addLayout(row_id)
