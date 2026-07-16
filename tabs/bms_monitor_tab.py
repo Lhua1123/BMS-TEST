@@ -31,17 +31,6 @@ class SignalEmitter(QObject):
     error_occurred = pyqtSignal(str)
 
 
-class LeftAlignDelegate(QStyledItemDelegate):
-    """强制左对齐的delegate"""
-    def __init__(self, alignment=Qt.AlignLeft | Qt.AlignVCenter, parent=None):
-        super().__init__(parent)
-        self._alignment = alignment
-
-    def initStyleOption(self, option, index):
-        super().initStyleOption(option, index)
-        option.displayAlignment = self._alignment
-
-
 class BmsMonitorTab(QWidget):
     """BMS监控Tab - 支持L2/L3"""
 
@@ -336,13 +325,7 @@ class BmsMonitorTab(QWidget):
             table.verticalHeader().setDefaultSectionSize(30)
             table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-            delegates = []
-            delegates.append(LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
-            table.setItemDelegateForColumn(0, delegates[0])
-            for i in range(1, len(columns)):
-                delegates.append(LeftAlignDelegate(Qt.AlignCenter))
-                table.setItemDelegateForColumn(i, delegates[i])
-            self.tab_tables[tab_name] = (table, delegates)
+            self.tab_tables[tab_name] = table
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
@@ -361,10 +344,7 @@ class BmsMonitorTab(QWidget):
                 for col, text in enumerate(items):
                     item = QTableWidgetItem(text)
                     item.setFont(QFont('Microsoft YaHei', 10))
-                    if col == 0:
-                        item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                    else:
-                        item.setTextAlignment(Qt.AlignCenter)
+                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter if col == 0 else Qt.AlignCenter)
                     table.setItem(idx, col, item)
 
             tab_layout.addWidget(table)
@@ -394,7 +374,7 @@ class BmsMonitorTab(QWidget):
         """)
         self.reg_text.setLineWrapMode(QTextEdit.NoWrap)
         self.reg_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.reg_text.setMaximumHeight(250)
+        self.reg_text.setMaximumHeight(350)
         self.reg_text.setSizePolicy(
             QSizePolicy.Expanding,
             QSizePolicy.Fixed
@@ -413,7 +393,7 @@ class BmsMonitorTab(QWidget):
     def _init_reg_display(self):
         self.reg_text.clear()
         html = ""
-        cols_per_row = 7
+        cols_per_row = 12
         addr_list = self.register_addrs
         for i in range(0, len(addr_list), cols_per_row):
             row_html = ""
@@ -430,7 +410,7 @@ class BmsMonitorTab(QWidget):
 
     def _update_reg_display(self):
         html = ""
-        cols_per_row = 7
+        cols_per_row = 12
         addr_list = self.register_addrs
         for i in range(0, len(addr_list), cols_per_row):
             row_html = ""
@@ -451,7 +431,7 @@ class BmsMonitorTab(QWidget):
         self.reg_text.setHtml(html)
 
     def _update_display(self):
-        for tab_name, (table, _) in self.tab_tables.items():
+        for tab_name, table in self.tab_tables.items():
             for idx in range(table.rowCount()):
                 signal_name = table.item(idx, 0).text()
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
