@@ -109,99 +109,102 @@ class BmsMonitorTab(QWidget):
     def _create_left_panel(self):
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
 
+        # ===== 连接设置 =====
         conn_group = QGroupBox("连接设置")
         conn_layout = QVBoxLayout(conn_group)
-        conn_layout.setSpacing(4)
-        conn_layout.setContentsMargins(8, 12, 8, 8)
+        conn_layout.setSpacing(3)
+        conn_layout.setContentsMargins(8, 14, 8, 6)
 
-        conn_layout.addWidget(QLabel("COM口:"))
-        self.port_combo = QComboBox()
-        self.port_combo.addItems(ModbusComm.list_available_ports())
-        self.port_combo.setCurrentText("COM4")
-        conn_layout.addWidget(self.port_combo)
+        for label_text, widget in [
+            ("COM口:", self._create_port_combo()),
+            ("波特率:", self._create_baud_combo()),
+            ("从机地址:", self._create_slave_spin()),
+            ("轮询间隔(秒):", self._create_interval_spin()),
+        ]:
+            row = QHBoxLayout()
+            row.setSpacing(4)
+            lbl = QLabel(label_text)
+            lbl.setFixedWidth(80)
+            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            row.addWidget(lbl)
+            row.addWidget(widget, 1)
+            conn_layout.addLayout(row)
 
-        conn_layout.addWidget(QLabel("波特率:"))
-        self.baud_combo = QComboBox()
-        self.baud_combo.addItems(["9600", "19200", "38400", "57600", "115200"])
-        conn_layout.addWidget(self.baud_combo)
-
-        conn_layout.addWidget(QLabel("从机地址:"))
-        self.slave_spin = QSpinBox()
-        self.slave_spin.setRange(1, 247)
-        self.slave_spin.setValue(1)
-        conn_layout.addWidget(self.slave_spin)
-
-        conn_layout.addWidget(QLabel("轮询间隔(秒):"))
-        self.interval_spin = QDoubleSpinBox()
-        self.interval_spin.setRange(0.1, 10.0)
-        self.interval_spin.setSingleStep(0.1)
-        self.interval_spin.setValue(1.0)
-        conn_layout.addWidget(self.interval_spin)
-
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
         self.connect_btn = QPushButton("连接")
-        self.connect_btn.setMinimumHeight(32)
+        self.connect_btn.setMinimumHeight(30)
         self.connect_btn.clicked.connect(self._connect)
-        conn_layout.addWidget(self.connect_btn)
+        btn_row.addWidget(self.connect_btn)
 
         self.disconnect_btn = QPushButton("断开")
-        self.disconnect_btn.setMinimumHeight(32)
+        self.disconnect_btn.setMinimumHeight(30)
         self.disconnect_btn.setEnabled(False)
         self.disconnect_btn.clicked.connect(self._disconnect)
-        conn_layout.addWidget(self.disconnect_btn)
+        btn_row.addWidget(self.disconnect_btn)
+        conn_layout.addLayout(btn_row)
 
         self.poll_btn = QPushButton("开始监控")
-        self.poll_btn.setMinimumHeight(32)
+        self.poll_btn.setMinimumHeight(30)
         self.poll_btn.setEnabled(False)
         self.poll_btn.clicked.connect(self._toggle_polling)
         conn_layout.addWidget(self.poll_btn)
 
         layout.addWidget(conn_group)
 
+        # ===== 控制指令 =====
         if self.mode in ('L2', 'L3'):
             ctrl_group = QGroupBox("控制指令(06H)")
             ctrl_layout = QVBoxLayout(ctrl_group)
+            ctrl_layout.setSpacing(4)
+            ctrl_layout.setContentsMargins(8, 14, 8, 6)
 
-            ctrl_layout.addWidget(QLabel("上下电指令:"))
-            self.pwr_group = QButtonGroup()
-            self.pwr_btns = {}
-            pwr_layout = QHBoxLayout()
-            for text in ["高压下电", "放电上电", "充电上电"]:
-                btn = QRadioButton(text)
-                if text == "高压下电":
-                    btn.setChecked(True)
-                self.pwr_btns[text] = btn
-                self.pwr_group.addButton(btn)
-                pwr_layout.addWidget(btn)
-            ctrl_layout.addLayout(pwr_layout)
+            for label_text, items in [
+                ("上下电指令:", ["高压下电", "放电上电", "充电上电"]),
+                ("复位/关机/消音:", ["无效", "复位", "关机", "消音"]),
+            ]:
+                lbl = QLabel(label_text)
+                ctrl_layout.addWidget(lbl)
+                row = QHBoxLayout()
+                row.setSpacing(6)
+                for text in items:
+                    btn = QRadioButton(text)
+                    if text == items[0]:
+                        btn.setChecked(True)
+                    if label_text.startswith("上下电"):
+                        if not hasattr(self, 'pwr_group'):
+                            self.pwr_group = QButtonGroup()
+                            self.pwr_btns = {}
+                        self.pwr_btns[text] = btn
+                        self.pwr_group.addButton(btn)
+                    else:
+                        if not hasattr(self, 'rst_group'):
+                            self.rst_group = QButtonGroup()
+                            self.rst_btns = {}
+                        self.rst_btns[text] = btn
+                        self.rst_group.addButton(btn)
+                    row.addWidget(btn)
+                row.addStretch()
+                ctrl_layout.addLayout(row)
 
-            ctrl_layout.addWidget(QLabel("复位/关机/消音:"))
-            self.rst_group = QButtonGroup()
-            self.rst_btns = {}
-            rst_layout = QHBoxLayout()
-            for text in ["无效", "复位", "关机", "消音"]:
-                btn = QRadioButton(text)
-                if text == "无效":
-                    btn.setChecked(True)
-                self.rst_btns[text] = btn
-                self.rst_group.addButton(btn)
-                rst_layout.addWidget(btn)
-            ctrl_layout.addLayout(rst_layout)
-
-            ctrl_layout.addWidget(QLabel("急停报警:"))
+            lbl = QLabel("急停报警:")
+            ctrl_layout.addWidget(lbl)
+            estop_row = QHBoxLayout()
+            estop_row.setSpacing(6)
             self.estop_group = QButtonGroup()
             self.estop_btns = {}
-            estop_layout = QHBoxLayout()
             for text in ["正常", "急停"]:
                 btn = QRadioButton(text)
                 if text == "正常":
                     btn.setChecked(True)
                 self.estop_btns[text] = btn
                 self.estop_group.addButton(btn)
-                estop_layout.addWidget(btn)
-            ctrl_layout.addLayout(estop_layout)
+                estop_row.addWidget(btn)
+            estop_row.addStretch()
+            ctrl_layout.addLayout(estop_row)
 
             self.send_ctrl_btn = QPushButton("发送控制指令")
             self.send_ctrl_btn.setEnabled(False)
@@ -210,8 +213,11 @@ class BmsMonitorTab(QWidget):
 
             layout.addWidget(ctrl_group)
 
+        # ===== 通信统计 =====
         stats_group = QGroupBox("通信统计")
         stats_layout = QVBoxLayout(stats_group)
+        stats_layout.setSpacing(2)
+        stats_layout.setContentsMargins(8, 14, 8, 6)
 
         self.tx_label = QLabel("TX: 0")
         self.rx_label = QLabel("RX: 0")
@@ -221,13 +227,14 @@ class BmsMonitorTab(QWidget):
         stats_layout.addWidget(self.error_label)
 
         self.status_indicator = QLabel()
-        self.status_indicator.setFixedSize(20, 20)
+        self.status_indicator.setFixedSize(16, 16)
         self.status_indicator.setStyleSheet(
-            f"background-color: gray; border-radius: 10px;"
+            f"background-color: gray; border-radius: 8px;"
         )
         stats_layout.addWidget(self.status_indicator)
 
         clear_btn = QPushButton("清空日志")
+        clear_btn.setMinimumHeight(28)
         clear_btn.clicked.connect(self._clear_log)
         stats_layout.addWidget(clear_btn)
 
@@ -235,6 +242,30 @@ class BmsMonitorTab(QWidget):
         layout.addStretch()
 
         return panel
+
+    def _create_port_combo(self):
+        combo = QComboBox()
+        combo.addItems(ModbusComm.list_available_ports())
+        combo.setCurrentText("COM4")
+        return combo
+
+    def _create_baud_combo(self):
+        combo = QComboBox()
+        combo.addItems(["9600", "19200", "38400", "57600", "115200"])
+        return combo
+
+    def _create_slave_spin(self):
+        spin = QSpinBox()
+        spin.setRange(1, 247)
+        spin.setValue(1)
+        return spin
+
+    def _create_interval_spin(self):
+        spin = QDoubleSpinBox()
+        spin.setRange(0.1, 10.0)
+        spin.setSingleStep(0.1)
+        spin.setValue(1.0)
+        return spin
 
     def _create_right_panel(self):
         panel = QWidget()
