@@ -1,21 +1,17 @@
 """
-进制转换Tab - 基于 Convert_ASCII_V1.1 BasicTab
+进制转换Tab - 统一项目风格
 支持二进制/八进制/十进制/十六进制/字符串互转
 """
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QPushButton, QGroupBox, QComboBox, QCheckBox
+    QPushButton, QGroupBox, QComboBox, QCheckBox, QLineEdit, QFrame
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from convert_ascii.core.converter import ASCIIConverter
-from convert_ascii.gui.styles import (
-    FONT_SIZE, FONT_TEXTEDIT, STYLE_GROUP, STYLE_BTN_PRIMARY,
-    STYLE_BTN_DANGER, STYLE_BTN_COPY, STYLE_OUTPUT_LABEL,
-    CollapsibleOutput
-)
+from shared.style import COLORS, FONTS
 
 
 class ConvertAsciiTab(QWidget):
@@ -34,13 +30,11 @@ class ConvertAsciiTab(QWidget):
 
         # 输入区
         grp_in = QGroupBox("输入数据")
-        grp_in.setStyleSheet(STYLE_GROUP)
         gi = QVBoxLayout(grp_in)
 
         row = QHBoxLayout()
         row.addWidget(QLabel("输入类型:"))
         self.cb_input_type = QComboBox()
-        self.cb_input_type.setStyleSheet(f"font-size: {FONT_SIZE}px; min-height: 36px;")
         self.cb_input_type.addItems(["智能检测", "二进制", "八进制",
                                       "十进制", "十六进制", "字符串"])
         self.cb_input_type.setToolTip("选择'智能检测'可自动识别输入的进制类型")
@@ -50,7 +44,6 @@ class ConvertAsciiTab(QWidget):
 
         self.txt_input = QTextEdit()
         self.txt_input.setMaximumHeight(160)
-        self.txt_input.setStyleSheet(f"font-size: {FONT_TEXTEDIT}px; padding: 6px;")
         self.txt_input.setPlaceholderText(
             "输入需要转换的数据…\n"
             "支持格式：41 42 43, 0x41 0x42, 01000001, Hello, 65 66 67"
@@ -61,34 +54,28 @@ class ConvertAsciiTab(QWidget):
 
         # 选项区
         grp_opt = QGroupBox("转换选项")
-        grp_opt.setStyleSheet(STYLE_GROUP)
         go = QHBoxLayout(grp_opt)
 
         self.chk_auto = QCheckBox("实时转换")
-        self.chk_auto.setStyleSheet(f"font-size: {FONT_SIZE}px;")
         self.chk_auto.setChecked(True)
         go.addWidget(self.chk_auto)
 
         self.chk_group4 = QCheckBox("二进制4位分组")
-        self.chk_group4.setStyleSheet(f"font-size: {FONT_SIZE}px;")
         self.chk_group4.setChecked(True)
         go.addWidget(self.chk_group4)
 
         self.chk_uppercase = QCheckBox("十六进制大写")
-        self.chk_uppercase.setStyleSheet(f"font-size: {FONT_SIZE}px;")
         self.chk_uppercase.setChecked(True)
         go.addWidget(self.chk_uppercase)
 
         go.addStretch()
 
         self.btn_convert = QPushButton("🔄 转换")
-        self.btn_convert.setStyleSheet(STYLE_BTN_PRIMARY)
         self.btn_convert.setMinimumHeight(42)
         self.btn_convert.setCursor(Qt.PointingHandCursor)
         go.addWidget(self.btn_convert)
 
         self.btn_clear_all = QPushButton("🗑 清空")
-        self.btn_clear_all.setStyleSheet(STYLE_BTN_DANGER)
         self.btn_clear_all.setMinimumHeight(42)
         self.btn_clear_all.setCursor(Qt.PointingHandCursor)
         go.addWidget(self.btn_clear_all)
@@ -97,7 +84,6 @@ class ConvertAsciiTab(QWidget):
 
         # 输出区
         grp_out = QGroupBox("转换结果")
-        grp_out.setStyleSheet(STYLE_GROUP)
         gout = QVBoxLayout(grp_out)
 
         outputs = [
@@ -108,9 +94,26 @@ class ConvertAsciiTab(QWidget):
             ("bin_output", "二进制"),
         ]
         for name, label in outputs:
-            co = CollapsibleOutput(label + " :")
-            gout.addWidget(co)
-            self._output_widgets[name] = co
+            row_out = QHBoxLayout()
+            lbl = QLabel(label + " :")
+            lbl.setFixedWidth(100)
+            lbl.setFont(QFont(FONTS['heading'][0], FONTS['heading'][1], QFont.Bold))
+            row_out.addWidget(lbl)
+
+            value = QLineEdit()
+            value.setReadOnly(True)
+            value.setFont(QFont(FONTS['mono'][0], FONTS['mono'][1]))
+            value.setStyleSheet(f"background-color: {COLORS['bg_input']}; border: 1px solid {COLORS['border']}; padding: 6px;")
+            row_out.addWidget(value, 1)
+
+            copy_btn = QPushButton("复制")
+            copy_btn.setMaximumWidth(80)
+            copy_btn.setMinimumHeight(36)
+            copy_btn.setCursor(Qt.PointingHandCursor)
+            row_out.addWidget(copy_btn)
+
+            gout.addLayout(row_out)
+            self._output_widgets[name] = (value, copy_btn)
 
         layout.addWidget(grp_out, 1)
 
@@ -140,11 +143,12 @@ class ConvertAsciiTab(QWidget):
 
     def set_output(self, name, text):
         if name in self._output_widgets:
-            self._output_widgets[name].set_value(text)
+            value, _ = self._output_widgets[name]
+            value.setText(text)
 
     def clear_outputs(self):
-        for w in self._output_widgets.values():
-            w.clear_value()
+        for value, _ in self._output_widgets.values():
+            value.clear()
 
     def clear_input(self):
         self.txt_input.clear()
@@ -201,10 +205,3 @@ class ConvertAsciiTab(QWidget):
     def clear_all(self):
         self.clear_input()
         self.clear_outputs()
-
-    def clear_input(self):
-        self.txt_input.clear()
-
-    def clear_outputs(self):
-        for w in self._output_widgets.values():
-            w.clear_value()

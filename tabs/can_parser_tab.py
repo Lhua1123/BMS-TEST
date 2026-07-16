@@ -16,10 +16,7 @@ from PyQt5.QtGui import QFont
 
 from convert_ascii.core.converter import ASCIIConverter
 from convert_ascii.bms.bms_formatter import BMSFormatter
-from convert_ascii.gui.styles import (
-    FONT_SIZE, FONT_TEXTEDIT, FONT_SMALL, STYLE_GROUP,
-    STYLE_BTN_PRIMARY, STYLE_BTN_SUCCESS, STYLE_BTN_COPY
-)
+from shared.style import COLORS, FONTS
 
 
 class CanParserTab(QWidget):
@@ -42,23 +39,20 @@ class CanParserTab(QWidget):
 
         # DBC 管理区
         grp_dbc = QGroupBox("DBC 文件管理")
-        grp_dbc.setStyleSheet(STYLE_GROUP)
         gd = QVBoxLayout(grp_dbc)
 
         dbc_row = QHBoxLayout()
         self.btn_import_dbc = QPushButton("📥 导入 DBC")
-        self.btn_import_dbc.setStyleSheet(STYLE_BTN_PRIMARY)
         self.btn_import_dbc.setCursor(Qt.PointingHandCursor)
         self.btn_import_dbc.setMinimumHeight(38)
         dbc_row.addWidget(self.btn_import_dbc)
 
         self.lst_dbc_files = QListWidget()
-        self.lst_dbc_files.setStyleSheet(f"font-size: {FONT_SMALL}px; min-height: 36px;")
+        self.lst_dbc_files.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 36px;")
         self.lst_dbc_files.setMaximumHeight(80)
         dbc_row.addWidget(self.lst_dbc_files, 1)
 
         self.btn_remove_dbc = QPushButton("删除选中")
-        self.btn_remove_dbc.setStyleSheet(STYLE_BTN_COPY)
         self.btn_remove_dbc.setCursor(Qt.PointingHandCursor)
         self.btn_remove_dbc.setMaximumWidth(100)
         self.btn_remove_dbc.setEnabled(False)
@@ -69,14 +63,13 @@ class CanParserTab(QWidget):
 
         # CAN 解析（合并 ID + 数据）
         grp_parse = QGroupBox("CAN 解析 — 输入 CAN ID 和数据进行解码")
-        grp_parse.setStyleSheet(STYLE_GROUP)
         gp = QVBoxLayout(grp_parse)
 
         # 第一行：CAN ID
         row_id = QHBoxLayout()
         row_id.addWidget(QLabel("CAN ID:"))
         self.txt_can_id = QLineEdit()
-        self.txt_can_id.setStyleSheet(f"font-size: {FONT_SIZE}px; min-height: 38px;")
+        self.txt_can_id.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 38px;")
         self.txt_can_id.setPlaceholderText("如: 0x18A1FFF4  或 18A1FFF4")
         self._id_completer = QCompleter([], self)
         self._id_completer.setCaseSensitivity(Qt.CaseInsensitive)
@@ -87,12 +80,11 @@ class CanParserTab(QWidget):
 
         row_id.addWidget(QLabel("十六进制数据:"))
         self.txt_can_data = QLineEdit()
-        self.txt_can_data.setStyleSheet(f"font-size: {FONT_SIZE}px; min-height: 38px;")
+        self.txt_can_data.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 38px;")
         self.txt_can_data.setPlaceholderText("如: 00 01 02 03 04 05 06 07")
         row_id.addWidget(self.txt_can_data, 1)
 
         self.btn_parse = QPushButton("🔍 解析")
-        self.btn_parse.setStyleSheet(STYLE_BTN_PRIMARY)
         self.btn_parse.setCursor(Qt.PointingHandCursor)
         self.btn_parse.setMinimumHeight(42)
         self.btn_parse.setEnabled(False)
@@ -106,7 +98,7 @@ class CanParserTab(QWidget):
 
         self.txt_parse_result = QTextEdit()
         self.txt_parse_result.setReadOnly(True)
-        self.txt_parse_result.setStyleSheet(f"font-family: Consolas, monospace; font-size: {FONT_TEXTEDIT}px; padding: 6px;")
+        self.txt_parse_result.setStyleSheet(f"font-family: {FONTS['mono'][0]}, Consolas; font-size: {FONTS['mono'][1]}pt; padding: 6px;")
         gp.addWidget(self.txt_parse_result, 1)
 
         layout.addWidget(grp_parse, 1)
@@ -325,3 +317,4 @@ class CanParserTab(QWidget):
         if item:
             return item.data(Qt.UserRole)
         return ""
+
