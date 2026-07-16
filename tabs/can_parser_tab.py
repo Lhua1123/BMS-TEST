@@ -69,7 +69,16 @@ class CanParserTab(QWidget):
         row_id = QHBoxLayout()
         row_id.addWidget(QLabel("CAN ID:"))
         self.txt_can_id = QLineEdit()
-        self.txt_can_id.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 38px;")
+        self.txt_can_id.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['bg_panel']};
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border']};
+                padding: 8px 12px;
+                font-size: {FONTS['body'][1]}pt;
+                font-family: {FONTS['mono'][0]};
+            }}
+        """)
         self.txt_can_id.setPlaceholderText("如: 0x18A1FFF4  或 18A1FFF4")
         self._id_completer = QCompleter([], self)
         self._id_completer.setCaseSensitivity(Qt.CaseInsensitive)
@@ -80,7 +89,16 @@ class CanParserTab(QWidget):
 
         row_id.addWidget(QLabel("十六进制数据:"))
         self.txt_can_data = QLineEdit()
-        self.txt_can_data.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 38px;")
+        self.txt_can_data.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['bg_panel']};
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border']};
+                padding: 8px 12px;
+                font-size: {FONTS['body'][1]}pt;
+                font-family: {FONTS['mono'][0]};
+            }}
+        """)
         self.txt_can_data.setPlaceholderText("如: 00 01 02 03 04 05 06 07")
         row_id.addWidget(self.txt_can_data, 1)
 
@@ -98,7 +116,16 @@ class CanParserTab(QWidget):
 
         self.txt_parse_result = QTextEdit()
         self.txt_parse_result.setReadOnly(True)
-        self.txt_parse_result.setStyleSheet(f"font-family: {FONTS['mono'][0]}, Consolas; font-size: {FONTS['mono'][1]}pt; padding: 6px;")
+        self.txt_parse_result.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {COLORS['bg_panel']};
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border']};
+                padding: 8px;
+                font-family: {FONTS['mono'][0]}, Consolas;
+                font-size: {FONTS['mono'][1]}pt;
+            }}
+        """)
         gp.addWidget(self.txt_parse_result, 1)
 
         layout.addWidget(grp_parse, 1)

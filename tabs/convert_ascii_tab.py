@@ -49,6 +49,16 @@ class ConvertAsciiTab(QWidget):
             "支持格式：41 42 43, 0x41 0x42, 01000001, Hello, 65 66 67"
         )
         self.txt_input.setAcceptRichText(False)
+        self.txt_input.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {COLORS['bg_panel']};
+                color: {COLORS['text']};
+                border: 1px solid {COLORS['border']};
+                padding: 8px;
+                font-family: {FONTS['mono'][0]};
+                font-size: {FONTS['mono'][1]}pt;
+            }}
+        """)
         gi.addWidget(self.txt_input)
         layout.addWidget(grp_in)
 
