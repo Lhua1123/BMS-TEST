@@ -336,9 +336,12 @@ class BmsMonitorTab(QWidget):
             table.verticalHeader().setDefaultSectionSize(30)
             table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-            table.setItemDelegateForColumn(0, LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
+            self._column_delegates = []
+            self._column_delegates.append(LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
+            table.setItemDelegateForColumn(0, self._column_delegates[0])
             for i in range(1, len(columns)):
-                table.setItemDelegateForColumn(i, LeftAlignDelegate(Qt.AlignCenter))
+                self._column_delegates.append(LeftAlignDelegate(Qt.AlignCenter))
+                table.setItemDelegateForColumn(i, self._column_delegates[i])
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
