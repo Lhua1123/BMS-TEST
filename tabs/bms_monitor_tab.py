@@ -13,10 +13,10 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QGroupBox,
     QLabel, QLineEdit, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
-    QRadioButton, QButtonGroup, QStatusBar, QMessageBox, QFrame,
-    QTabWidget, QSizePolicy, QLayout
+    QRadioButton, QButtonGroup, QMessageBox, QFrame,
+    QTabWidget, QSizePolicy, QLayout, QStyledItemDelegate, QStyleOptionViewItem
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QModelIndex
 from PyQt5.QtGui import QFont, QColor
 
 from shared.style import COLORS, FONTS
@@ -29,6 +29,13 @@ class SignalEmitter(QObject):
     data_updated = pyqtSignal()
     connection_changed = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
+
+
+class LeftAlignDelegate(QStyledItemDelegate):
+    """强制左对齐的delegate"""
+    def initStyleOption(self, option, index):
+        super().initStyleOption(option, index)
+        option.displayAlignment = Qt.AlignLeft | Qt.AlignVCenter
 
 
 class BmsMonitorTab(QWidget):
@@ -329,6 +336,7 @@ class BmsMonitorTab(QWidget):
             table.verticalHeader().setDefaultSectionSize(30)
             table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+            table.setItemDelegateForColumn(0, LeftAlignDelegate())
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
