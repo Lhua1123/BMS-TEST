@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
     QRadioButton, QButtonGroup, QStatusBar, QMessageBox, QFrame,
-    QTabWidget, QSizePolicy
+    QTabWidget, QSizePolicy, QLayout
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QFont, QColor
@@ -240,6 +240,7 @@ class BmsMonitorTab(QWidget):
         layout.setSpacing(0)
 
         self.notebook = QTabWidget()
+        self.notebook.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.notebook.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 1px solid {COLORS['border']};
@@ -254,6 +255,7 @@ class BmsMonitorTab(QWidget):
             tab_layout.setContentsMargins(0, 0, 0, 0)
 
             table = QTableWidget()
+            table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             table.setColumnCount(len(columns))
             table.setHorizontalHeaderLabels(columns)
             table.setAlternatingRowColors(True)
@@ -265,14 +267,18 @@ class BmsMonitorTab(QWidget):
                     gridline-color: {COLORS['border']};
                     padding: 0px;
                     margin: 0px;
+                    font-size: 10pt;
                 }}
                 QTableWidget::item {{
-                    padding-left: 0px;
-                    padding-right: 4px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    padding-left: 8px;
+                    padding-right: 8px;
                     margin: 0px;
+                    font-size: 10pt;
                 }}
                 QTableWidget::item:selected {{
-                    padding-left: 0px;
+                    padding-left: 8px;
                 }}
             """)
 
@@ -286,32 +292,13 @@ class BmsMonitorTab(QWidget):
             table.setColumnWidth(5, 55)
             table.setColumnWidth(6, 100)
             table.setColumnWidth(7, 50)
-            # 固定列宽，不再自动调整
             for i in range(len(columns)):
                 header.setSectionResizeMode(i, QHeaderView.Fixed)
 
             table.setRowCount(len(signals))
-            table.verticalHeader().setDefaultSectionSize(22)
-            table.verticalHeader().setMinimumSectionSize(18)
+            table.verticalHeader().setDefaultSectionSize(30)
+            table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-            table.setStyleSheet(f"""
-                QTableWidget {{
-                    gridline-color: {COLORS['border']};
-                    padding: 0px;
-                    margin: 0px;
-                    font-size: 9pt;
-                }}
-                QTableWidget::item {{
-                    padding-left: 0px;
-                    padding-right: 4px;
-                    padding-top: 0px;
-                    padding-bottom: 0px;
-                    margin: 0px;
-                }}
-                QTableWidget::item:selected {{
-                    padding-left: 0px;
-                }}
-            """)
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
@@ -329,18 +316,21 @@ class BmsMonitorTab(QWidget):
                 ]
                 for col, text in enumerate(items):
                     item = QTableWidgetItem(text)
+                    item.setFont(QFont('Microsoft YaHei', 10))
                     if col == 0:
                         item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                     else:
                         item.setTextAlignment(Qt.AlignCenter)
                     table.setItem(idx, col, item)
-                table.setRowHeight(idx, 22)
 
             tab_layout.addWidget(table)
             self.notebook.addTab(tab, tab_name)
             self.tab_tables[tab_name] = table
 
-        layout.addWidget(self.notebook, 4)
+        # 用 QSplitter 分隔表格和寄存器视图，可拖动调整
+        right_splitter = QSplitter(Qt.Vertical)
+        right_splitter.setHandleWidth(2)
+        right_splitter.addWidget(self.notebook)
 
         reg_group = QGroupBox("寄存器视图")
         reg_layout = QVBoxLayout(reg_group)
@@ -349,7 +339,7 @@ class BmsMonitorTab(QWidget):
 
         self.reg_text = QTextEdit()
         self.reg_text.setReadOnly(True)
-        self.reg_text.setFont(QFont('Consolas', 9))
+        self.reg_text.setFont(QFont('Consolas', 11))
         self.reg_text.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {COLORS['bg_panel']};
@@ -359,7 +349,7 @@ class BmsMonitorTab(QWidget):
         """)
         self.reg_text.setLineWrapMode(QTextEdit.NoWrap)
         self.reg_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.reg_text.setMaximumHeight(80)
+        self.reg_text.setMaximumHeight(160)
         self.reg_text.setSizePolicy(
             QSizePolicy.Expanding,
             QSizePolicy.Fixed
@@ -369,7 +359,11 @@ class BmsMonitorTab(QWidget):
         # register_addrs 已在 _calc_register_range 中动态计算
         self._init_reg_display()
 
-        layout.addWidget(reg_group, 1)
+        right_splitter.addWidget(reg_group)
+        right_splitter.setStretchFactor(0, 1)
+        right_splitter.setStretchFactor(1, 0)
+
+        layout.addWidget(right_splitter)
 
         return panel
 
