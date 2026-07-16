@@ -127,7 +127,7 @@ class BmsMonitorTab(QWidget):
             row = QHBoxLayout()
             row.setSpacing(4)
             lbl = QLabel(label_text)
-            lbl.setFixedWidth(80)
+            lbl.setFixedWidth(90)
             lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             row.addWidget(lbl)
             row.addWidget(widget, 1)
