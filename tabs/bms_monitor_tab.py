@@ -330,8 +330,7 @@ class BmsMonitorTab(QWidget):
 
             header = table.horizontalHeader()
             for i in range(len(columns)):
-                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-            header.setStretchLastSection(True)
+                header.setSectionResizeMode(i, QHeaderView.Stretch)
 
             table.setRowCount(len(signals))
             table.verticalHeader().setDefaultSectionSize(30)
