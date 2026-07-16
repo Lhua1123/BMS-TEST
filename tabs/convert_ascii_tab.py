@@ -1,192 +1,210 @@
 """
-进制转换Tab
-二进制/八进制/十进制/十六进制/字符串 互转工具
+进制转换Tab - 基于 Convert_ASCII_V1.1 BasicTab
+支持二进制/八进制/十进制/十六进制/字符串互转
 """
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
+    QPushButton, QGroupBox, QComboBox, QCheckBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
-from shared.style import COLORS, FONTS
-
-
-def bin_to_str(binary):
-    binary = binary.replace(" ", "")
-    if not binary:
-        return ""
-    result = ""
-    for i in range(0, len(binary), 8):
-        part = binary[i:i + 8]
-        if part:
-            result += chr(int(part, 2))
-    return result
-
-
-def str_to_bin(s):
-    if not s:
-        return ""
-    return " ".join(format(ord(c), '08b') for c in s)
-
-
-def oct_to_str(octal):
-    octal_numbers = octal.split()
-    result = ""
-    for oct_number in octal_numbers:
-        if oct_number:
-            result += chr(int(oct_number, 8))
-    return result
-
-
-def str_to_oct(s):
-    if not s:
-        return ""
-    return " ".join(format(ord(c), '03o') for c in s)
-
-
-def dec_to_str(decimal):
-    decimal_numbers = decimal.split()
-    result = ""
-    for number in decimal_numbers:
-        if number:
-            result += chr(int(number))
-    return result
-
-
-def str_to_dec(s):
-    if not s:
-        return ""
-    return " ".join(str(ord(c)) for c in s)
-
-
-def hex_to_str(hexadecimal):
-    hexadecimal_numbers = hexadecimal.split()
-    result = ""
-    for hex_number in hexadecimal_numbers:
-        if hex_number:
-            result += chr(int(hex_number, 16))
-    return result
-
-
-def str_to_hex(s):
-    if not s:
-        return ""
-    return " ".join(format(ord(c), '02x') for c in s)
+from convert_ascii.core.converter import ASCIIConverter
+from convert_ascii.gui.styles import (
+    FONT_SIZE, FONT_TEXTEDIT, STYLE_GROUP, STYLE_BTN_PRIMARY,
+    STYLE_BTN_DANGER, STYLE_BTN_COPY, STYLE_OUTPUT_LABEL,
+    CollapsibleOutput
+)
 
 
 class ConvertAsciiTab(QWidget):
-    """进制转换Tab"""
+    """进制转换标签页"""
+    convert_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.fields = {}
-        self.init_ui()
+        self.converter = ASCIIConverter()
+        self._output_widgets = {}
+        self._init_ui()
 
-    def init_ui(self):
+    def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
 
-        tip = QLabel(
-            "进制数据需要用空格隔开！\n"
-            "例如：二进制输入 1010 1100，八进制输入 75 63，以此类推。\n"
-            "输入对应进制的数据后，点击「一键转换」按钮获取转换结果。"
+        # 输入区
+        grp_in = QGroupBox("输入数据")
+        grp_in.setStyleSheet(STYLE_GROUP)
+        gi = QVBoxLayout(grp_in)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("输入类型:"))
+        self.cb_input_type = QComboBox()
+        self.cb_input_type.setStyleSheet(f"font-size: {FONT_SIZE}px; min-height: 36px;")
+        self.cb_input_type.addItems(["智能检测", "二进制", "八进制",
+                                      "十进制", "十六进制", "字符串"])
+        self.cb_input_type.setToolTip("选择'智能检测'可自动识别输入的进制类型")
+        row.addWidget(self.cb_input_type)
+        row.addStretch()
+        gi.addLayout(row)
+
+        self.txt_input = QTextEdit()
+        self.txt_input.setMaximumHeight(160)
+        self.txt_input.setStyleSheet(f"font-size: {FONT_TEXTEDIT}px; padding: 6px;")
+        self.txt_input.setPlaceholderText(
+            "输入需要转换的数据…\n"
+            "支持格式：41 42 43, 0x41 0x42, 01000001, Hello, 65 66 67"
         )
-        tip.setFont(QFont('Microsoft YaHei', 10))
-        tip.setWordWrap(True)
-        tip.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 10px; background-color: {COLORS['bg_panel']}; border-radius: 4px;")
-        tip.setFixedHeight(120)
-        layout.addWidget(tip)
+        self.txt_input.setAcceptRichText(False)
+        gi.addWidget(self.txt_input)
+        layout.addWidget(grp_in)
 
-        for label_text in ["二进制", "八进制", "十进制", "十六进制", "字符串"]:
-            row = QHBoxLayout()
-            label = QLabel(f"{label_text}：")
-            label.setFont(QFont('Microsoft YaHei', 11))
-            label.setFixedWidth(100)
-            label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            row.addWidget(label)
+        # 选项区
+        grp_opt = QGroupBox("转换选项")
+        grp_opt.setStyleSheet(STYLE_GROUP)
+        go = QHBoxLayout(grp_opt)
 
-            line_edit = QLineEdit()
-            line_edit.setFont(QFont('Consolas', 12))
-            line_edit.setMinimumHeight(40)
-            line_edit.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            line_edit.setTextMargins(8, 0, 0, 0)
-            row.addWidget(line_edit)
-            self.fields[label_text] = line_edit
+        self.chk_auto = QCheckBox("实时转换")
+        self.chk_auto.setStyleSheet(f"font-size: {FONT_SIZE}px;")
+        self.chk_auto.setChecked(True)
+        go.addWidget(self.chk_auto)
 
-            layout.addLayout(row)
+        self.chk_group4 = QCheckBox("二进制4位分组")
+        self.chk_group4.setStyleSheet(f"font-size: {FONT_SIZE}px;")
+        self.chk_group4.setChecked(True)
+        go.addWidget(self.chk_group4)
 
-        btn_layout = QHBoxLayout()
-        convert_btn = QPushButton("一键转换")
-        convert_btn.setMinimumHeight(44)
-        convert_btn.clicked.connect(self.convert)
-        btn_layout.addWidget(convert_btn)
+        self.chk_uppercase = QCheckBox("十六进制大写")
+        self.chk_uppercase.setStyleSheet(f"font-size: {FONT_SIZE}px;")
+        self.chk_uppercase.setChecked(True)
+        go.addWidget(self.chk_uppercase)
 
-        clear_btn = QPushButton("清空内容")
-        clear_btn.setMinimumHeight(44)
-        clear_btn.setStyleSheet(f"background-color: {COLORS['bg_panel']}; color: {COLORS['text']}; border: 1px solid {COLORS['border']};")
-        clear_btn.clicked.connect(self.clear_all)
-        btn_layout.addWidget(clear_btn)
+        go.addStretch()
 
-        layout.addLayout(btn_layout)
-        layout.addStretch()
+        self.btn_convert = QPushButton("🔄 转换")
+        self.btn_convert.setStyleSheet(STYLE_BTN_PRIMARY)
+        self.btn_convert.setMinimumHeight(42)
+        self.btn_convert.setCursor(Qt.PointingHandCursor)
+        go.addWidget(self.btn_convert)
+
+        self.btn_clear_all = QPushButton("🗑 清空")
+        self.btn_clear_all.setStyleSheet(STYLE_BTN_DANGER)
+        self.btn_clear_all.setMinimumHeight(42)
+        self.btn_clear_all.setCursor(Qt.PointingHandCursor)
+        go.addWidget(self.btn_clear_all)
+
+        layout.addWidget(grp_opt)
+
+        # 输出区
+        grp_out = QGroupBox("转换结果")
+        grp_out.setStyleSheet(STYLE_GROUP)
+        gout = QVBoxLayout(grp_out)
+
+        outputs = [
+            ("ascii_output", "ASCII字符串"),
+            ("hex_output", "十六进制"),
+            ("dec_output", "十进制"),
+            ("oct_output", "八进制"),
+            ("bin_output", "二进制"),
+        ]
+        for name, label in outputs:
+            co = CollapsibleOutput(label + " :")
+            gout.addWidget(co)
+            self._output_widgets[name] = co
+
+        layout.addWidget(grp_out, 1)
+
+        # 信号连接
+        self.btn_convert.clicked.connect(self.convert)
+        self.btn_clear_all.clicked.connect(self.clear_all)
+        self.txt_input.textChanged.connect(self._on_input_changed)
+
+    def _on_input_changed(self):
+        if self.chk_auto.isChecked():
+            self.convert()
+
+    def get_input_text(self):
+        return self.txt_input.toPlainText().strip()
+
+    def get_input_type(self):
+        return self.cb_input_type.currentText()
+
+    def is_auto_convert(self):
+        return self.chk_auto.isChecked()
+
+    def is_group4(self):
+        return self.chk_group4.isChecked()
+
+    def is_uppercase(self):
+        return self.chk_uppercase.isChecked()
+
+    def set_output(self, name, text):
+        if name in self._output_widgets:
+            self._output_widgets[name].set_value(text)
+
+    def clear_outputs(self):
+        for w in self._output_widgets.values():
+            w.clear_value()
+
+    def clear_input(self):
+        self.txt_input.clear()
 
     def convert(self):
-        bin_value = self.fields["二进制"].text()
-        oct_value = self.fields["八进制"].text()
-        dec_value = self.fields["十进制"].text()
-        hex_value = self.fields["十六进制"].text()
-        str_value = self.fields["字符串"].text()
+        text = self.txt_input.toPlainText().strip()
+        if not text:
+            self.clear_outputs()
+            return
 
-        for field in self.fields.values():
-            field.clear()
+        raw_type = self.cb_input_type.currentText()
+        if raw_type == "智能检测":
+            detected = self.converter.detect_type(text)
+            if not detected:
+                return
+            input_type = detected
+        else:
+            input_type = raw_type
 
         try:
-            if bin_value:
-                result_str = bin_to_str(bin_value)
-                self.fields["字符串"].setText(self.format_string_output(result_str))
-                self.fields["八进制"].setText(str_to_oct(result_str))
-                self.fields["十进制"].setText(str_to_dec(result_str))
-                self.fields["十六进制"].setText(str_to_hex(result_str))
-                self.fields["二进制"].setText(self.format_binary_output(bin_value))
-            elif oct_value:
-                result_str = oct_to_str(oct_value)
-                self.fields["字符串"].setText(self.format_string_output(result_str))
-                self.fields["二进制"].setText(self.format_binary_output(str_to_bin(result_str)))
-                self.fields["十进制"].setText(str_to_dec(result_str))
-                self.fields["十六进制"].setText(str_to_hex(result_str))
-                self.fields["八进制"].setText(oct_value)
-            elif dec_value:
-                result_str = dec_to_str(dec_value)
-                self.fields["字符串"].setText(self.format_string_output(result_str))
-                self.fields["二进制"].setText(self.format_binary_output(str_to_bin(result_str)))
-                self.fields["八进制"].setText(str_to_oct(result_str))
-                self.fields["十六进制"].setText(str_to_hex(result_str))
-                self.fields["十进制"].setText(dec_value)
-            elif hex_value:
-                result_str = hex_to_str(hex_value)
-                self.fields["字符串"].setText(self.format_string_output(result_str))
-                self.fields["二进制"].setText(self.format_binary_output(str_to_bin(result_str)))
-                self.fields["八进制"].setText(str_to_oct(result_str))
-                self.fields["十进制"].setText(str_to_dec(result_str))
-                self.fields["十六进制"].setText(hex_value)
-            elif str_value:
-                self.fields["二进制"].setText(self.format_binary_output(str_to_bin(str_value)))
-                self.fields["八进制"].setText(str_to_oct(str_value))
-                self.fields["十进制"].setText(str_to_dec(str_value))
-                self.fields["十六进制"].setText(str_to_hex(str_value))
-                self.fields["字符串"].setText(str_value)
+            if input_type == "二进制":
+                result_str, ascii_codes = self.converter.binary_to_str(text)
+            elif input_type == "八进制":
+                result_str, ascii_codes = self.converter.octal_to_str(text)
+            elif input_type == "十进制":
+                result_str, ascii_codes = self.converter.decimal_to_str(text)
+            elif input_type == "十六进制":
+                result_str, ascii_codes = self.converter.hex_to_str(text)
+            else:
+                result_str = text
+                ascii_codes = [ord(c) for c in text]
+
+            all_fmts = self.converter.str_to_all(result_str)
+
+            bin_val = all_fmts['binary']
+            if self.chk_group4.isChecked():
+                bin_val = self.converter.format_output(bin_val, 'binary')
+
+            hex_val = all_fmts['hex']
+            if self.chk_uppercase.isChecked():
+                hex_val = hex_val.upper()
+
+            self.set_output('ascii_output', result_str)
+            self.set_output('hex_output', hex_val)
+            self.set_output('dec_output', all_fmts['decimal'])
+            self.set_output('oct_output', all_fmts['octal'])
+            self.set_output('bin_output', bin_val)
+
         except ValueError as e:
-            self.fields["字符串"].setText(f"转换错误: {str(e)}")
-
-    def format_binary_output(self, binary):
-        binary = binary.replace(" ", "")
-        return " ".join(binary[i:i+4] for i in range(0, len(binary), 4))
-
-    def format_string_output(self, s):
-        return "".join(char if not char.isspace() else f"空白字符(ASCII: {ord(char)})" for char in s)
+            self.set_output('ascii_output', f"转换错误: {str(e)}")
+        except Exception as e:
+            self.set_output('ascii_output', f"转换出错: {str(e)}")
 
     def clear_all(self):
-        for field in self.fields.values():
-            field.clear()
+        self.clear_input()
+        self.clear_outputs()
+
+    def clear_input(self):
+        self.txt_input.clear()
+
+    def clear_outputs(self):
+        for w in self._output_widgets.values():
+            w.clear_value()

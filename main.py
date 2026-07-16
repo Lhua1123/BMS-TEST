@@ -1,6 +1,6 @@
 """
 BMS测试工具整合版
-统一界面，支持进制转换、L2-BMS监控、L3-BMS监控
+统一界面，支持进制转换、CAN报文解析、L2-BMS监控、L3-BMS监控
 """
 
 import sys
@@ -14,6 +14,7 @@ from PyQt5.QtGui import QFont
 
 from shared.style import apply_style, COLORS
 from tabs.convert_ascii_tab import ConvertAsciiTab
+from tabs.can_parser_tab import CanParserTab
 from tabs.bms_monitor_tab import BmsMonitorTab
 
 
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tab_widget)
 
         self.tab_widget.addTab(ConvertAsciiTab(), "进制转换")
+        self.tab_widget.addTab(CanParserTab(), "CAN报文解析")
         self.tab_widget.addTab(BmsMonitorTab(mode='L2'), "L2-BMS监控")
         self.tab_widget.addTab(BmsMonitorTab(mode='L3'), "L3-BMS监控")
 
