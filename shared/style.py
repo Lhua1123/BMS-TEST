@@ -1,39 +1,39 @@
 """
 统一样式定义
-工业示波器风格深色主题
+浅色工业风主题，蓝色点缀
 """
 
-# 颜色常量 - 工业示波器风格
+# 颜色常量 - 浅色工业风
 COLORS = {
-    'bg_dark': '#0a0e14',        # 深蓝黑背景
-    'bg_panel': '#131820',       # 面板背景
-    'bg_input': '#1a2130',       # 输入框背景
-    'bg_hover': '#1f2937',       # 悬停背景
-    'text': '#e0e6ed',           # 主文字
-    'text_dim': '#6b7d8e',       # 次要文字
-    'accent': '#00d4aa',         # 青绿强调（示波器风格）
-    'accent_hover': '#00f5c4',   # 强调悬停
-    'accent_dim': 'rgba(0, 212, 170, 0.15)',  # 强调色半透明
-    'success': '#00d4aa',        # 成功
-    'warning': '#ffb454',        # 警告（琥珀色）
-    'error': '#ff5555',          # 错误
-    'border': '#2a3545',         # 边框
-    'row_even': '#131820',       # 表格偶数行
-    'row_odd': '#0f141c',        # 表格奇数行
-    'header_bg': '#1a2535',      # 表头背景
-    'terminal_bg': '#0d1117',    # 终端背景
-    'terminal_text': '#00d4aa',  # 终端文字（示波器绿）
+    'bg_dark': '#f0f4f8',        # 浅灰蓝背景
+    'bg_panel': '#ffffff',       # 面板背景
+    'bg_input': '#f8fafc',       # 输入框背景
+    'bg_hover': '#e2e8f0',       # 悬停背景
+    'text': '#1a202c',           # 主文字
+    'text_dim': '#64748b',       # 次要文字
+    'accent': '#2563eb',         # 蓝色强调
+    'accent_hover': '#3b82f6',   # 强调悬停
+    'accent_dim': 'rgba(37, 99, 235, 0.08)',  # 强调色半透明
+    'success': '#059669',        # 成功
+    'warning': '#d97706',        # 警告
+    'error': '#dc2626',          # 错误
+    'border': '#cbd5e1',         # 边框
+    'row_even': '#f8fafc',       # 表格偶数行
+    'row_odd': '#ffffff',        # 表格奇数行
+    'header_bg': '#f1f5f9',      # 表头背景
+    'terminal_bg': '#1e293b',    # 终端背景
+    'terminal_text': '#38bdf8',  # 终端文字（天蓝）
 }
 
 # 字体
 FONTS = {
-    'display': ('Space Mono', 12, 'Bold'),      # 显示字体（技术感）
-    'heading': ('Space Mono', 11, 'Bold'),      # 标题
-    'body': ('Inter', 10),                       # 正文字体
-    'body_bold': ('Inter', 10, 'Bold'),          # 正文加粗
-    'mono': ('JetBrains Mono', 10),              # 等宽字体（数据）
-    'mono_large': ('JetBrains Mono', 11),        # 等宽大号
-    'tab': ('Space Mono', 10, 'Bold'),           # 标签页
+    'display': ('Space Mono', 12, 'Bold'),
+    'heading': ('Space Mono', 11, 'Bold'),
+    'body': ('Inter', 10),
+    'body_bold': ('Inter', 10, 'Bold'),
+    'mono': ('JetBrains Mono', 10),
+    'mono_large': ('JetBrains Mono', 11),
+    'tab': ('Space Mono', 10, 'Bold'),
 }
 
 # QSS样式表
@@ -71,7 +71,7 @@ QTabBar::tab {{
 
 QTabBar::tab:selected {{
     background-color: {COLORS['accent']};
-    color: #0a0e14;
+    color: #ffffff;
     border: 1px solid {COLORS['accent']};
     border-bottom: none;
 }}
@@ -137,7 +137,7 @@ QComboBox QAbstractItemView {{
 
 QPushButton {{
     background-color: {COLORS['accent']};
-    color: #0a0e14;
+    color: #ffffff;
     border: none;
     border-radius: 0px;
     padding: 10px 20px;
@@ -153,11 +153,11 @@ QPushButton:hover {{
 }}
 
 QPushButton:pressed {{
-    background-color: #00b894;
+    background-color: #1d4ed8;
 }}
 
 QPushButton:disabled {{
-    background-color: {COLORS['bg_panel']};
+    background-color: {COLORS['bg_hover']};
     color: {COLORS['text_dim']};
     border: 1px solid {COLORS['border']};
 }}
@@ -168,16 +168,16 @@ QPushButton#danger {{
 }}
 
 QPushButton#danger:hover {{
-    background-color: #ff3333;
+    background-color: #b91c1c;
 }}
 
 QPushButton#success {{
     background-color: {COLORS['success']};
-    color: #0a0e14;
+    color: #ffffff;
 }}
 
 QPushButton#success:hover {{
-    background-color: {COLORS['accent_hover']};
+    background-color: #047857;
 }}
 
 QTableWidget {{

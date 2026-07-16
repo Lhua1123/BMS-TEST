@@ -327,10 +327,12 @@ class BmsMonitorTab(QWidget):
             self.notebook.addTab(tab, tab_name)
             self.tab_tables[tab_name] = table
 
-        # 用 QSplitter 分隔表格和寄存器视图，可拖动调整
-        right_splitter = QSplitter(Qt.Vertical)
-        right_splitter.setHandleWidth(2)
-        right_splitter.addWidget(self.notebook)
+        # 用 QVBoxLayout 分隔表格和寄存器视图，表格自动扩展
+        right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(4)
+
+        right_layout.addWidget(self.notebook, 1)
 
         reg_group = QGroupBox("寄存器视图")
         reg_layout = QVBoxLayout(reg_group)
@@ -359,11 +361,9 @@ class BmsMonitorTab(QWidget):
         # register_addrs 已在 _calc_register_range 中动态计算
         self._init_reg_display()
 
-        right_splitter.addWidget(reg_group)
-        right_splitter.setStretchFactor(0, 1)
-        right_splitter.setStretchFactor(1, 0)
+        right_layout.addWidget(reg_group, 0)
 
-        layout.addWidget(right_splitter)
+        layout.addLayout(right_layout)
 
         return panel
 
