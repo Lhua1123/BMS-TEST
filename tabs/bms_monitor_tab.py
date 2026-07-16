@@ -33,9 +33,13 @@ class SignalEmitter(QObject):
 
 class LeftAlignDelegate(QStyledItemDelegate):
     """强制左对齐的delegate"""
+    def __init__(self, alignment=Qt.AlignLeft | Qt.AlignVCenter, parent=None):
+        super().__init__(parent)
+        self._alignment = alignment
+
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
-        option.displayAlignment = Qt.AlignLeft | Qt.AlignVCenter
+        option.displayAlignment = self._alignment
 
 
 class BmsMonitorTab(QWidget):
@@ -325,18 +329,17 @@ class BmsMonitorTab(QWidget):
             """)
 
             header = table.horizontalHeader()
-            header.setSectionResizeMode(0, QHeaderView.Fixed)
-            table.setColumnWidth(0, 170)
-            for i in range(1, len(columns) - 1):
-                header.setSectionResizeMode(i, QHeaderView.Fixed)
-                table.setColumnWidth(i, 70)
-            header.setSectionResizeMode(len(columns) - 1, QHeaderView.Stretch)
+            for i in range(len(columns)):
+                header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+            header.setStretchLastSection(True)
 
             table.setRowCount(len(signals))
             table.verticalHeader().setDefaultSectionSize(30)
             table.verticalHeader().setMinimumSectionSize(28)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-            table.setItemDelegateForColumn(0, LeftAlignDelegate())
+            table.setItemDelegateForColumn(0, LeftAlignDelegate(Qt.AlignLeft | Qt.AlignVCenter))
+            for i in range(1, len(columns)):
+                table.setItemDelegateForColumn(i, LeftAlignDelegate(Qt.AlignCenter))
 
             for idx, signal_name in enumerate(signals):
                 info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
