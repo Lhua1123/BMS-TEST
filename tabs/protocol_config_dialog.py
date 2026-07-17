@@ -89,6 +89,17 @@ class ProtocolConfigDialog(QDialog):
         except Exception:
             self.user_overrides = {}
 
+    def _rebuild_table(self):
+        if self.parent_tab and hasattr(self.parent_tab, 'register_groups'):
+            self.default_config.clear()
+            self._build_default_config(self.parent_tab.register_groups)
+        self._load_user_overrides()
+        old_layout = self.layout()
+        if old_layout:
+            old_layout.removeWidget(self.table)
+            self.table.deleteLater()
+        self._init_table()
+
     def _get_effective_value(self, signal_name, field):
         if signal_name in self.user_overrides and field in self.user_overrides[signal_name]:
             return self.user_overrides[signal_name][field]
@@ -133,6 +144,10 @@ class ProtocolConfigDialog(QDialog):
 
         layout.addLayout(toolbar)
 
+        self._layout = layout
+        self._init_table()
+
+    def _init_table(self):
         self.table = QTableWidget()
         self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
@@ -148,6 +163,10 @@ class ProtocolConfigDialog(QDialog):
         self._editing_row = -1
         self._editing_col = -1
 
+        self._populate_table()
+        self._layout.addWidget(self.table)
+
+    def _populate_table(self):
         signals = sorted(self.default_config.keys(), key=lambda n: self.default_config[n]['addr'])
         self.table.setRowCount(len(signals))
         self._original_row_data = []
@@ -196,8 +215,6 @@ class ProtocolConfigDialog(QDialog):
 
                 self.table.setItem(row_idx, col_idx, item)
         self.table.blockSignals(False)
-
-        layout.addWidget(self.table)
 
     def keyPressEvent(self, event):
         if self.table.state() != QTableWidget.EditingState:
@@ -364,10 +381,11 @@ class ProtocolConfigDialog(QDialog):
             QMessageBox.critical(self, "保存失败", str(e))
             return
 
+        self.user_overrides = {}
+        self._rebuild_table()
+
         if self.parent_tab and hasattr(self.parent_tab, '_reload_and_refresh'):
             self.parent_tab._reload_and_refresh()
-
-        self.accept()
 
     def _import_excel(self):
         file_path, _ = QFileDialog.getOpenFileName(

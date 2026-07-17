@@ -179,21 +179,6 @@ class BmsMonitorTab(QWidget):
         self.status_tabs = result['status_tabs']
         self.protocol_source = result['source_info']
 
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'protocol_user_config.json'
-        )
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                if self.mode in config:
-                    config[self.mode]['signals'] = {}
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    json.dump(config, f, ensure_ascii=False, indent=2)
-            except Exception:
-                pass
-
         self._reload_and_refresh()
 
     def _open_protocol_config(self):
