@@ -8,10 +8,18 @@ import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox, QWidget,
-    QAbstractItemView, QLineEdit
+    QAbstractItemView, QLineEdit, QStyledItemDelegate
 )
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
+
+
+class _CellDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = QLineEdit(parent)
+        editor.setFrame(False)
+        editor.setStyleSheet("QLineEdit { padding: 4px 4px; margin: 0px; border: none; }")
+        return editor
 
 
 def _infer_datatype(bit_length, bit_start, description):
@@ -43,6 +51,7 @@ class ProtocolConfigDialog(QDialog):
         )
         self.default_config = {}
         self.user_overrides = {}
+        self._updating = False
 
         self.setWindowTitle(f"{mode} 协议配置")
         self.setWindowFlags(
@@ -88,6 +97,8 @@ class ProtocolConfigDialog(QDialog):
     def _is_modified(self, signal_name, field):
         if signal_name not in self.default_config:
             return False
+        if field == 'bit_end':
+            return False
         default_val = self.default_config[signal_name].get(field)
         user_val = self.user_overrides.get(signal_name, {}).get(field)
         if user_val is None:
@@ -123,70 +134,70 @@ class ProtocolConfigDialog(QDialog):
         layout.addLayout(toolbar)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(7)
+        self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
-            "信号名", "地址", "因子", "偏移", "单位", "位长度", "类型"
+            "信号名", "地址", "起始位", "结束位", "长度", "精度", "偏移", "单位", "类型"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
+        self.table.setItemDelegate(_CellDelegate(self.table))
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setAlternatingRowColors(True)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setEditTriggers(QAbstractItemView.DoubleClicked)
+        self.table.itemChanged.connect(self._on_item_changed)
 
-        self._editor = QLineEdit(self.table)
-        self._editor.setFrame(False)
-        self._editor.hide()
-        self._editor.editingFinished.connect(self._finish_edit)
-        self._editor.returnPressed.connect(self._finish_edit)
         self._editing_row = -1
         self._editing_col = -1
 
-        signals = sorted(self.default_config.keys())
+        signals = sorted(self.default_config.keys(), key=lambda n: self.default_config[n]['addr'])
         self.table.setRowCount(len(signals))
         self._original_row_data = []
 
+        self.table.blockSignals(True)
         for row_idx, sig_name in enumerate(signals):
             cfg = self.default_config[sig_name]
             self._original_row_data.append(sig_name)
 
+            bit_start = cfg.get('bit_start', 0)
+            bit_end = bit_start + cfg['bit_length'] - 1
+
             fields = [
-                ('signal_name', sig_name, True),
+                ('signal_name', sig_name.strip(), True),
                 ('addr', cfg['addr'], False),
+                ('bit_start', bit_start, False),
+                ('bit_end', bit_end, False),
+                ('bit_length', cfg['bit_length'], False),
                 ('factor', cfg['factor'], False),
                 ('offset', cfg['offset'], False),
                 ('unit', cfg['unit'], False),
-                ('bit_length', cfg['bit_length'], False),
                 ('datatype', cfg['datatype'], True),
             ]
 
             for col_idx, (field, default_val, read_only) in enumerate(fields):
-                if field == 'signal_name':
+                if field == 'bit_end':
+                    eff_start = self._get_effective_value(sig_name, 'bit_start')
+                    eff_length = self._get_effective_value(sig_name, 'bit_length')
+                    eff_val = int(eff_start) + int(eff_length) - 1
+                elif field == 'signal_name':
                     eff_val = sig_name
                 else:
                     eff_val = self._get_effective_value(sig_name, field)
-                item = QTableWidgetItem(str(eff_val))
+                item = QTableWidgetItem(str(eff_val).strip())
                 if read_only:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     item.setForeground(QColor('#64748b'))
                 else:
                     item.setFlags(item.flags() | Qt.ItemIsEditable)
 
-                if field in ('addr', 'factor', 'offset', 'bit_length'):
-                    item.setTextAlignment(Qt.AlignCenter)
-                else:
-                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                item.setTextAlignment(Qt.AlignCenter)
 
                 if field != 'signal_name' and field != 'datatype':
                     if self._is_modified(sig_name, field):
                         item.setBackground(QColor('#dbeafe'))
 
                 self.table.setItem(row_idx, col_idx, item)
+        self.table.blockSignals(False)
 
         layout.addWidget(self.table)
-
-        for row in range(self.table.rowCount()):
-            item = self.table.item(row, 6)
-            if item:
-                item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
     def keyPressEvent(self, event):
         if self.table.state() != QTableWidget.EditingState:
@@ -195,11 +206,55 @@ class ProtocolConfigDialog(QDialog):
                 return
             if event.text() and not event.modifiers():
                 self._start_edit_selected()
-                if self._editor.isVisible():
-                    self._editor.setText(event.text())
-                    self._editor.end(False)
                 return
         super().keyPressEvent(event)
+
+    def _on_item_changed(self, item):
+        if item is None or self._updating:
+            return
+        row = item.row()
+        col = item.column()
+        try:
+            if col == 2:
+                item_bs = self.table.item(row, 2)
+                item_bl = self.table.item(row, 4)
+                item_be = self.table.item(row, 3)
+                if item_bs and item_bl and item_be:
+                    bit_start = int(item_bs.text())
+                    bit_end = bit_start + int(item_bl.text()) - 1
+                    self.table.blockSignals(True)
+                    self._updating = True
+                    item_be.setText(str(bit_end))
+                    self._updating = False
+                    self.table.blockSignals(False)
+            elif col == 3:
+                item_be = self.table.item(row, 3)
+                item_bs = self.table.item(row, 2)
+                item_bl = self.table.item(row, 4)
+                if item_be and item_bs and item_bl:
+                    bit_end = int(item_be.text())
+                    bit_start = int(item_bs.text())
+                    bit_length = bit_end - bit_start + 1
+                    self.table.blockSignals(True)
+                    self._updating = True
+                    item_bl.setText(str(bit_length))
+                    self._updating = False
+                    self.table.blockSignals(False)
+            elif col == 4:
+                item_bl = self.table.item(row, 4)
+                item_bs = self.table.item(row, 2)
+                item_be = self.table.item(row, 3)
+                if item_bl and item_bs and item_be:
+                    bit_length = int(item_bl.text())
+                    bit_start = int(item_bs.text())
+                    bit_end = bit_start + bit_length - 1
+                    self.table.blockSignals(True)
+                    self._updating = True
+                    item_be.setText(str(bit_end))
+                    self._updating = False
+                    self.table.blockSignals(False)
+        except (ValueError, TypeError):
+            pass
 
     def _start_edit_selected(self):
         row = self.table.currentRow()
@@ -209,31 +264,7 @@ class ProtocolConfigDialog(QDialog):
         item = self.table.item(row, col)
         if item is None or (item.flags() & Qt.ItemIsEditable) == 0:
             return
-        self._start_edit(row, col)
-
-    def _start_edit(self, row, col):
-        item = self.table.item(row, col)
-        if item is None:
-            return
-        rect = self.table.visualItemRect(item)
-        self._editor.setGeometry(rect)
-        self._editor.setText(item.text())
-        self._editor.show()
-        self._editor.setFocus()
-        self._editor.selectAll()
-        self._editing_row = row
-        self._editing_col = col
-
-    def _finish_edit(self):
-        if self._editing_row < 0 or self._editing_col < 0:
-            return
-        text = self._editor.text().strip()
-        item = self.table.item(self._editing_row, self._editing_col)
-        if item and text:
-            item.setText(text)
-        self._editor.hide()
-        self._editing_row = -1
-        self._editing_col = -1
+        self.table.editItem(item)
 
     def _collect_table_data(self):
         data = {}
@@ -244,20 +275,23 @@ class ProtocolConfigDialog(QDialog):
                 continue
 
             addr = int(self.table.item(row, 1).text())
-            factor = float(self.table.item(row, 2).text())
-            offset = float(self.table.item(row, 3).text())
-            unit = self.table.item(row, 4).text().strip()
-            bit_length = int(self.table.item(row, 5).text())
-            bit_start = self.default_config.get(self._original_row_data[row], {}).get('bit_start', 0)
+            bit_start = int(self.table.item(row, 2).text())
+            bit_end = int(self.table.item(row, 3).text())
+            bit_length = bit_end - bit_start + 1
+            factor = float(self.table.item(row, 5).text())
+            offset = float(self.table.item(row, 6).text())
+            unit = self.table.item(row, 7).text().strip()
             description = self.default_config.get(self._original_row_data[row], {}).get('description', '')
             datatype = _infer_datatype(bit_length, bit_start, description)
 
             data[sig_name] = {
                 'addr': addr,
+                'bit_start': bit_start,
+                'bit_end': bit_end,
+                'bit_length': bit_length,
                 'factor': factor,
                 'offset': offset,
                 'unit': unit,
-                'bit_length': bit_length,
                 'datatype': datatype
             }
         return data
@@ -281,6 +315,8 @@ class ProtocolConfigDialog(QDialog):
             defaults_sig = self.default_config.get(sig_name, {})
             overrides = {}
             for field, val in fields.items():
+                if field == 'bit_end':
+                    continue
                 default_val = defaults_sig.get(field)
                 if str(val) != str(default_val):
                     overrides[field] = val

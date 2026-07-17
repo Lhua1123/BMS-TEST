@@ -182,7 +182,7 @@ QPushButton#success:hover {{
 
 QTableWidget {{
     background-color: {COLORS['bg_panel']};
-    alternate-background-color: {COLORS['row_odd']};
+    alternate-background-color: {COLORS['bg_panel']};
     color: {COLORS['text']};
     gridline-color: {COLORS['border']};
     border: 1px solid {COLORS['border']};
@@ -192,7 +192,6 @@ QTableWidget {{
 }}
 
 QTableWidget::item {{
-    padding: 8px 12px;
 }}
 
 QTableWidget::item:alternate {{
@@ -202,7 +201,7 @@ QTableWidget::item:alternate {{
 QHeaderView::section {{
     background-color: {COLORS['header_bg']};
     color: {COLORS['accent']};
-    padding: 10px 12px;
+    padding: 6px 10px;
     border: none;
     border-right: 1px solid {COLORS['border']};
     border-bottom: 1px solid {COLORS['border']};
