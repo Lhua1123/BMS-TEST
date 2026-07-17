@@ -22,7 +22,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BMS测试工具整合版")
-        self.setMinimumSize(1200, 800)
+        self.setMinimumSize(1200, 900)
 
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabPosition(QTabWidget.North)
@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(BmsMonitorTab(mode='L2'), "L2-BMS监控")
         self.tab_widget.addTab(BmsMonitorTab(mode='L3'), "L3-BMS监控")
 
-        self.resize(1400, 900)
+        self.resize(1400, 1200)
         self.showMaximized()
 
     def closeEvent(self, event):

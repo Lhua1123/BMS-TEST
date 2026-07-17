@@ -5,6 +5,7 @@ BMS监控Tab - PyQt5重写
 
 import sys
 import os
+import json
 import threading
 import time
 from datetime import datetime
@@ -14,11 +15,13 @@ from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
     QRadioButton, QButtonGroup, QMessageBox, QFrame,
-    QTabWidget, QSizePolicy, QLayout, QStyledItemDelegate, QStyleOptionViewItem
+    QTabWidget, QSizePolicy, QLayout, QStyledItemDelegate, QStyleOptionViewItem,
+    QStyle
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QModelIndex
 from PyQt5.QtGui import QFont, QColor
 
+from tabs.protocol_config_dialog import ProtocolConfigDialog
 from shared.style import COLORS, FONTS
 from shared.modbus_comm import ModbusComm
 from shared.modbus_parser import parse_read_response, parse_batch_response
@@ -29,6 +32,25 @@ class SignalEmitter(QObject):
     data_updated = pyqtSignal()
     connection_changed = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
+
+
+class SignalNameDelegate(QStyledItemDelegate):
+    """信号名列左对齐，其余列居中"""
+    def paint(self, painter, option, index):
+        if index.column() == 0:
+            # 手动绘制，绕过样式表覆盖
+            painter.save()
+            painter.setFont(option.font)
+            if option.state & QStyle.State_Selected:
+                painter.setPen(QColor('#ffffff'))
+            else:
+                painter.setPen(QColor(COLORS['text']))
+            # 左对齐 + 垂直居中，加上左侧 padding
+            text_rect = option.rect.adjusted(8, 0, 0, 0)
+            painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, index.data(Qt.DisplayRole) or "")
+            painter.restore()
+        else:
+            super().paint(painter, option, index)
 
 
 class BmsMonitorTab(QWidget):
@@ -75,6 +97,112 @@ class BmsMonitorTab(QWidget):
                 addr, name, dtype, bit_start, bit_len, factor, offset, unit, desc, enum, en_name = reg
                 if name not in self.signal_info:
                     self.signal_info[name] = (addr, factor, offset, unit, dtype, bit_len)
+        self._load_user_config()
+
+    def _load_user_config(self):
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'protocol_user_config.json'
+        )
+        if not os.path.exists(config_path):
+            return
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            return
+
+        mode_config = data.get(self.mode, {}).get('signals', {})
+        for name, overrides in mode_config.items():
+            if name not in self.signal_info:
+                continue
+            addr, factor, offset, unit, dtype, bit_len = self.signal_info[name]
+            factor = overrides.get('factor', factor)
+            offset = overrides.get('offset', offset)
+            unit = overrides.get('unit', unit)
+            dtype = overrides.get('datatype', dtype)
+            bit_len = overrides.get('bit_length', bit_len)
+            self.signal_info[name] = (addr, factor, offset, unit, dtype, bit_len)
+
+    def _reload_and_refresh(self):
+        self.signal_info.clear()
+        self._build_signal_info()
+        self._calc_register_range()
+        self._init_reg_display()
+        for tab_name, table in self.tab_tables.items():
+            for idx in range(table.rowCount()):
+                item0 = table.item(idx, 0)
+                if not item0:
+                    continue
+                signal_name = item0.text()
+                info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
+                addr, factor, offset, unit, dtype, bit_len = info
+                raw_val = self.register_values.get(addr)
+                if raw_val is not None:
+                    raw_hex = f"0x{raw_val:04X}" if raw_val > 255 else f"0x{raw_val:02X}"
+                    raw_dec = str(raw_val)
+                else:
+                    raw_hex = "--"
+                    raw_dec = "--"
+                physical = self.parsed_data.get(signal_name, "--")
+                item2 = table.item(idx, 2)
+                item3 = table.item(idx, 3)
+                item6 = table.item(idx, 6)
+                if item2:
+                    item2.setText(raw_hex)
+                if item3:
+                    item3.setText(raw_dec)
+                if item6:
+                    item6.setText(str(physical))
+
+    def _apply_excel_import(self, result):
+        from shared.excel_parser import parse_excel
+        from l2_protocol.protocol_config import REGISTER_GROUPS as L2_REG
+        from l3_protocol.protocol_config import REGISTER_GROUPS as L3_REG
+
+        if self.mode == 'L2':
+            import l2_protocol.protocol_config as cfg
+            cfg.REGISTER_GROUPS = result['register_groups']
+            cfg.POLL_GROUPS = result['poll_groups']
+            cfg.STATUS_TABS = result['status_tabs']
+            cfg.CONTROL_SIGNALS = result.get('control_signals', [])
+            cfg.PROTOCOL_SOURCE = result['source_info']
+        else:
+            import l3_protocol.protocol_config as cfg
+            cfg.REGISTER_GROUPS = result['register_groups']
+            cfg.POLL_GROUPS = result['poll_groups']
+            cfg.STATUS_TABS = result['status_tabs']
+            cfg.PROTOCOL_SOURCE = result['source_info']
+
+        self.register_groups = result['register_groups']
+        self.poll_groups = result['poll_groups']
+        self.status_tabs = result['status_tabs']
+        self.protocol_source = result['source_info']
+
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'protocol_user_config.json'
+        )
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                if self.mode in config:
+                    config[self.mode]['signals'] = {}
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+        self._reload_and_refresh()
+
+    def _open_protocol_config(self):
+        dlg = ProtocolConfigDialog(
+            parent=self,
+            mode=self.mode,
+            register_groups=self.register_groups
+        )
+        dlg.exec_()
 
     def _calc_register_range(self):
         all_addrs = set()
@@ -238,6 +366,11 @@ class BmsMonitorTab(QWidget):
         clear_btn.clicked.connect(self._clear_log)
         stats_layout.addWidget(clear_btn)
 
+        config_btn = QPushButton("协议配置")
+        config_btn.setMinimumHeight(28)
+        config_btn.clicked.connect(self._open_protocol_config)
+        stats_layout.addWidget(config_btn)
+
         layout.addWidget(stats_group)
         layout.addStretch()
 
@@ -317,13 +450,16 @@ class BmsMonitorTab(QWidget):
                 }}
             """)
 
+            # 信号名列左对齐，其余列居中
+            table.setItemDelegateForColumn(0, SignalNameDelegate(table))
+
             header = table.horizontalHeader()
             for i in range(len(columns)):
                 header.setSectionResizeMode(i, QHeaderView.Stretch)
 
             table.setRowCount(len(signals))
-            table.verticalHeader().setDefaultSectionSize(30)
-            table.verticalHeader().setMinimumSectionSize(28)
+            table.verticalHeader().setDefaultSectionSize(36)
+            table.verticalHeader().setMinimumSectionSize(32)
             table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
             self.tab_tables[tab_name] = table
 
@@ -350,12 +486,11 @@ class BmsMonitorTab(QWidget):
             tab_layout.addWidget(table)
             self.notebook.addTab(tab, tab_name)
 
-        # 用 QVBoxLayout 分隔表格和寄存器视图，表格自动扩展
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(4)
+        # 用垂直 QSplitter 分隔表格和寄存器视图，可拖拽调整比例
+        v_splitter = QSplitter(Qt.Vertical)
+        v_splitter.setHandleWidth(2)
 
-        right_layout.addWidget(self.notebook, 1)
+        v_splitter.addWidget(self.notebook)
 
         reg_group = QGroupBox("寄存器视图")
         reg_layout = QVBoxLayout(reg_group)
@@ -364,7 +499,7 @@ class BmsMonitorTab(QWidget):
 
         self.reg_text = QTextEdit()
         self.reg_text.setReadOnly(True)
-        self.reg_text.setFont(QFont('Consolas', 11))
+        self.reg_text.setFont(QFont('Consolas', 10))
         self.reg_text.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {COLORS['bg_panel']};
@@ -374,26 +509,23 @@ class BmsMonitorTab(QWidget):
         """)
         self.reg_text.setLineWrapMode(QTextEdit.NoWrap)
         self.reg_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.reg_text.setMaximumHeight(350)
-        self.reg_text.setSizePolicy(
-            QSizePolicy.Expanding,
-            QSizePolicy.Fixed
-        )
         reg_layout.addWidget(self.reg_text)
 
         # register_addrs 已在 _calc_register_range 中动态计算
         self._init_reg_display()
 
-        right_layout.addWidget(reg_group, 0)
+        v_splitter.addWidget(reg_group)
+        v_splitter.setStretchFactor(0, 3)
+        v_splitter.setStretchFactor(1, 2)
 
-        layout.addLayout(right_layout)
+        layout.addWidget(v_splitter)
 
         return panel
 
     def _init_reg_display(self):
         self.reg_text.clear()
         html = ""
-        cols_per_row = 12
+        cols_per_row = 9
         addr_list = self.register_addrs
         for i in range(0, len(addr_list), cols_per_row):
             row_html = ""
@@ -404,13 +536,13 @@ class BmsMonitorTab(QWidget):
                     row_html += f'<span style="color:#666666;">{reg_4xxxx:05d}: </span>'
                     row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
                     if j < cols_per_row - 1 and i + j + 1 < len(addr_list):
-                        row_html += "&nbsp;&nbsp;"
+                        row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
         self.reg_text.setHtml(html)
 
     def _update_reg_display(self):
         html = ""
-        cols_per_row = 12
+        cols_per_row = 9
         addr_list = self.register_addrs
         for i in range(0, len(addr_list), cols_per_row):
             row_html = ""
@@ -426,7 +558,7 @@ class BmsMonitorTab(QWidget):
                     else:
                         row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
                     if j < cols_per_row - 1 and i + j + 1 < len(addr_list):
-                        row_html += "&nbsp;&nbsp;"
+                        row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
         self.reg_text.setHtml(html)
 
@@ -459,6 +591,9 @@ class BmsMonitorTab(QWidget):
                     item3.setText(raw_dec)
                 if item6:
                     item6.setText(str(physical))
+
+                # 强制信号名列保持左对齐
+                item0.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         stats = self.comm.get_stats()
         self.tx_label.setText(f"TX: {stats['frames_sent']}")

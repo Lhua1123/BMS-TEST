@@ -57,6 +57,7 @@ class ConvertAsciiTab(QWidget):
                 padding: 8px;
                 font-family: {FONTS['mono'][0]};
                 font-size: 14pt;
+                font-weight: bold;
             }}
         """)
         gi.addWidget(self.txt_input)
@@ -106,14 +107,24 @@ class ConvertAsciiTab(QWidget):
         for name, label in outputs:
             row_out = QHBoxLayout()
             lbl = QLabel(label + " :")
-            lbl.setFixedWidth(100)
+            lbl.setFixedWidth(120)
             lbl.setFont(QFont(FONTS['heading'][0], 12, QFont.Bold))
             row_out.addWidget(lbl)
 
             value = QLineEdit()
             value.setReadOnly(True)
-            value.setFont(QFont(FONTS['mono'][0], 14))
-            value.setStyleSheet(f"background-color: {COLORS['bg_input']}; border: 1px solid {COLORS['border']}; padding: 6px;")
+            value.setMinimumHeight(52)
+            value.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: {COLORS['bg_input']};
+                    color: {COLORS['text']};
+                    border: 1px solid {COLORS['border']};
+                    padding: 10px;
+                    font-family: {FONTS['mono'][0]};
+                    font-size: 20pt;
+                    font-weight: bold;
+                }}
+            """)
             row_out.addWidget(value, 1)
 
             copy_btn = QPushButton("复制")

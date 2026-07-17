@@ -54,7 +54,7 @@ class CanParserTab(QWidget):
 
         self.btn_remove_dbc = QPushButton("删除选中")
         self.btn_remove_dbc.setCursor(Qt.PointingHandCursor)
-        self.btn_remove_dbc.setMaximumWidth(100)
+        self.btn_remove_dbc.setMaximumWidth(140)
         self.btn_remove_dbc.setEnabled(False)
         dbc_row.addWidget(self.btn_remove_dbc)
 
