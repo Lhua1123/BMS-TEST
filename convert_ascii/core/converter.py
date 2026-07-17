@@ -2,7 +2,7 @@
 # 核心转换模块 - V2.0 优化版
 
 import re
-from typing import Optional, List, Tuple, Dict, Union
+from typing import Optional, List, Tuple, Dict
 
 
 class ASCIIConverter:
@@ -15,7 +15,6 @@ class ASCIIConverter:
         self._special_chars_cache = {chr(k): v for k, v in self.special_chars.items()}
 
     def _normalize_input(self, text: str, base_type: str = None) -> str:
-        """标准化输入"""
         text = text.strip()
         prefixes = {'binary': r'^0[bB]', 'octal': r'^0[oO]',
                     'hexadecimal': r'^0[xX]', 'decimal': r'^0[dD]'}
@@ -28,7 +27,6 @@ class ASCIIConverter:
 
     def _validate_and_split(self, text: str, pattern: str, base_name: str,
                             max_val: int = 255) -> List[str]:
-        """通用：验证格式并按空格分割"""
         clean = self._normalize_input(text, base_name)
         if not clean:
             return []
@@ -42,38 +40,7 @@ class ASCIIConverter:
         return parts
 
     def _codes_to_str(self, codes: List[int]) -> str:
-        """ASCII码列表→字符串（含特殊字符映射）"""
         return ''.join(self._special_chars_cache.get(chr(c), chr(c)) for c in codes)
-
-    # ===== 批量转换 =====
-
-    def batch_convert(self, lines: List[str], from_type: str) -> List[dict]:
-        """批量转换—每行独立处理"""
-        results = []
-        for i, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                if from_type == "二进制":
-                    s, codes = self.binary_to_str(line)
-                elif from_type == "八进制":
-                    s, codes = self.octal_to_str(line)
-                elif from_type == "十进制":
-                    s, codes = self.decimal_to_str(line)
-                elif from_type == "十六进制":
-                    s, codes = self.hex_to_str(line)
-                elif from_type == "字符串":
-                    s = line; codes = [ord(c) for c in line]
-                else:
-                    raise ValueError(f"不支持的类型: {from_type}")
-                results.append({"line": i, "input": line, "ok": True,
-                                "text": s, "codes": codes})
-            except Exception as e:
-                results.append({"line": i, "input": line, "ok": False, "error": str(e)})
-        return results
-
-    # ===== 各进制 → 字符串 =====
 
     def binary_to_str(self, binary_text: str) -> Tuple[str, List[int]]:
         parts = self._validate_and_split(binary_text, r'^[01]+$', '二进制')
@@ -138,15 +105,12 @@ class ASCIIConverter:
             return ' '.join(value[i:i+2] for i in range(0, len(value), 2))
         return value
 
-    # ===== 智能检测输入类型 =====
-
-    def detect_type(self, text: str) -> Optional[str]:
-        """智能检测输入的进制类型（严格优先级）"""
+    @staticmethod
+    def detect_type(text: str) -> Optional[str]:
         t = text.strip()
         if not t:
             return None
 
-        # 前缀优先
         lower = t.lower()
         if lower.startswith('0x'):
             return "十六进制"
@@ -159,25 +123,19 @@ class ASCIIConverter:
         if not parts:
             return None
 
-        # 预编译正则
-        import re
         re_bin = re.compile(r'^[01]+$')
         re_hex = re.compile(r'^[0-9a-fA-F]+$')
         re_dec = re.compile(r'^[0-9]+$')
 
-        # 全 0/1 → 二进制
         if all(re_bin.match(p) for p in parts):
             return "二进制"
 
-        # 含 A-F 且仅含十六进制字符 → 十六进制
         if any(re_hex.match(p) and re.search(r'[a-fA-F]', p) for p in parts):
             return "十六进制"
 
-        # 含 8/9 且全数字 → 十进制
         if any('8' in p or '9' in p for p in parts) and all(re_dec.match(p) for p in parts):
             return "十进制"
 
-        # 全数字
         if all(re_dec.match(p) for p in parts):
             try:
                 vals = [int(p) for p in parts]
@@ -185,43 +143,17 @@ class ASCIIConverter:
                     return "十六进制"
             except ValueError:
                 pass
-            # 2 个以上纯数字（BMS 典型场景）→ 十六进制
             if len(parts) >= 2:
                 return "十六进制"
             return "十进制"
 
-        # 全十六进制字符
         if all(re_hex.match(p) for p in parts):
             return "十六进制"
 
         return "字符串"
 
-    # ===== 自动补全/格式化 =====
-
-    def auto_format(self, text: str) -> str:
-        """自动格式化输入"""
-        detected = self.detect_type(text)
-        if not detected:
-            return text
-        return self._normalize_input(text, {
-            "二进制": "binary", "八进制": "octal",
-            "十进制": "decimal", "十六进制": "hexadecimal",
-            "字符串": None
-        }.get(detected))
-
-    def hex_with_spaces(self, hex_str: str) -> str:
-        """将连续十六进制串转为空格分隔的字节形式"""
-        h = hex_str.replace(' ', '').replace('0x', '').replace('0X', '')
-        h = re.sub(r'^0[xX]', '', h)
-        if not re.match(r'^[0-9A-Fa-f]+$', h):
-            return hex_str
-        if len(h) % 2:
-            h = '0' + h
-        return ' '.join(h[i:i+2].upper() for i in range(0, len(h), 2))
-
     @staticmethod
     def clean_hex_input(hex_str: str) -> str:
-        """清洗十六进制输入：去除空格、0x 前缀，确保偶数长度"""
         h = hex_str.strip().replace(' ', '').replace('0x', '').replace('0X', '')
         h = re.sub(r'^0[xX]', '', h)
         if not re.match(r'^[0-9A-Fa-f]*$', h):

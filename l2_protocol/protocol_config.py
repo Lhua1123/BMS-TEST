@@ -12,25 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.excel_parser import parse_excel
 
-# 数据类型常量
-REG_UINT16 = "uint16"
-REG_INT16 = "int16"
-REG_UINT8 = "uint8"
-REG_BITFIELD = "bitfield"
-
-# 内置枚举定义
-RUN_STATE_ENUM = {
-    0: "无效", 1: "自检", 2: "放电", 3: "充电", 4: "充电完成",
-    5: "急停", 6: "系统保护", 7: "充电保护", 8: "放电保护",
-    9: "静置", 10: "关机", 11: "待机", 12: "预充", 13: "充电加热",
-    14: "簇上电中", 15: "簇压均衡中"
-}
-ALARM_LEVEL_ENUM = {0: "无报警", 1: "一级报警", 2: "二级报警", 3: "三级报警"}
-INSULATION_ENUM = {0: "正/负对地相等", 1: "正对地绝缘电阻小", 2: "负对地绝缘电阻小"}
-RELAY_STATE_ENUM = {0: "断开", 1: "闭合"}
-CHRG_GUN_ENUM = {0: "未插入", 1: "已插入"}
-RELAY_FAULT_ENUM = {0: "无报警", 1: "开路", 2: "粘连", 3: "预留"}
-
 PROTOCOL_SOURCE = ""
 CONTROL_SIGNALS = []
 

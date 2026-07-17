@@ -127,8 +127,3 @@ def parse_batch_response(response: bytes, start_addr: int, reg_defs: list) -> di
 
 def bytes_to_hex(data: bytes) -> str:
     return ' '.join(f'{b:02X}' for b in data)
-
-
-def hex_to_bytes(hex_str: str) -> bytes:
-    hex_str = hex_str.replace(' ', '')
-    return bytes.fromhex(hex_str)
