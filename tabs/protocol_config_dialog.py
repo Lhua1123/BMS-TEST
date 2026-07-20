@@ -52,7 +52,6 @@ class ProtocolConfigDialog(QDialog):
         self.default_config = {}
         self.user_overrides = {}
         self._updating = False
-        self._original_register_groups = register_groups if register_groups else {}
 
         self.setWindowTitle(f"{mode} 协议配置")
         self.setWindowFlags(
@@ -92,10 +91,10 @@ class ProtocolConfigDialog(QDialog):
 
     def _rebuild_table(self):
         source = None
-        if self.parent_tab and hasattr(self.parent_tab, 'register_groups'):
-            source = self.parent_tab.register_groups
+        if self.parent_tab and hasattr(self.parent_tab, '_original_register_groups'):
+            source = self.parent_tab._original_register_groups
         if not source:
-            source = self._original_register_groups
+            source = self.parent_tab.register_groups if self.parent_tab and hasattr(self.parent_tab, 'register_groups') else {}
         if source:
             self.default_config.clear()
             self._build_default_config(source)

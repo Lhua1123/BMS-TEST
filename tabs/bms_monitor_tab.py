@@ -71,6 +71,9 @@ class BmsMonitorTab(QWidget):
         self.status_tabs = STATUS_TABS
         self.protocol_source = PROTOCOL_SOURCE
         self.control_signals = CONTROL_SIGNALS
+        self._original_register_groups = {
+            k: list(v) for k, v in REGISTER_GROUPS.items()
+        } if REGISTER_GROUPS else {}
 
         self.comm = ModbusComm()
         self.parsed_data = {}
