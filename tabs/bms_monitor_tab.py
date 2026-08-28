@@ -25,6 +25,12 @@ from tabs.protocol_config_dialog import ProtocolConfigDialog
 from shared.style import COLORS, FONTS
 from shared.modbus_comm import ModbusComm
 from shared.modbus_parser import parse_read_response, parse_batch_response
+from shared.constants import (
+    MODBUS_HOLDING_REGISTER_BASE,
+    REGISTERS_PER_ROW,
+    BMS_REGISTER_START_ADDR,
+    REFRESH_INTERVAL_MS
+)
 
 
 class SignalEmitter(QObject):
@@ -38,14 +44,14 @@ class SignalNameDelegate(QStyledItemDelegate):
     """信号名列左对齐，其余列居中"""
     def paint(self, painter, option, index):
         if index.column() == 0:
-            # 手动绘制，绕过样式表覆盖
             painter.save()
-            painter.setFont(option.font)
+            # 只画背景（含选中高亮），不画文字
             if option.state & QStyle.State_Selected:
+                painter.fillRect(option.rect, QColor(COLORS['accent']))
                 painter.setPen(QColor('#ffffff'))
             else:
                 painter.setPen(QColor(COLORS['text']))
-            # 左对齐 + 垂直居中，加上左侧 padding
+            painter.setFont(option.font)
             text_rect = option.rect.adjusted(8, 0, 0, 0)
             painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, index.data(Qt.DisplayRole) or "")
             painter.restore()
@@ -60,20 +66,10 @@ class BmsMonitorTab(QWidget):
         super().__init__(parent)
         self.mode = mode
 
-        if mode == 'L2':
-            from l2_protocol.protocol_config import REGISTER_GROUPS, POLL_GROUPS, STATUS_TABS, PROTOCOL_SOURCE, CONTROL_SIGNALS
-        else:
-            from l3_protocol.protocol_config import REGISTER_GROUPS, POLL_GROUPS, STATUS_TABS, PROTOCOL_SOURCE
-            CONTROL_SIGNALS = []
-
-        self.register_groups = REGISTER_GROUPS
-        self.poll_groups = POLL_GROUPS
-        self.status_tabs = STATUS_TABS
-        self.protocol_source = PROTOCOL_SOURCE
-        self.control_signals = CONTROL_SIGNALS
+        self._load_protocol_config(mode)
         self._original_register_groups = {
-            k: list(v) for k, v in REGISTER_GROUPS.items()
-        } if REGISTER_GROUPS else {}
+            k: list(v) for k, v in self.register_groups.items()
+        } if self.register_groups else {}
 
         self.comm = ModbusComm()
         self.parsed_data = {}
@@ -92,14 +88,46 @@ class BmsMonitorTab(QWidget):
 
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self._update_display)
-        self.refresh_timer.start(500)
+        self.refresh_timer.start(REFRESH_INTERVAL_MS)
+
+    def _load_protocol_config(self, mode):
+        """按架构动态加载协议配置（支持运行时切换 L2/L3）"""
+        if mode == 'L2':
+            import l2_protocol.protocol_config as cfg
+            self.control_signals = list(getattr(cfg, 'CONTROL_SIGNALS', []))
+        else:
+            import l3_protocol.protocol_config as cfg
+            self.control_signals = []
+        self.register_groups = cfg.REGISTER_GROUPS
+        self.poll_groups = cfg.POLL_GROUPS
+        self.status_tabs = cfg.STATUS_TABS
+        self.protocol_source = cfg.PROTOCOL_SOURCE
+
+    def _on_mode_changed(self, mode):
+        """架构切换：断开连接、重载协议、重建信号表格与寄存器视图"""
+        if mode == self.mode:
+            return
+        if self.comm.is_connected:
+            self._disconnect()
+        self.mode = mode
+        self._load_protocol_config(mode)
+        self._original_register_groups = {
+            k: list(v) for k, v in self.register_groups.items()
+        } if self.register_groups else {}
+        self.signal_info.clear()
+        self.parsed_data.clear()
+        self.register_values.clear()
+        self._build_signal_info()
+        self._calc_register_range()
+        self._build_notebook_tables()
+        self._init_reg_display()
 
     def _build_signal_info(self):
         for group in self.register_groups.values():
             for reg in group:
                 addr, name, dtype, bit_start, bit_len, factor, offset, unit, desc, enum, en_name = reg
                 if name not in self.signal_info:
-                    self.signal_info[name] = (addr, factor, offset, unit, dtype, bit_len)
+                    self.signal_info[name] = (addr, bit_start, factor, offset, unit, dtype, bit_len)
         self._load_user_config()
 
     def _load_user_config(self):
@@ -112,20 +140,40 @@ class BmsMonitorTab(QWidget):
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             return
 
         mode_config = data.get(self.mode, {}).get('signals', {})
         for name, overrides in mode_config.items():
             if name not in self.signal_info:
                 continue
-            addr, factor, offset, unit, dtype, bit_len = self.signal_info[name]
+            addr, bit_start, factor, offset, unit, dtype, bit_len = self.signal_info[name]
+            # 支持地址与起始位覆盖（此前被遗漏）
+            addr = int(overrides.get('addr', addr))
+            bit_start = int(overrides.get('bit_start', bit_start))
             factor = overrides.get('factor', factor)
             offset = overrides.get('offset', offset)
             unit = overrides.get('unit', unit)
             dtype = overrides.get('datatype', dtype)
-            bit_len = overrides.get('bit_length', bit_len)
-            self.signal_info[name] = (addr, factor, offset, unit, dtype, bit_len)
+            bit_len = int(overrides.get('bit_length', bit_len))
+            self.signal_info[name] = (addr, bit_start, factor, offset, unit, dtype, bit_len)
+            self._sync_register_group(name, addr, bit_start, factor, offset, unit, dtype, bit_len)
+
+    def _sync_register_group(self, name, addr, bit_start, factor, offset, unit, dtype, bit_len):
+        """将用户覆盖写回 register_groups，使解码路径（poll_groups/parse_batch_response）同步生效"""
+        for group_name, regs in self.register_groups.items():
+            for i, reg in enumerate(regs):
+                if len(reg) >= 2 and reg[1] == name:
+                    new_reg = list(reg)
+                    new_reg[0] = addr
+                    new_reg[3] = bit_start
+                    new_reg[4] = bit_len
+                    new_reg[5] = factor
+                    new_reg[6] = offset
+                    new_reg[7] = unit
+                    new_reg[2] = dtype
+                    regs[i] = tuple(new_reg)
+                    break
 
     def _reload_and_refresh(self):
         self.signal_info.clear()
@@ -138,8 +186,8 @@ class BmsMonitorTab(QWidget):
                 if not item0:
                     continue
                 signal_name = item0.text()
-                info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
-                addr, factor, offset, unit, dtype, bit_len = info
+                info = self.signal_info.get(signal_name, (0, 0, 1, 0, "", "uint16", 16))
+                addr, bit_start, factor, offset, unit, dtype, bit_len = info
                 raw_val = self.register_values.get(addr)
                 if raw_val is not None:
                     raw_hex = f"0x{raw_val:04X}" if raw_val > 255 else f"0x{raw_val:02X}"
@@ -181,8 +229,16 @@ class BmsMonitorTab(QWidget):
         self.poll_groups = result['poll_groups']
         self.status_tabs = result['status_tabs']
         self.protocol_source = result['source_info']
+        if self.mode == 'L2':
+            self.control_signals = result.get('control_signals', [])
 
-        self._reload_and_refresh()
+        self.signal_info.clear()
+        self.parsed_data.clear()
+        self.register_values.clear()
+        self._build_signal_info()
+        self._calc_register_range()
+        self._build_notebook_tables()
+        self._init_reg_display()
 
     def _open_protocol_config(self):
         dlg = ProtocolConfigDialog(
@@ -233,6 +289,19 @@ class BmsMonitorTab(QWidget):
         conn_layout = QVBoxLayout(conn_group)
         conn_layout.setSpacing(3)
         conn_layout.setContentsMargins(8, 14, 8, 6)
+
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(4)
+        mode_lbl = QLabel("架构类型:")
+        mode_lbl.setFixedWidth(120)
+        mode_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        mode_row.addWidget(mode_lbl)
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["L2", "L3"])
+        self.mode_combo.setCurrentText(self.mode)
+        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        mode_row.addWidget(self.mode_combo, 1)
+        conn_layout.addLayout(mode_row)
 
         for label_text, widget in [
             ("COM口:", self._create_port_combo()),
@@ -365,42 +434,34 @@ class BmsMonitorTab(QWidget):
         return panel
 
     def _create_port_combo(self):
-        combo = QComboBox()
-        combo.addItems(ModbusComm.list_available_ports())
-        combo.setCurrentText("COM4")
-        return combo
+        self.port_combo = QComboBox()
+        self.port_combo.addItems(ModbusComm.list_available_ports())
+        self.port_combo.setCurrentText("COM4")
+        return self.port_combo
 
     def _create_baud_combo(self):
-        combo = QComboBox()
-        combo.addItems(["9600", "19200", "38400", "57600", "115200"])
-        return combo
+        self.baud_combo = QComboBox()
+        self.baud_combo.addItems(["9600", "19200", "38400", "57600", "115200"])
+        return self.baud_combo
 
     def _create_slave_spin(self):
-        spin = QSpinBox()
-        spin.setRange(1, 247)
-        spin.setValue(1)
-        return spin
+        self.slave_spin = QSpinBox()
+        self.slave_spin.setRange(1, 247)
+        self.slave_spin.setValue(1)
+        return self.slave_spin
 
     def _create_interval_spin(self):
-        spin = QDoubleSpinBox()
-        spin.setRange(0.1, 10.0)
-        spin.setSingleStep(0.1)
-        spin.setValue(1.0)
-        return spin
+        self.interval_spin = QDoubleSpinBox()
+        self.interval_spin.setRange(0.1, 10.0)
+        self.interval_spin.setSingleStep(0.1)
+        self.interval_spin.setValue(1.0)
+        return self.interval_spin
 
-    def _create_right_panel(self):
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self.notebook = QTabWidget()
-        self.notebook.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.notebook.setStyleSheet(f"""
-            QTabWidget::pane {{
-                border: 1px solid {COLORS['border']};
-            }}
-        """)
+    def _build_notebook_tables(self):
+        """清空并重建信号表格（架构切换/协议导入后调用）"""
+        while self.notebook.count() > 0:
+            self.notebook.removeTab(0)
+        self.tab_tables.clear()
 
         columns = ["信号名", "地址(DEC)", "原始值(HEX)", "原始值(DEC)", "因子", "偏移", "物理值", "单位"]
 
@@ -452,8 +513,8 @@ class BmsMonitorTab(QWidget):
             self.tab_tables[tab_name] = table
 
             for idx, signal_name in enumerate(signals):
-                info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
-                addr, factor, offset, unit, dtype, bit_len = info
+                info = self.signal_info.get(signal_name, (0, 0, 1, 0, "", "uint16", 16))
+                addr, bit_start, factor, offset, unit, dtype, bit_len = info
 
                 items = [
                     signal_name,
@@ -473,6 +534,22 @@ class BmsMonitorTab(QWidget):
 
             tab_layout.addWidget(table)
             self.notebook.addTab(tab, tab_name)
+
+    def _create_right_panel(self):
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.notebook = QTabWidget()
+        self.notebook.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.notebook.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+
+        self._build_notebook_tables()
 
         # 用垂直 QSplitter 分隔表格和寄存器视图，可拖拽调整比例
         v_splitter = QSplitter(Qt.Vertical)
@@ -513,31 +590,29 @@ class BmsMonitorTab(QWidget):
     def _init_reg_display(self):
         self.reg_text.clear()
         html = ""
-        cols_per_row = 9
         addr_list = self.register_addrs
-        for i in range(0, len(addr_list), cols_per_row):
+        for i in range(0, len(addr_list), REGISTERS_PER_ROW):
             row_html = ""
-            for j in range(cols_per_row):
+            for j in range(REGISTERS_PER_ROW):
                 if i + j < len(addr_list):
                     addr = addr_list[i + j]
-                    reg_4xxxx = addr + 40001
+                    reg_4xxxx = addr + MODBUS_HOLDING_REGISTER_BASE
                     row_html += f'<span style="color:#666666;">{reg_4xxxx:05d}: </span>'
                     row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
-                    if j < cols_per_row - 1 and i + j + 1 < len(addr_list):
+                    if j < REGISTERS_PER_ROW - 1 and i + j + 1 < len(addr_list):
                         row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
         self.reg_text.setHtml(html)
 
     def _update_reg_display(self):
         html = ""
-        cols_per_row = 9
         addr_list = self.register_addrs
-        for i in range(0, len(addr_list), cols_per_row):
+        for i in range(0, len(addr_list), REGISTERS_PER_ROW):
             row_html = ""
-            for j in range(cols_per_row):
+            for j in range(REGISTERS_PER_ROW):
                 if i + j < len(addr_list):
                     addr = addr_list[i + j]
-                    reg_4xxxx = addr + 40001
+                    reg_4xxxx = addr + MODBUS_HOLDING_REGISTER_BASE
                     raw_val = self.register_values.get(addr)
                     row_html += f'<span style="color:#666666;">{reg_4xxxx:05d}: </span>'
                     if raw_val is not None:
@@ -545,7 +620,7 @@ class BmsMonitorTab(QWidget):
                         row_html += f'<span style="color:#000000;">&lt;{hex_str}H&gt;</span>'
                     else:
                         row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
-                    if j < cols_per_row - 1 and i + j + 1 < len(addr_list):
+                    if j < REGISTERS_PER_ROW - 1 and i + j + 1 < len(addr_list):
                         row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
         self.reg_text.setHtml(html)
@@ -557,8 +632,8 @@ class BmsMonitorTab(QWidget):
                 if not item0:
                     continue
                 signal_name = item0.text()
-                info = self.signal_info.get(signal_name, (0, 1, 0, "", "uint16", 16))
-                addr, factor, offset, unit, dtype, bit_len = info
+                info = self.signal_info.get(signal_name, (0, 0, 1, 0, "", "uint16", 16))
+                addr, bit_start, factor, offset, unit, dtype, bit_len = info
 
                 raw_val = self.register_values.get(addr)
                 if raw_val is not None:
@@ -698,7 +773,7 @@ class BmsMonitorTab(QWidget):
             else:
                 QMessageBox.critical(self, "错误", "发送控制指令失败")
 
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             QMessageBox.critical(self, "错误", f"发送控制指令时出错: {str(e)}")
 
     def _clear_log(self):

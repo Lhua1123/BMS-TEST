@@ -11,12 +11,19 @@ import logging
 from datetime import datetime
 
 from shared.modbus_parser import build_read_request, build_write_request, crc16_modbus, bytes_to_hex
+from shared.constants import (
+    SERIAL_WRITE_DELAY,
+    MAX_LOG_ENTRIES,
+    SERIAL_READ_TIMEOUT,
+    POLL_THREAD_STOP_TIMEOUT,
+    DEFAULT_POLL_INTERVAL
+)
 
 
 class ModbusComm:
     """Modbus RTU串口通信处理器"""
 
-    def __init__(self, port='COM4', baudrate=9600, slave_id=1, poll_interval=1.0):
+    def __init__(self, port='COM4', baudrate=9600, slave_id=1, poll_interval=DEFAULT_POLL_INTERVAL):
         self.port = port
         self.baudrate = baudrate
         self.slave_id = slave_id
@@ -37,7 +44,7 @@ class ModbusComm:
         }
 
         self.traffic_log = []
-        self.max_log_size = 1000
+        self.max_log_size = MAX_LOG_ENTRIES
 
         self.logger = logging.getLogger('ModbusComm')
         self.logger.setLevel(logging.DEBUG)
@@ -55,7 +62,7 @@ class ModbusComm:
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
                 stopbits=serial.STOPBITS_ONE,
-                timeout=1.0
+                timeout=SERIAL_READ_TIMEOUT
             )
             self.is_connected_flag = True
             self.logger.info(f"已连接 {self.port} @ {self.baudrate}")
@@ -90,7 +97,7 @@ class ModbusComm:
                 self.logger.error(f"发送失败: {e}")
                 return False
 
-    def receive_response(self, timeout: float = 1.0) -> bytes:
+    def receive_response(self, timeout: float = SERIAL_READ_TIMEOUT) -> bytes:
         if not self.is_connected:
             return b''
         with self.lock:
@@ -106,22 +113,22 @@ class ModbusComm:
                 self.logger.error(f"接收失败: {e}")
                 return b''
 
-    def read_registers(self, start_addr: int, quantity: int, timeout: float = 1.0) -> bytes:
+    def read_registers(self, start_addr: int, quantity: int, timeout: float = SERIAL_READ_TIMEOUT) -> bytes:
         frame = build_read_request(self.slave_id, start_addr, quantity)
         if not self.send_request(frame):
             return None
-        time.sleep(0.05)
+        time.sleep(SERIAL_WRITE_DELAY)
         response = self.receive_response(timeout)
         if not response:
             self.stats['timeouts'] += 1
             return None
         return response
 
-    def write_register(self, addr: int, value: int, timeout: float = 1.0) -> bytes:
+    def write_register(self, addr: int, value: int, timeout: float = SERIAL_READ_TIMEOUT) -> bytes:
         frame = build_write_request(self.slave_id, addr, value)
         if not self.send_request(frame):
             return None
-        time.sleep(0.05)
+        time.sleep(SERIAL_WRITE_DELAY)
         response = self.receive_response(timeout)
         if not response:
             self.stats['timeouts'] += 1
@@ -137,7 +144,7 @@ class ModbusComm:
             group_index = 0
             while not self.stop_event.is_set():
                 if not self.is_connected:
-                    time.sleep(0.5)
+                    time.sleep(SERIAL_WRITE_DELAY * 10)  # 断开时等待0.5秒
                     continue
                 start_addr, quantity = poll_groups[group_index]
                 response = self.read_registers(start_addr, quantity)
@@ -156,7 +163,7 @@ class ModbusComm:
     def stop_polling(self):
         self.stop_event.set()
         if self.poll_thread:
-            self.poll_thread.join(timeout=2.0)
+            self.poll_thread.join(timeout=POLL_THREAD_STOP_TIMEOUT)
         self.logger.info("轮询已停止")
 
     def log_traffic(self, direction: str, data: bytes):

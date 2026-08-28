@@ -93,7 +93,7 @@ class BMSFormatter:
                 '功能说明': chinese if chinese else "未识别的CAN ID",
                 '信息标识': info or "Unknown",
             }
-        except Exception as e:
+        except (ValueError, IndexError, KeyError) as e:
             return {'错误': f"CAN ID解析失败: {str(e)}"}
 
     def parse_can_data(self, hex_data: str) -> Dict[str, Any]:
@@ -133,16 +133,16 @@ class BMSFormatter:
                 try:
                     results['float32_LE'] = round(struct.unpack('<f', bytes_data[:4])[0], 4)
                     results['float32_BE'] = round(struct.unpack('>f', bytes_data[:4])[0], 4)
-                except Exception:
+                except struct.error:
                     pass
             if data_len >= 8:
                 try:
                     results['double_LE'] = round(struct.unpack('<d', bytes_data[:8])[0], 4)
-                except Exception:
+                except struct.error:
                     pass
 
             return results
-        except Exception as e:
+        except (ValueError, struct.error) as e:
             return {'错误': f"数据解析失败: {str(e)}"}
 
     def parse_can_data_display(self, hex_data: str) -> str:

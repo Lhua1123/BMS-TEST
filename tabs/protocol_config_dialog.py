@@ -8,34 +8,13 @@ import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox, QWidget,
-    QAbstractItemView, QLineEdit, QStyledItemDelegate
+    QAbstractItemView, QLineEdit, QStyledItemDelegate, QApplication,
+    QStyle, QStyleOptionButton
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QColor
 
-
-class _CellDelegate(QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
-        editor = QLineEdit(parent)
-        editor.setFrame(False)
-        editor.setStyleSheet("QLineEdit { padding: 4px 4px; margin: 0px; border: none; }")
-        return editor
-
-
-def _infer_datatype(bit_length, bit_start, description):
-    if bit_length <= 8 and bit_start is not None and bit_start > 0:
-        return "bitfield"
-    if bit_length <= 8:
-        if description and ('0:' in description or '0：' in description):
-            return "bitfield"
-        return "uint8"
-    if bit_length == 16:
-        if description and ('负值' in description or '正值为充电' in description):
-            return "int16"
-        return "uint16"
-    if bit_length < 16:
-        return "bitfield"
-    return "uint16"
+from shared.utils import infer_datatype
 
 
 class ProtocolConfigDialog(QDialog):
@@ -76,7 +55,7 @@ class ProtocolConfigDialog(QDialog):
                     'bit_length': bit_len,
                     'bit_start': bit_start,
                     'description': desc,
-                    'datatype': _infer_datatype(bit_len, bit_start, desc)
+                    'datatype': infer_datatype(bit_len, bit_start, factor, desc)
                 }
 
     def _load_user_overrides(self):
@@ -86,7 +65,7 @@ class ProtocolConfigDialog(QDialog):
             with open(self.user_config_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             self.user_overrides = data.get(self.mode, {}).get('signals', {})
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
             self.user_overrides = {}
 
     def _rebuild_table(self):
@@ -304,7 +283,7 @@ class ProtocolConfigDialog(QDialog):
             offset = float(self.table.item(row, 6).text())
             unit = self.table.item(row, 7).text().strip()
             description = self.default_config.get(self._original_row_data[row], {}).get('description', '')
-            datatype = _infer_datatype(bit_length, bit_start, description)
+            datatype = infer_datatype(bit_length, bit_start, factor, description)
 
             data[sig_name] = {
                 'addr': addr,
@@ -326,7 +305,7 @@ class ProtocolConfigDialog(QDialog):
             try:
                 with open(self.user_config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 config = {}
 
         if self.mode not in config:
@@ -350,7 +329,7 @@ class ProtocolConfigDialog(QDialog):
         try:
             with open(self.user_config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-        except Exception as e:
+        except (OSError, TypeError) as e:
             QMessageBox.critical(self, "保存失败", str(e))
             return
 
@@ -382,7 +361,7 @@ class ProtocolConfigDialog(QDialog):
         try:
             with open(self.user_config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-        except Exception as e:
+        except (OSError, TypeError) as e:
             QMessageBox.critical(self, "保存失败", str(e))
             return
 
@@ -416,3 +395,31 @@ class ProtocolConfigDialog(QDialog):
             self.accept()
         else:
             QMessageBox.critical(self, "错误", "父窗口不支持 Excel 导入")
+
+
+class _CellDelegate(QStyledItemDelegate):
+    """单元格委托：默认居中，选择列复选框左对齐"""
+    def initStyleOption(self, option, index):
+        super().initStyleOption(option, index)
+        if index.column() != 0:
+            option.displayAlignment = Qt.AlignCenter
+
+    def paint(self, painter, option, index):
+        if index.column() == 0:
+            self._paint_checkbox_left(painter, option, index)
+        else:
+            super().paint(painter, option, index)
+
+    def _paint_checkbox_left(self, painter, option, index):
+        """选择列复选框左对齐绘制"""
+        style = option.widget.style() if option.widget else QApplication.style()
+        opt = QStyleOptionButton()
+        checked = index.data(Qt.CheckStateRole)
+        opt.state = QStyle.State_On if checked == Qt.Checked else QStyle.State_Off
+        opt.state |= QStyle.State_Enabled
+        checkbox_size = style.pixelMetric(QStyle.PM_IndicatorWidth)
+        y_offset = (option.rect.height() - checkbox_size) // 2
+        x = option.rect.left() + 4
+        y = option.rect.top() + y_offset
+        opt.rect = QRect(x, y, checkbox_size, checkbox_size)
+        style.drawControl(QStyle.CE_CheckBox, opt, painter)

@@ -7,6 +7,8 @@ import os
 import re
 import openpyxl
 
+from shared.utils import infer_datatype
+
 
 def _parse_enum_from_desc(desc):
     if not desc:
@@ -20,22 +22,6 @@ def _parse_enum_from_desc(desc):
         if label:
             enum_map[val] = label
     return enum_map if enum_map else None
-
-
-def _infer_datatype(bit_length, bit_start, factor, description):
-    if bit_length <= 8 and bit_start is not None and bit_start > 0:
-        return "bitfield"
-    if bit_length <= 8:
-        if description and ('0:' in description or '0：' in description):
-            return "bitfield"
-        return "uint8"
-    if bit_length == 16:
-        if description and ('负值' in description or '正值为充电' in description):
-            return "int16"
-        return "uint16"
-    if bit_length < 16:
-        return "bitfield"
-    return "uint16"
 
 
 def parse_excel(filepath):
@@ -164,7 +150,7 @@ def parse_excel(filepath):
         if current_addr < 20:
             continue
 
-        datatype = _infer_datatype(bit_length, bit_start, factor, description)
+        datatype = infer_datatype(bit_length, bit_start, factor, description)
 
         enum_map = SPECIAL_ENUMS.get(sig_name)
         if enum_map is None and sig_name not in SPECIAL_ENUMS:

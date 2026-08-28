@@ -3,6 +3,9 @@
 浅色工业风主题，蓝色点缀
 """
 
+import os
+import tempfile
+
 # 颜色常量 - 浅色工业风
 COLORS = {
     'bg_dark': '#f0f4f8',        # 浅灰蓝背景
@@ -32,7 +35,7 @@ FONTS = {
     'body': ('Inter', 10),
     'body_bold': ('Inter', 10, 'Bold'),
     'mono': ('JetBrains Mono', 10),
-    'mono_large': ('JetBrains Mono', 11),
+    'mono_large': ('JetBrains Mono', 13),
     'tab': ('Space Mono', 10, 'Bold'),
 }
 
@@ -107,7 +110,7 @@ QLabel {{
     padding: 2px 0px;
 }}
 
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
+QLineEdit {{
     background-color: {COLORS['bg_input']};
     color: {COLORS['text']};
     border: 1px solid {COLORS['border']};
@@ -118,22 +121,158 @@ QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     font-family: 'JetBrains Mono', 'Consolas';
 }}
 
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
+QLineEdit:focus {{
+    border: 1px solid {COLORS['accent']};
+    background-color: {COLORS['bg_panel']};
+}}
+
+/* ===== 数字调节框 WPS 风格 ===== */
+QSpinBox, QDoubleSpinBox {{
+    background-color: {COLORS['bg_input']};
+    color: {COLORS['text']};
+    border: 1px solid {COLORS['border']};
+    border-radius: 4px;
+    padding: 8px 30px 8px 12px;
+    min-height: 24px;
+    font-size: 10pt;
+    font-family: 'JetBrains Mono', 'Consolas';
+}}
+
+QSpinBox:hover, QDoubleSpinBox:hover {{
+    border-color: {COLORS['accent']};
+}}
+
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    border: 1px solid {COLORS['accent']};
+    background-color: {COLORS['bg_panel']};
+}}
+
+/* 注意：不要给 up-button/down-button 设置 height。
+   实测 Qt 在 height:50% 时会把两个按钮的点击区域都算到控件顶部，
+   导致点哪个箭头都是增加。去掉 height 让 Qt 按控件高度自动均分。 */
+QSpinBox::up-button, QDoubleSpinBox::up-button {{
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 16px;
+    border: none;
+    border-left: 1px solid {COLORS['border']};
+    border-bottom: 1px solid {COLORS['border']};
+    border-top-right-radius: 4px;
+    background-color: transparent;
+}}
+
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {{
+    background-color: {COLORS['accent_dim']};
+}}
+
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed {{
+    background-color: rgba(37, 99, 235, 0.16);
+}}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+    image: url(__SPIN_UP_ARROW__);
+    width: 9px;
+    height: 9px;
+}}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button {{
+    subcontrol-origin: padding;
+    subcontrol-position: bottom right;
+    width: 16px;
+    border: none;
+    border-left: 1px solid {COLORS['border']};
+    border-bottom-right-radius: 4px;
+    background-color: transparent;
+}}
+
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+    background-color: {COLORS['accent_dim']};
+}}
+
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
+    background-color: rgba(37, 99, 235, 0.16);
+}}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+    image: url(__SPIN_DOWN_ARROW__);
+    width: 9px;
+    height: 9px;
+}}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {{
+    background-color: {COLORS['bg_hover']};
+    color: {COLORS['text_dim']};
+    border-color: {COLORS['border']};
+}}
+
+/* ===== 下拉框 WPS 风格 ===== */
+QComboBox {{
+    background-color: {COLORS['bg_input']};
+    color: {COLORS['text']};
+    border: 1px solid {COLORS['border']};
+    border-radius: 4px;
+    padding: 8px 34px 8px 12px;
+    min-height: 24px;
+    font-size: 10pt;
+    font-family: 'JetBrains Mono', 'Consolas';
+}}
+
+QComboBox:hover {{
+    border-color: {COLORS['accent']};
+}}
+
+QComboBox:focus {{
     border: 1px solid {COLORS['accent']};
     background-color: {COLORS['bg_panel']};
 }}
 
 QComboBox::drop-down {{
     border: none;
-    padding-right: 8px;
+    border-left: 1px solid {COLORS['border']};
+    width: 24px;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}}
+
+QComboBox::drop-down:hover {{
+    background-color: {COLORS['accent_dim']};
+}}
+
+QComboBox::down-arrow {{
+    image: url(__COMBO_ARROW__);
+    width: 10px;
+    height: 10px;
+}}
+
+QComboBox:disabled {{
+    background-color: {COLORS['bg_hover']};
+    color: {COLORS['text_dim']};
+    border-color: {COLORS['border']};
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: {COLORS['bg_input']};
+    background-color: {COLORS['bg_panel']};
     color: {COLORS['text']};
     selection-background-color: {COLORS['accent']};
+    selection-color: #ffffff;
     border: 1px solid {COLORS['border']};
+    border-radius: 4px;
+    padding: 4px;
+    outline: 0;
 }}
+
+QComboBox QAbstractItemView::item {{
+    min-height: 22px;
+    padding: 4px 8px;
+    border-radius: 3px;
+}}
+
+QComboBox QAbstractItemView::item:hover:!selected {{
+    background-color: {COLORS['accent_dim']};
+}}
+
 
 QPushButton {{
     background-color: {COLORS['accent']};
@@ -194,8 +333,18 @@ QTableWidget {{
 QTableWidget::item {{
 }}
 
+QTableWidget::item:selected {{
+    background-color: {COLORS['accent']};
+    color: #ffffff;
+}}
+
 QTableWidget::item:alternate {{
     background-color: {COLORS['row_odd']};
+}}
+
+QTableWidget::item:alternate:selected {{
+    background-color: {COLORS['accent']};
+    color: #ffffff;
 }}
 
 QHeaderView::section {{
@@ -253,8 +402,8 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
 }}
 
 QTextEdit {{
-    background-color: {COLORS['terminal_bg']};
-    color: {COLORS['terminal_text']};
+    background-color: {COLORS['bg_panel']};
+    color: {COLORS['text']};
     border: 1px solid {COLORS['border']};
     font-family: 'JetBrains Mono', 'Consolas';
     font-size: 11pt;
@@ -327,6 +476,64 @@ QCheckBox::indicator:checked {{
 """
 
 
+_COMBO_ARROW_PATH = os.path.join(tempfile.gettempdir(), 'bms_combo_arrow.png')
+_SPIN_UP_ARROW_PATH = os.path.join(tempfile.gettempdir(), 'bms_spin_up_arrow.png')
+_SPIN_DOWN_ARROW_PATH = os.path.join(tempfile.gettempdir(), 'bms_spin_down_arrow.png')
+
+
+def _chevron_png(path: str, up: bool = False) -> str:
+    """运行时生成 WPS 风格 chevron 箭头 PNG，返回可被 QSS url() 引用的路径（正斜杠）。
+    注意：每次都重新生成，不缓存——因为曾出现过旧版本缓存了相反方向箭头、
+    导致修复后用户机器上仍显示旧方向的问题。16x16 PNG 生成开销极小。"""
+    try:
+        from PyQt5.QtGui import QImage, QPainter, QColor, QPen
+        from PyQt5.QtCore import Qt, QPointF
+
+        img = QImage(16, 16, QImage.Format_ARGB32)
+        img.fill(Qt.transparent)
+        painter = QPainter(img)
+        painter.setRenderHint(QPainter.Antialiasing)
+        pen = QPen(QColor(COLORS['accent']))
+        pen.setWidthF(2.0)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        if up:
+            # chevron 向上箭头：⌃
+            painter.drawLine(QPointF(3.5, 10.5), QPointF(8.0, 6.0))
+            painter.drawLine(QPointF(8.0, 6.0), QPointF(12.5, 10.5))
+        else:
+            # chevron 向下箭头：⌄
+            painter.drawLine(QPointF(3.5, 5.5), QPointF(8.0, 10.0))
+            painter.drawLine(QPointF(8.0, 10.0), QPointF(12.5, 5.5))
+        painter.end()
+        img.save(path, 'PNG')
+    except Exception:
+        return ''
+    return path.replace('\\', '/')
+
+
+def combo_arrow_url() -> str:
+    """下拉框箭头（向下）"""
+    return _chevron_png(_COMBO_ARROW_PATH, up=False)
+
+
+def spin_up_arrow_url() -> str:
+    """数字调节框上箭头：直接生成"朝上"的图（⌃），与顶部按钮一致。
+    注意：此前的"Qt 渲染时垂直翻转"结论在去掉 height 的配置下不成立，
+    文件方向即显示方向，因此这里生成的就是朝上的图。"""
+    return _chevron_png(_SPIN_UP_ARROW_PATH, up=True)
+
+
+def spin_down_arrow_url() -> str:
+    """数字调节框下箭头：直接生成"朝下"的图（⌄），与底部按钮一致。"""
+    return _chevron_png(_SPIN_DOWN_ARROW_PATH, up=False)
+
+
 def apply_style(app):
     """应用统一样式到QApplication"""
-    app.setStyleSheet(MAIN_STYLESHEET)
+    sheet = MAIN_STYLESHEET
+    sheet = sheet.replace('__COMBO_ARROW__', combo_arrow_url())
+    sheet = sheet.replace('__SPIN_UP_ARROW__', spin_up_arrow_url())
+    sheet = sheet.replace('__SPIN_DOWN_ARROW__', spin_down_arrow_url())
+    app.setStyleSheet(sheet)

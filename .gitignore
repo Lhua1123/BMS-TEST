@@ -12,3 +12,7 @@ build/
 .idea/
 .vscode/
 *.egg-info/
+logs/
+data/
+repro.py
+*.log

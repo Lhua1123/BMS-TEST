@@ -1,0 +1,2434 @@
+VERSION ""
+
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+BU_: BMS EMS OBC VCU
+
+BO_ 2560750833 EMS_ControlInfo: 8 EMS
+ SG_ EMS_LifeCnt_Write : 7|8@0+ (1,0) [0|255] ""  BMS
+ SG_ EMS_HVPwr_OnOff_Cmd : 9|2@0+ (1,0) [0|3] ""  BMS
+ SG_ EMS_Emer_StopAlarm : 12|1@0+ (1,0) [0|1] ""  BMS
+
+BO_ 2550588916 BMS_AC_ChargeRequest: 8 BMS
+ SG_ BMS_OBC_MaxAllowChrgVol : 7|16@0+ (0.1,0) [0|1000] "V"  OBC
+ SG_ BMS_OBC_MaxAllowChrgCur : 23|16@0+ (0.1,0) [0|1000] "A"  OBC
+ SG_ BMS_OBC_ChrgCtrl : 32|1@0+ (1,0) [0|15] ""  OBC
+
+BO_ 2566869221 OBC_AC_ChargeState: 8 OBC
+ SG_ OBC_Output_Vol : 7|16@0+ (0.1,0) [0|1000] "V"  BMS
+ SG_ OBC_Output_Cur : 23|16@0+ (0.1,0) [0|1000] "A"  BMS
+ SG_ OBC_HardwareFaultSta : 32|1@0+ (1,0) [0|1] ""  BMS
+ SG_ OBC_TempSta : 33|1@0+ (1,0) [0|1] ""  BMS
+ SG_ OBC_InputVoltSta : 34|1@0+ (1,0) [0|1] ""  BMS
+ SG_ OBC_StartSta : 35|1@0+ (1,0) [0|1] ""  BMS
+ SG_ OBC_CommunicationSta : 36|1@0+ (1,0) [0|1] ""  BMS
+
+BO_ 2550243568 VCU_HV_Ctrl: 8 VCU
+ SG_ VCU_BMS_Head01 : 7|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_PwrOnCmd : 23|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_DCDCCmd : 31|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_PTCCmd : 39|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_BMS_LiveCnt01 : 63|8@0+ (1,0) [0|255] ""  BMS
+
+BO_ 2550309104 BMS_HV_Resp: 8 BMS
+ SG_ BMS_VCU_Head01 : 7|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_PwrOnCmd : 23|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_DCDCState : 31|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_PTCState : 39|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_VCU_LiveCnt01 : 63|8@0+ (1,0) [0|255] ""  VCU
+
+BO_ 2550374640 VCU_Chrg_Ctrl: 8 VCU
+ SG_ VCU_BMS_Head02 : 7|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_ChrgCmd : 15|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_PreChrgCmd : 23|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_OBCCmd : 31|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_BMS_LiveCnt02 : 63|8@0+ (1,0) [0|255] ""  BMS
+
+BO_ 2550440176 BMS_Chrg_Resp: 8 BMS
+ SG_ BMS_VCU_Head02 : 7|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_ChrgCmd : 15|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_PreChrgCmd : 23|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_OBCState : 31|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_FaultCode : 47|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_WarningCode : 55|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_VCU_LiveCnt02 : 63|8@0+ (1,0) [0|255] ""  VCU
+
+BO_ 2550767856 BMS_RatedInfo: 8 BMS
+ SG_ BMS_CellNum : 7|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_TempNum : 15|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_RatedCapa : 23|16@0+ (0.01,0) [0|655.35] "Ah"  VCU
+ SG_ BMS_SW_Ver : 39|16@0+ (1,0) [0|65535] ""  VCU
+ SG_ BMS_H_Ver : 55|16@0+ (1,0) [0|65535] ""  VCU
+
+BO_ 2551226608 BMS_PowerLimitInfo: 8 BMS
+ SG_ BMS_VCU_Head03 : 7|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_DiscPowerLimit : 15|16@0+ (1,0) [0|4095] "KW"  VCU
+ SG_ BMS_ChrgPowerLimit : 31|16@0+ (1,0) [0|4095] "KW"  VCU
+ SG_ BMS_VCU_LiveCnt03 : 63|8@0+ (1,0) [0|255] ""  VCU
+
+BO_ 2551292144 VCU_PowerLimitResp: 8 VCU
+ SG_ VCU_BMS_Head03 : 7|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_DiscPowerLimit : 15|16@0+ (1,0) [0|4095] "KW"  BMS
+ SG_ VCU_BMS_LiveCnt03 : 63|8@0+ (1,0) [0|255] ""  BMS
+
+BO_ 2551357680 BMS_HVOff_Req: 8 BMS
+ SG_ BMS_VCU_Head04 : 7|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_HVOff_Request : 23|8@0+ (1,0) [0|255] ""  VCU
+ SG_ BMS_VCU_LiveCnt04 : 63|8@0+ (1,0) [0|255] ""  VCU
+
+BO_ 2551423216 VCU_HVOff_Resp: 8 VCU
+ SG_ VCU_BMS_Head04 : 7|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_HVOff_Request : 23|8@0+ (1,0) [0|255] ""  BMS
+ SG_ VCU_BMS_LiveCnt04 : 63|8@0+ (1,0) [0|255] ""  BMS
+
+BO_ 2560881057 BMS01_Msg01: 8 BMS
+ SG_ BMS_RunState : 7|8@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_DeviceID : 15|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU_Num : 19|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_SysFailSta : 21|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_InsRes_polarity : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_WarningSum : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_FaultSum : 39|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_SysSOC : 47|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_Heat_Req : 56|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Cool_Req : 57|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PwrDown_Req : 58|1@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2560946593 BMS01_Msg02: 8 BMS
+ SG_ BMS_SysSOH : 7|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_N_ErrTab : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_S_ErrTab : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_ChrgPower : 39|16@0+ (1,0) [0|65535] "Kwh"  EMS
+ SG_ BMS_DischrgPower : 55|16@0+ (1,0) [0|65535] "Kwh"  EMS
+
+BO_ 2561012129 BMS01_Msg03: 8 BMS
+ SG_ BMS__SysInsRes : 7|16@0+ (1,0) [0|65535] "KΩ"  EMS
+ SG_ BMS_Contactor_state_DC_Posi : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_DC_Nega : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Precharge : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Balance : 19|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Heat : 20|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_DCS_InletConnectSta : 21|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Heat_Req : 22|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EmergyShutdown_Fault : 23|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_TempDiff : 31|8@0+ (1,0) [0|255] "℃"  EMS
+ SG_ BMS_AmbientTemp : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_ActlExchgCurnt : 47|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_LifeCnt : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561077665 BMS01_Msg04: 8 BMS
+ SG_ BMS_NBCMU01_Curr : 7|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU02_Curr : 23|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU03_Curr : 39|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU04_Curr : 55|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+
+BO_ 2561143201 BMS01_Msg05: 8 BMS
+ SG_ BMS_CellVoltDiff : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_Volt_Input : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_Volt_Output : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561208737 BMS01_Msg06: 8 BMS
+ SG_ BMS_NBCMU01_Volt : 7|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU02_Volt : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU03_Volt : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU04_Volt : 55|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561274273 BMS01_Msg07: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561339809 BMS01_Msg08: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561405345 BMS01_Msg09: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561470881 BMS01_Msg10: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561536417 BMS01_Msg11: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561601953 BMS01_Msg12: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561667489 BMS01_Msg13: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561798561 BMS01_Msg14: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561864097 BMS01_Msg15: 8 BMS
+ SG_ BMS_NBCMU01_Warning : 1|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Warning : 3|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Warning : 5|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Warning : 7|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_CellVoltDiff_Warning : 9|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PreChrg_Warning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PowerON_Fault_Warning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_InsulationWarning : 13|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PackVoltDiff_Warning : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_ChrgHeat_Warning : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU_TimeOut : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EMS_TimeOut : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault_NBCMU : 22|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_NBCMU01_BattVolt_LowWarning : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVolt_LowWarning : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVolt_LowWarning : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVolt_LowWarning : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_BattVoltHighWarning : 33|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVoltHighWarning : 35|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVoltHighWarning : 37|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVoltHighWarning : 39|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SOC_LowWarning : 41|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_SOC_LowWarning : 43|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_SOC_LowWarning : 45|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_SOC_LowWarning : 47|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_Temp_HighWarning : 49|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Temp_HighWarning : 51|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Temp_HighWarning : 53|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Temp_HighWarning : 55|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_ChrgCurr_OverWarning : 57|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_DischrgCurr_OverWarning : 59|2@0+ (1,0) [0|3] ""  EMS
+
+BO_ 2561929633 BMS01_Msg16: 8 BMS
+ SG_ BMS_NBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ChrgFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ChrgFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ChrgFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ChrgFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ProtectFault : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ProtectFault : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ProtectFault : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ProtectFault : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_VoltDetectFault : 12|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_VoltDetectFault : 13|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_VoltDetectFault : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_VoltDetectFault : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_Contactor_Fault : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Contactor_Fault : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Contactor_Fault : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Contactor_Fault : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SupplyVolt_HighWarning : 33|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 35|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_HighWarning : 37|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 39|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_HighWarning : 41|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_LowWarning : 43|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_HighWarning : 45|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_LowWarning : 47|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2561995169 BMS01_Msg17: 8 BMS
+ SG_ BMS_SBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_TempOverFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempOverFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempOverFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempOverFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_AmbientTemp_HighWarning : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_AmbientTemp_HighWarning : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_AmbientTemp_HighWarning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_AmbientTemp_HighWarning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_SupplyVolt_HighWarning : 17|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 19|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_HighWarning : 21|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_HighWarning : 25|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_LowWarning : 27|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_HighWarning : 29|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_LowWarning : 31|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2562060705 BMS01_Msg18: 8 BMS
+ SG_ BMS_EMS_MaxAllowChrgVol : 7|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowChrgCur : 23|16@0+ (0.1,0) [0|1000] "A"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgVol : 39|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgCur : 55|16@0+ (0.1,0) [0|1000] "A"  EMS
+
+BO_ 2560881058 BMS02_Msg01: 8 BMS
+ SG_ BMS_RunState : 7|8@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_DeviceID : 15|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU_Num : 19|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_SysFailSta : 21|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_InsRes_polarity : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_WarningSum : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_FaultSum : 39|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_SysSOC : 47|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_Heat_Req : 56|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Cool_Req : 57|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PwrDown_Req : 58|1@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2560946594 BMS02_Msg02: 8 BMS
+ SG_ BMS_SysSOH : 7|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_ErrTab : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_ChrgPower : 39|16@0+ (1,0) [0|65535] "Kwh"  EMS
+ SG_ BMS_DischrgPower : 55|16@0+ (1,0) [0|65535] "Kwh"  EMS
+
+BO_ 2561012130 BMS02_Msg03: 8 BMS
+ SG_ BMS__SysInsRes : 7|16@0+ (1,0) [0|65535] "KΩ"  EMS
+ SG_ BMS_Contactor_state_DC_Posi : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_DC_Nega : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Precharge : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Balance : 19|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Heat : 20|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_DCS_InletConnectSta : 21|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Heat_Req : 22|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EmergyShutdown_Fault : 23|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_TempDiff : 31|8@0+ (1,0) [0|255] "℃"  EMS
+ SG_ BMS_AmbientTemp : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_ActlExchgCurnt : 47|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_LifeCnt : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561077666 BMS02_Msg04: 8 BMS
+ SG_ BMS_NBCMU01_Curr : 7|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU02_Curr : 23|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU03_Curr : 39|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU04_Curr : 55|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+
+BO_ 2561143202 BMS02_Msg05: 8 BMS
+ SG_ BMS_CellVoltDiff : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_Volt_Input : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_Volt_Output : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561208738 BMS02_Msg06: 8 BMS
+ SG_ BMS_NBCMU01_Volt : 7|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU02_Volt : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU03_Volt : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU04_Volt : 55|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561274274 BMS02_Msg07: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561339810 BMS02_Msg08: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561405346 BMS02_Msg09: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561470882 BMS02_Msg10: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561536418 BMS02_Msg11: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561601954 BMS02_Msg12: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561667490 BMS02_Msg13: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561798562 BMS02_Msg14: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561864098 BMS02_Msg15: 8 BMS
+ SG_ BMS_NBCMU01_Warning : 1|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Warning : 3|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Warning : 5|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Warning : 7|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_CellVoltDiff_Warning : 9|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PreChrg_Warning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PowerON_Fault_Warning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_InsulationWarning : 13|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PackVoltDiff_Warning : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_ChrgHeat_Warning : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU_TimeOut : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EMS_TimeOut : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault_NBCMU : 22|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_NBCMU01_BattVolt_LowWarning : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVolt_LowWarning : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVolt_LowWarning : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVolt_LowWarning : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_BattVoltHighWarning : 33|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVoltHighWarning : 35|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVoltHighWarning : 37|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVoltHighWarning : 39|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SOC_LowWarning : 41|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_SOC_LowWarning : 43|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_SOC_LowWarning : 45|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_SOC_LowWarning : 47|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_Temp_HighWarning : 49|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Temp_HighWarning : 51|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Temp_HighWarning : 53|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Temp_HighWarning : 55|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_ChrgCurr_OverWarning : 57|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_DischrgCurr_OverWarning : 59|2@0+ (1,0) [0|3] ""  EMS
+
+BO_ 2561929634 BMS02_Msg16: 8 BMS
+ SG_ BMS_NBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ChrgFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ChrgFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ChrgFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ChrgFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ProtectFault : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ProtectFault : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ProtectFault : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ProtectFault : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_VoltDetectFault : 12|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_VoltDetectFault : 13|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_VoltDetectFault : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_VoltDetectFault : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_Contactor_Fault : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Contactor_Fault : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Contactor_Fault : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Contactor_Fault : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SupplyVolt_HighWarning : 33|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 35|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_HighWarning : 37|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 39|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_HighWarning : 41|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_LowWarning : 43|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_HighWarning : 45|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_LowWarning : 47|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2561995170 BMS02_Msg17: 8 BMS
+ SG_ BMS_SBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_TempOverFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempOverFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempOverFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempOverFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_AmbientTemp_HighWarning : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_AmbientTemp_HighWarning : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_AmbientTemp_HighWarning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_AmbientTemp_HighWarning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_SupplyVolt_HighWarning : 17|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 19|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_HighWarning : 21|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_HighWarning : 25|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_LowWarning : 27|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_HighWarning : 29|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_LowWarning : 31|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2562060706 BMS02_Msg18: 8 BMS
+ SG_ BMS_EMS_MaxAllowChrgVol : 7|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowChrgCur : 23|16@0+ (0.1,0) [0|1000] "A"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgVol : 39|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgCur : 55|16@0+ (0.1,0) [0|1000] "A"  EMS
+
+BO_ 2560881059 BMS03_Msg01: 8 BMS
+ SG_ BMS_RunState : 7|8@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_DeviceID : 15|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU_Num : 19|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_SysFailSta : 21|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_InsRes_polarity : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_WarningSum : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_FaultSum : 39|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_SysSOC : 47|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_Heat_Req : 56|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Cool_Req : 57|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PwrDown_Req : 58|1@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2560946595 BMS03_Msg02: 8 BMS
+ SG_ BMS_SysSOH : 7|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_ErrTab : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_ChrgPower : 39|16@0+ (1,0) [0|65535] "Kwh"  EMS
+ SG_ BMS_DischrgPower : 55|16@0+ (1,0) [0|65535] "Kwh"  EMS
+
+BO_ 2561012131 BMS03_Msg03: 8 BMS
+ SG_ BMS__SysInsRes : 7|16@0+ (1,0) [0|65535] "KΩ"  EMS
+ SG_ BMS_Contactor_state_DC_Posi : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_DC_Nega : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Precharge : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Balance : 19|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Heat : 20|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_DCS_InletConnectSta : 21|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Heat_Req : 22|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EmergyShutdown_Fault : 23|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_TempDiff : 31|8@0+ (1,0) [0|255] "℃"  EMS
+ SG_ BMS_AmbientTemp : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_ActlExchgCurnt : 47|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_LifeCnt : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561077667 BMS03_Msg04: 8 BMS
+ SG_ BMS_NBCMU01_Curr : 7|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU02_Curr : 23|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU03_Curr : 39|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU04_Curr : 55|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+
+BO_ 2561143203 BMS03_Msg05: 8 BMS
+ SG_ BMS_CellVoltDiff : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_Volt_Input : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_Volt_Output : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561208739 BMS03_Msg06: 8 BMS
+ SG_ BMS_NBCMU01_Volt : 7|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU02_Volt : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU03_Volt : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU04_Volt : 55|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561274275 BMS03_Msg07: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561339811 BMS03_Msg08: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561405347 BMS03_Msg09: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561470883 BMS03_Msg10: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561536419 BMS03_Msg11: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561601955 BMS03_Msg12: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561667491 BMS03_Msg13: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561798563 BMS03_Msg14: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561864099 BMS03_Msg15: 8 BMS
+ SG_ BMS_NBCMU01_Warning : 1|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Warning : 3|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Warning : 5|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Warning : 7|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_CellVoltDiff_Warning : 9|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PreChrg_Warning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PowerON_Fault_Warning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_InsulationWarning : 13|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PackVoltDiff_Warning : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_ChrgHeat_Warning : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU_TimeOut : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EMS_TimeOut : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault_NBCMU : 22|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_NBCMU01_BattVolt_LowWarning : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVolt_LowWarning : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVolt_LowWarning : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVolt_LowWarning : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_BattVoltHighWarning : 33|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVoltHighWarning : 35|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVoltHighWarning : 37|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVoltHighWarning : 39|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SOC_LowWarning : 41|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_SOC_LowWarning : 43|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_SOC_LowWarning : 45|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_SOC_LowWarning : 47|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_Temp_HighWarning : 49|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Temp_HighWarning : 51|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Temp_HighWarning : 53|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Temp_HighWarning : 55|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_ChrgCurr_OverWarning : 57|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_DischrgCurr_OverWarning : 59|2@0+ (1,0) [0|3] ""  EMS
+
+BO_ 2561929635 BMS03_Msg16: 8 BMS
+ SG_ BMS_NBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ChrgFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ChrgFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ChrgFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ChrgFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ProtectFault : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ProtectFault : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ProtectFault : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ProtectFault : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_VoltDetectFault : 12|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_VoltDetectFault : 13|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_VoltDetectFault : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_VoltDetectFault : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_Contactor_Fault : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Contactor_Fault : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Contactor_Fault : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Contactor_Fault : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SupplyVolt_HighWarning : 33|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 35|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_HighWarning : 37|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 39|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_HighWarning : 41|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_LowWarning : 43|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_HighWarning : 45|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_LowWarning : 47|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2561995171 BMS03_Msg17: 8 BMS
+ SG_ BMS_SBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_TempOverFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempOverFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempOverFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempOverFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_AmbientTemp_HighWarning : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_AmbientTemp_HighWarning : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_AmbientTemp_HighWarning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_AmbientTemp_HighWarning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_SupplyVolt_HighWarning : 17|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 19|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_HighWarning : 21|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_HighWarning : 25|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_LowWarning : 27|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_HighWarning : 29|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_LowWarning : 31|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2562060707 BMS03_Msg18: 8 BMS
+ SG_ BMS_EMS_MaxAllowChrgVol : 7|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowChrgCur : 23|16@0+ (0.1,0) [0|1000] "A"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgVol : 39|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgCur : 55|16@0+ (0.1,0) [0|1000] "A"  EMS
+
+BO_ 2560881060 BMS04_Msg01: 8 BMS
+ SG_ BMS_RunState : 7|8@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_DeviceID : 15|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU_Num : 19|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_SysFailSta : 21|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_InsRes_polarity : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_WarningSum : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_FaultSum : 39|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_SysSOC : 47|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_Heat_Req : 56|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Cool_Req : 57|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PwrDown_Req : 58|1@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2560946596 BMS04_Msg02: 8 BMS
+ SG_ BMS_SysSOH : 7|16@0+ (0.1,0) [0|100] "%"  EMS
+ SG_ BMS_ErrTab : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_ChrgPower : 39|16@0+ (1,0) [0|65535] "Kwh"  EMS
+ SG_ BMS_DischrgPower : 55|16@0+ (1,0) [0|65535] "Kwh"  EMS
+
+BO_ 2561012132 BMS04_Msg03: 8 BMS
+ SG_ BMS__SysInsRes : 7|16@0+ (1,0) [0|65535] "KΩ"  EMS
+ SG_ BMS_Contactor_state_DC_Posi : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_DC_Nega : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Precharge : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Balance : 19|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Contactor_state_Heat : 20|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_DCS_InletConnectSta : 21|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_Heat_Req : 22|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EmergyShutdown_Fault : 23|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_TempDiff : 31|8@0+ (1,0) [0|255] "℃"  EMS
+ SG_ BMS_AmbientTemp : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_ActlExchgCurnt : 47|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_LifeCnt : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561077668 BMS04_Msg04: 8 BMS
+ SG_ BMS_NBCMU01_Curr : 7|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU02_Curr : 23|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU03_Curr : 39|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+ SG_ BMS_NBCMU04_Curr : 55|16@0+ (0.1,-3000) [-3000|3000] "A"  EMS
+
+BO_ 2561143204 BMS04_Msg05: 8 BMS
+ SG_ BMS_CellVoltDiff : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_Volt_Input : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_Volt_Output : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561208740 BMS04_Msg06: 8 BMS
+ SG_ BMS_NBCMU01_Volt : 7|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU02_Volt : 23|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU03_Volt : 39|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+ SG_ BMS_NBCMU04_Volt : 55|16@0+ (0.1,0) [0|6553.5] "V"  EMS
+
+BO_ 2561274276 BMS04_Msg07: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561339812 BMS04_Msg08: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMax : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMax : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMax_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMax_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561405348 BMS04_Msg09: 8 BMS
+ SG_ BMS_NBCMU01_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU01_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU02_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561470884 BMS04_Msg10: 8 BMS
+ SG_ BMS_NBCMU03_SysCellVoltMin : 7|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU03_SysVMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysVMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysCellVoltMin : 39|16@0+ (1,0) [0|65535] "mv"  EMS
+ SG_ BMS_NBCMU04_SysVMin_NBICUadd : 55|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysVMin_Code : 63|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561536420 BMS04_Msg11: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561601956 BMS04_Msg12: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMax : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMax_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMax_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMax : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMax_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMax_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561667492 BMS04_Msg13: 8 BMS
+ SG_ BMS_NBCMU01_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU01_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU01_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU02_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU02_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561798564 BMS04_Msg14: 8 BMS
+ SG_ BMS_NBCMU03_SysTempMin : 15|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU03_SysTMin_NBICUadd : 23|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU03_SysTMin_Code : 31|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTempMin : 39|8@0+ (1,-40) [-40|215] "℃"  EMS
+ SG_ BMS_NBCMU04_SysTMin_NBICUadd : 47|8@0+ (1,0) [0|255] ""  EMS
+ SG_ BMS_NBCMU04_SysTMin_Code : 55|8@0+ (1,0) [0|255] ""  EMS
+
+BO_ 2561864100 BMS04_Msg15: 8 BMS
+ SG_ BMS_NBCMU01_Warning : 1|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Warning : 3|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Warning : 5|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Warning : 7|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_CellVoltDiff_Warning : 9|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PreChrg_Warning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_PowerON_Fault_Warning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_InsulationWarning : 13|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_PackVoltDiff_Warning : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_ChrgHeat_Warning : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU_TimeOut : 16|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_EMS_TimeOut : 17|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault : 18|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_HVIL_Fault_NBCMU : 22|4@0+ (1,0) [0|15] ""  EMS
+ SG_ BMS_NBCMU01_BattVolt_LowWarning : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVolt_LowWarning : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVolt_LowWarning : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVolt_LowWarning : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_BattVoltHighWarning : 33|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_BattVoltHighWarning : 35|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_BattVoltHighWarning : 37|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_BattVoltHighWarning : 39|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SOC_LowWarning : 41|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_SOC_LowWarning : 43|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_SOC_LowWarning : 45|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_SOC_LowWarning : 47|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_Temp_HighWarning : 49|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Temp_HighWarning : 51|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Temp_HighWarning : 53|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Temp_HighWarning : 55|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_ChrgCurr_OverWarning : 57|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_DischrgCurr_OverWarning : 59|2@0+ (1,0) [0|3] ""  EMS
+
+BO_ 2561929636 BMS04_Msg16: 8 BMS
+ SG_ BMS_NBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ChrgFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ChrgFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ChrgFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ChrgFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_ProtectFault : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_ProtectFault : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_ProtectFault : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_ProtectFault : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_VoltDetectFault : 12|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_VoltDetectFault : 13|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_VoltDetectFault : 14|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_VoltDetectFault : 15|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU01_Contactor_Fault : 25|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU02_Contactor_Fault : 27|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU03_Contactor_Fault : 29|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU04_Contactor_Fault : 31|2@0+ (1,0) [0|3] ""  EMS
+ SG_ BMS_NBCMU01_SupplyVolt_HighWarning : 33|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 35|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_HighWarning : 37|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU02_SupplyVolt_LowWarning : 39|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_HighWarning : 41|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU03_SupplyVolt_LowWarning : 43|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_HighWarning : 45|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_NBCMU04_SupplyVolt_LowWarning : 47|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2561995172 BMS04_Msg17: 8 BMS
+ SG_ BMS_SBCMU01_TempDetectFault : 0|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempDetectFault : 1|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempDetectFault : 2|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempDetectFault : 3|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_TempOverFault : 4|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_TempOverFault : 5|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_TempOverFault : 6|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_TempOverFault : 7|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_AmbientTemp_HighWarning : 8|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_AmbientTemp_HighWarning : 9|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_AmbientTemp_HighWarning : 10|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_AmbientTemp_HighWarning : 11|1@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU01_SupplyVolt_HighWarning : 17|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 19|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_HighWarning : 21|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU02_SupplyVolt_LowWarning : 23|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_HighWarning : 25|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU03_SupplyVolt_LowWarning : 27|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_HighWarning : 29|2@0+ (1,0) [0|1] ""  EMS
+ SG_ BMS_SBCMU04_SupplyVolt_LowWarning : 31|2@0+ (1,0) [0|1] ""  EMS
+
+BO_ 2562060708 BMS04_Msg18: 8 BMS
+ SG_ BMS_EMS_MaxAllowChrgVol : 7|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowChrgCur : 23|16@0+ (0.1,0) [0|1000] "A"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgVol : 39|16@0+ (0.1,0) [0|1000] "V"  EMS
+ SG_ BMS_EMS_MaxAllowDischrgCur : 55|16@0+ (0.1,0) [0|1000] "A"  EMS
+
+
+
+CM_ BO_ 2560750833 "EMS Tx and EMS_ControlInfo Related";
+CM_ BO_ 2550588916 "BMS Tx and AC Charging System related";
+CM_ BO_ 2566869221 "OBC Tx and AC Charging System related";
+CM_ BO_ 2550243568 "VCU Tx and HV Control Related";
+CM_ BO_ 2550309104 "BMS Tx and HV Response Related";
+CM_ BO_ 2550374640 "VCU Tx and Charge Control Related";
+CM_ BO_ 2550440176 "BMS Tx and BMS Charge Response Related";
+CM_ BO_ 2550767856 "BMS Tx and RatedInfo Related";
+CM_ BO_ 2551226608 "BMS Tx and PowerLimitInfo Related";
+CM_ BO_ 2551292144 "VCU Tx and PowerLimit Response Related";
+CM_ BO_ 2551357680 "BMS Tx and HVOff_Requst Related";
+CM_ BO_ 2551423216 "VCU Tx and HVOff_Resp Related";
+CM_ BO_ 2560881057 "BMS Tx and BMS_Msg01 Related";
+CM_ BO_ 2560946593 "BMS Tx and BMS_Msg02 Related";
+CM_ BO_ 2561012129 "BMS Tx and BMS_Msg03 Related";
+CM_ BO_ 2561077665 "BMS Tx and BMS_Msg04 Related";
+CM_ BO_ 2561143201 "BMS Tx and BMS_Msg05 Related";
+CM_ BO_ 2561208737 "BMS Tx and BMS_Msg06 Related";
+CM_ BO_ 2561274273 "BMS Tx and BMS_Msg07 Related";
+CM_ BO_ 2561339809 "BMS Tx and BMS_Msg08 Related";
+CM_ BO_ 2561405345 "BMS Tx and BMS_Msg09 Related";
+CM_ BO_ 2561470881 "BMS Tx and BMS_Msg10 Related";
+CM_ BO_ 2561536417 "BMS Tx and BMS_Msg11 Related";
+CM_ BO_ 2561601953 "BMS Tx and BMS_Msg12 Related";
+CM_ BO_ 2561667489 "BMS Tx and BMS_Msg13 Related";
+CM_ BO_ 2561798561 "BMS Tx and BMS_Msg14 Related";
+CM_ BO_ 2561864097 "BMS Tx and BMS_Msg15 Related";
+CM_ BO_ 2561929633 "BMS Tx and BMS_Msg16 Related";
+CM_ BO_ 2561995169 "BMS Tx and BMS_Msg17 Related";
+CM_ BO_ 2562060705 "BMS Tx and BMS_Msg18 Related";
+CM_ BO_ 2560881058 "BMS Tx and BMS_Msg01 Related";
+CM_ BO_ 2560946594 "BMS Tx and BMS_Msg02 Related";
+CM_ BO_ 2561012130 "BMS Tx and BMS_Msg03 Related";
+CM_ BO_ 2561077666 "BMS Tx and BMS_Msg04 Related";
+CM_ BO_ 2561143202 "BMS Tx and BMS_Msg05 Related";
+CM_ BO_ 2561208738 "BMS Tx and BMS_Msg06 Related";
+CM_ BO_ 2561274274 "BMS Tx and BMS_Msg07 Related";
+CM_ BO_ 2561339810 "BMS Tx and BMS_Msg08 Related";
+CM_ BO_ 2561405346 "BMS Tx and BMS_Msg09 Related";
+CM_ BO_ 2561470882 "BMS Tx and BMS_Msg10 Related";
+CM_ BO_ 2561536418 "BMS Tx and BMS_Msg11 Related";
+CM_ BO_ 2561601954 "BMS Tx and BMS_Msg12 Related";
+CM_ BO_ 2561667490 "BMS Tx and BMS_Msg13 Related";
+CM_ BO_ 2561798562 "BMS Tx and BMS_Msg14 Related";
+CM_ BO_ 2561864098 "BMS Tx and BMS_Msg15 Related";
+CM_ BO_ 2561929634 "BMS Tx and BMS_Msg16 Related";
+CM_ BO_ 2561995170 "BMS Tx and BMS_Msg17 Related";
+CM_ BO_ 2562060706 "BMS Tx and BMS_Msg18 Related";
+CM_ BO_ 2560881059 "BMS Tx and BMS_Msg01 Related";
+CM_ BO_ 2560946595 "BMS Tx and BMS_Msg02 Related";
+CM_ BO_ 2561012131 "BMS Tx and BMS_Msg03 Related";
+CM_ BO_ 2561077667 "BMS Tx and BMS_Msg04 Related";
+CM_ BO_ 2561143203 "BMS Tx and BMS_Msg05 Related";
+CM_ BO_ 2561208739 "BMS Tx and BMS_Msg06 Related";
+CM_ BO_ 2561274275 "BMS Tx and BMS_Msg07 Related";
+CM_ BO_ 2561339811 "BMS Tx and BMS_Msg08 Related";
+CM_ BO_ 2561405347 "BMS Tx and BMS_Msg09 Related";
+CM_ BO_ 2561470883 "BMS Tx and BMS_Msg10 Related";
+CM_ BO_ 2561536419 "BMS Tx and BMS_Msg11 Related";
+CM_ BO_ 2561601955 "BMS Tx and BMS_Msg12 Related";
+CM_ BO_ 2561667491 "BMS Tx and BMS_Msg13 Related";
+CM_ BO_ 2561798563 "BMS Tx and BMS_Msg14 Related";
+CM_ BO_ 2561864099 "BMS Tx and BMS_Msg15 Related";
+CM_ BO_ 2561929635 "BMS Tx and BMS_Msg16 Related";
+CM_ BO_ 2561995171 "BMS Tx and BMS_Msg17 Related";
+CM_ BO_ 2562060707 "BMS Tx and BMS_Msg18 Related";
+CM_ BO_ 2560881060 "BMS Tx and BMS_Msg01 Related";
+CM_ BO_ 2560946596 "BMS Tx and BMS_Msg02 Related";
+CM_ BO_ 2561012132 "BMS Tx and BMS_Msg03 Related";
+CM_ BO_ 2561077668 "BMS Tx and BMS_Msg04 Related";
+CM_ BO_ 2561143204 "BMS Tx and BMS_Msg05 Related";
+CM_ BO_ 2561208740 "BMS Tx and BMS_Msg06 Related";
+CM_ BO_ 2561274276 "BMS Tx and BMS_Msg07 Related";
+CM_ BO_ 2561339812 "BMS Tx and BMS_Msg08 Related";
+CM_ BO_ 2561405348 "BMS Tx and BMS_Msg09 Related";
+CM_ BO_ 2561470884 "BMS Tx and BMS_Msg10 Related";
+CM_ BO_ 2561536420 "BMS Tx and BMS_Msg11 Related";
+CM_ BO_ 2561601956 "BMS Tx and BMS_Msg12 Related";
+CM_ BO_ 2561667492 "BMS Tx and BMS_Msg13 Related";
+CM_ BO_ 2561798564 "BMS Tx and BMS_Msg14 Related";
+CM_ BO_ 2561864100 "BMS Tx and BMS_Msg15 Related";
+CM_ BO_ 2561929636 "BMS Tx and BMS_Msg16 Related";
+CM_ BO_ 2561995172 "BMS Tx and BMS_Msg17 Related";
+CM_ BO_ 2562060708 "BMS Tx and BMS_Msg18 Related";
+
+
+CM_ SG_ 2560750833 EMS_LifeCnt_Write "心跳信号(写）";
+CM_ SG_ 2560750833 EMS_HVPwr_OnOff_Cmd "上下电指令";
+CM_ SG_ 2560750833 EMS_Emer_StopAlarm "急停报警";
+CM_ SG_ 2550588916 BMS_OBC_MaxAllowChrgVol "AC Charge Max Allowed Charging Voltage 交流充电最大允许充电电压";
+CM_ SG_ 2550588916 BMS_OBC_MaxAllowChrgCur "AC Charge Max Allowed Charging Current 交流充电最大允许充电电流";
+CM_ SG_ 2550588916 BMS_OBC_ChrgCtrl "Charge Control 交流充电控制";
+CM_ SG_ 2566869221 OBC_Output_Vol "OBC Output Voltage OBC输出电压";
+CM_ SG_ 2566869221 OBC_Output_Cur "OBC Output Current OBC输出电流";
+CM_ SG_ 2566869221 OBC_HardwareFaultSta "OBC Hardware Fault State OBC硬件故障状态";
+CM_ SG_ 2566869221 OBC_TempSta "OBC Temperature State OBC温度故障状态";
+CM_ SG_ 2566869221 OBC_InputVoltSta "OBC Input Voltage State OBC输入状态";
+CM_ SG_ 2566869221 OBC_StartSta "OBC Start State OBC启动状态";
+CM_ SG_ 2566869221 OBC_CommunicationSta "OBC Communication State OBC通信状态";
+CM_ SG_ 2550243568 VCU_BMS_Head01 "数据头";
+CM_ SG_ 2550243568 VCU_PwrOnCmd "高压控制";
+CM_ SG_ 2550243568 VCU_DCDCCmd "DCDC继电器控制";
+CM_ SG_ 2550243568 VCU_PTCCmd "PTC继电器控制";
+CM_ SG_ 2550243568 VCU_BMS_LiveCnt01 "指令计数值";
+CM_ SG_ 2550309104 BMS_VCU_Head01 "数据头";
+CM_ SG_ 2550309104 BMS_PwrOnCmd "高压控制";
+CM_ SG_ 2550309104 BMS_DCDCState "DCDC继电器状态";
+CM_ SG_ 2550309104 BMS_PTCState "PTC继电器状态";
+CM_ SG_ 2550309104 BMS_VCU_LiveCnt01 "指令计数值";
+CM_ SG_ 2550374640 VCU_BMS_Head02 "数据头";
+CM_ SG_ 2550374640 VCU_ChrgCmd "充电控制";
+CM_ SG_ 2550374640 VCU_PreChrgCmd "预充电控制";
+CM_ SG_ 2550374640 VCU_OBCCmd "OBC继电器控制";
+CM_ SG_ 2550374640 VCU_BMS_LiveCnt02 "指令计数值";
+CM_ SG_ 2550440176 BMS_VCU_Head02 "数据头";
+CM_ SG_ 2550440176 BMS_ChrgCmd "充电控制";
+CM_ SG_ 2550440176 BMS_PreChrgCmd "预充电控制";
+CM_ SG_ 2550440176 BMS_OBCState "OBC继电器状态";
+CM_ SG_ 2550440176 BMS_FaultCode "故障代码";
+CM_ SG_ 2550440176 BMS_WarningCode "告警代码";
+CM_ SG_ 2550440176 BMS_VCU_LiveCnt02 "指令计数值";
+CM_ SG_ 2550767856 BMS_CellNum "单体数量";
+CM_ SG_ 2550767856 BMS_TempNum "温度数量";
+CM_ SG_ 2550767856 BMS_RatedCapa "额定容量";
+CM_ SG_ 2550767856 BMS_SW_Ver "软件版本";
+CM_ SG_ 2550767856 BMS_H_Ver "硬件版本";
+CM_ SG_ 2551226608 BMS_VCU_Head03 "数据头";
+CM_ SG_ 2551226608 BMS_DiscPowerLimit "放电功率限制";
+CM_ SG_ 2551226608 BMS_ChrgPowerLimit "充电功率限制";
+CM_ SG_ 2551226608 BMS_VCU_LiveCnt03 "指令计数值";
+CM_ SG_ 2551292144 VCU_BMS_Head03 "数据头";
+CM_ SG_ 2551292144 VCU_DiscPowerLimit "实际放电功率限制";
+CM_ SG_ 2551292144 VCU_BMS_LiveCnt03 "指令计数值";
+CM_ SG_ 2551357680 BMS_VCU_Head04 "数据头";
+CM_ SG_ 2551357680 BMS_HVOff_Request "请求下电标志";
+CM_ SG_ 2551357680 BMS_VCU_LiveCnt04 "指令计数值";
+CM_ SG_ 2551423216 VCU_BMS_Head04 "数据头";
+CM_ SG_ 2551423216 VCU_HVOff_Request "请求下电标志";
+CM_ SG_ 2551423216 VCU_BMS_LiveCnt04 "指令计数值";
+CM_ SG_ 2560881057 BMS_RunState "系统运行状态";
+CM_ SG_ 2560881057 BMS_DeviceID "设备序号";
+CM_ SG_ 2560881057 BMS_NBCMU_Num "电池簇数量";
+CM_ SG_ 2560881057 BMS_SysFailSta "组当前最大报警等级";
+CM_ SG_ 2560881057 BMS_InsRes_polarity "绝缘电阻极性";
+CM_ SG_ 2560881057 BMS_WarningSum "组当前报警数量";
+CM_ SG_ 2560881057 BMS_FaultSum "组当前故障数量";
+CM_ SG_ 2560881057 BMS_SysSOC "SOC";
+CM_ SG_ 2560881057 BMS_Heat_Req "加热请求";
+CM_ SG_ 2560881057 BMS_Cool_Req "冷却请求";
+CM_ SG_ 2560881057 BMS_PwrDown_Req "高压下电请求";
+CM_ SG_ 2560946593 BMS_SysSOH "SOH";
+CM_ SG_ 2560946593 BMS_N_ErrTab "N板故障码";
+CM_ SG_ 2560946593 BMS_S_ErrTab "S板故障码";
+CM_ SG_ 2560946593 BMS_ChrgPower "总充电电量";
+CM_ SG_ 2560946593 BMS_DischrgPower "总放电电量";
+CM_ SG_ 2561012129 BMS__SysInsRes "绝缘值";
+CM_ SG_ 2561012129 BMS_Contactor_state_DC_Posi "充放电正继电器状态";
+CM_ SG_ 2561012129 BMS_Contactor_state_DC_Nega "充放电负继电器状态";
+CM_ SG_ 2561012129 BMS_Contactor_state_Precharge "预充继电器状态";
+CM_ SG_ 2561012129 BMS_Contactor_state_Balance "均衡继电器状态";
+CM_ SG_ 2561012129 BMS_Contactor_state_Heat "加热继电器状态";
+CM_ SG_ 2561012129 BMS_DCS_InletConnectSta "充电枪插枪状态";
+CM_ SG_ 2561012129 BMS_Heat_Req "充电加热请求（根据实际项目需求）";
+CM_ SG_ 2561012129 BMS_EmergyShutdown_Fault "急停故障";
+CM_ SG_ 2561012129 BMS_TempDiff "组温差值";
+CM_ SG_ 2561012129 BMS_AmbientTemp "环境温度";
+CM_ SG_ 2561012129 BMS_ActlExchgCurnt "组电流值";
+CM_ SG_ 2561012129 BMS_LifeCnt "心跳信号";
+CM_ SG_ 2561077665 BMS_NBCMU01_Curr "簇1 电流";
+CM_ SG_ 2561077665 BMS_NBCMU02_Curr "簇2 电流";
+CM_ SG_ 2561077665 BMS_NBCMU03_Curr "簇3 电流";
+CM_ SG_ 2561077665 BMS_NBCMU04_Curr "簇4 电流";
+CM_ SG_ 2561143201 BMS_CellVoltDiff "压差值";
+CM_ SG_ 2561143201 BMS_Volt_Input "输入电压值";
+CM_ SG_ 2561143201 BMS_Volt_Output "输出电压值";
+CM_ SG_ 2561208737 BMS_NBCMU01_Volt "簇1 电压";
+CM_ SG_ 2561208737 BMS_NBCMU02_Volt "簇2 电压";
+CM_ SG_ 2561208737 BMS_NBCMU03_Volt "簇3 电压";
+CM_ SG_ 2561208737 BMS_NBCMU04_Volt "簇4 电压";
+CM_ SG_ 2561274273 BMS_NBCMU01_SysCellVoltMax "簇1最大单体电压值";
+CM_ SG_ 2561274273 BMS_NBCMU01_SysVMax_NBICUadd "簇1最大单体电压箱号";
+CM_ SG_ 2561274273 BMS_NBCMU01_SysVMax_Code "簇1最大单体电压编号";
+CM_ SG_ 2561274273 BMS_NBCMU02_SysCellVoltMax "簇2最大单体电压值";
+CM_ SG_ 2561274273 BMS_NBCMU02_SysVMax_NBICUadd "簇2最大单体电压箱号";
+CM_ SG_ 2561274273 BMS_NBCMU02_SysVMax_Code "簇2最大单体电压编号";
+CM_ SG_ 2561339809 BMS_NBCMU03_SysCellVoltMax "簇3最大单体电压值";
+CM_ SG_ 2561339809 BMS_NBCMU03_SysVMax_NBICUadd "簇3最大单体电压箱号";
+CM_ SG_ 2561339809 BMS_NBCMU03_SysVMax_Code "簇3最大单体电压编号";
+CM_ SG_ 2561339809 BMS_NBCMU04_SysCellVoltMax "簇4最大单体电压值";
+CM_ SG_ 2561339809 BMS_NBCMU04_SysVMax_NBICUadd "簇4最大单体电压箱号";
+CM_ SG_ 2561339809 BMS_NBCMU04_SysVMax_Code "簇4最大单体电压编号";
+CM_ SG_ 2561405345 BMS_NBCMU01_SysCellVoltMin "簇1最小单体电压值";
+CM_ SG_ 2561405345 BMS_NBCMU01_SysVMin_NBICUadd "簇1最小单体电压箱号";
+CM_ SG_ 2561405345 BMS_NBCMU01_SysVMin_Code "簇1最小单体电压编号";
+CM_ SG_ 2561405345 BMS_NBCMU02_SysCellVoltMin "簇2最小单体电压值";
+CM_ SG_ 2561405345 BMS_NBCMU02_SysVMin_NBICUadd "簇2最小单体电压箱号";
+CM_ SG_ 2561405345 BMS_NBCMU02_SysVMin_Code "簇2最小单体电压编号";
+CM_ SG_ 2561470881 BMS_NBCMU03_SysCellVoltMin "簇3最小单体电压值";
+CM_ SG_ 2561470881 BMS_NBCMU03_SysVMin_NBICUadd "簇3最小单体电压箱号";
+CM_ SG_ 2561470881 BMS_NBCMU03_SysVMin_Code "簇3最小单体电压编号";
+CM_ SG_ 2561470881 BMS_NBCMU04_SysCellVoltMin "簇4最小单体电压值";
+CM_ SG_ 2561470881 BMS_NBCMU04_SysVMin_NBICUadd "簇4最小单体电压箱号";
+CM_ SG_ 2561470881 BMS_NBCMU04_SysVMin_Code "簇4最小单体电压编号";
+CM_ SG_ 2561536417 BMS_NBCMU01_SysTempMax "簇1最大单体温度值";
+CM_ SG_ 2561536417 BMS_NBCMU01_SysTMax_NBICUadd "簇1最大单体温度箱号";
+CM_ SG_ 2561536417 BMS_NBCMU01_SysTMax_Code "簇1最大单体温度编号";
+CM_ SG_ 2561536417 BMS_NBCMU02_SysTempMax "簇2最大单体温度值";
+CM_ SG_ 2561536417 BMS_NBCMU02_SysTMax_NBICUadd "簇2最大单体温度箱号";
+CM_ SG_ 2561536417 BMS_NBCMU02_SysTMax_Code "簇2最大单体温度编号";
+CM_ SG_ 2561601953 BMS_NBCMU03_SysTempMax "簇3最大单体温度值";
+CM_ SG_ 2561601953 BMS_NBCMU03_SysTMax_NBICUadd "簇3最大单体温度箱号";
+CM_ SG_ 2561601953 BMS_NBCMU03_SysTMax_Code "簇3最大单体温度编号";
+CM_ SG_ 2561601953 BMS_NBCMU04_SysTempMax "簇4最大单体温度值";
+CM_ SG_ 2561601953 BMS_NBCMU04_SysTMax_NBICUadd "簇4最大单体温度箱号";
+CM_ SG_ 2561601953 BMS_NBCMU04_SysTMax_Code "簇4最大单体温度编号";
+CM_ SG_ 2561667489 BMS_NBCMU01_SysTempMin "簇1最小单体温度值";
+CM_ SG_ 2561667489 BMS_NBCMU01_SysTMin_NBICUadd "簇1最小单体温度箱号";
+CM_ SG_ 2561667489 BMS_NBCMU01_SysTMin_Code "簇1最小单体温度编号";
+CM_ SG_ 2561667489 BMS_NBCMU02_SysTempMin "簇2最小单体温度值";
+CM_ SG_ 2561667489 BMS_NBCMU02_SysTMin_NBICUadd "簇2最小单体温度箱号";
+CM_ SG_ 2561667489 BMS_NBCMU02_SysTMin_Code "簇2最小单体温度编号";
+CM_ SG_ 2561798561 BMS_NBCMU03_SysTempMin "簇3最小单体温度值";
+CM_ SG_ 2561798561 BMS_NBCMU03_SysTMin_NBICUadd "簇3最小单体温度箱号";
+CM_ SG_ 2561798561 BMS_NBCMU03_SysTMin_Code "簇3最小单体温度编号";
+CM_ SG_ 2561798561 BMS_NBCMU04_SysTempMin "簇4最小单体温度值";
+CM_ SG_ 2561798561 BMS_NBCMU04_SysTMin_NBICUadd "簇4最小单体温度箱号";
+CM_ SG_ 2561798561 BMS_NBCMU04_SysTMin_Code "簇4最小单体温度编号";
+CM_ SG_ 2561864097 BMS_NBCMU01_Warning "簇1报警";
+CM_ SG_ 2561864097 BMS_NBCMU02_Warning "簇2报警";
+CM_ SG_ 2561864097 BMS_NBCMU03_Warning "簇3报警";
+CM_ SG_ 2561864097 BMS_NBCMU04_Warning "簇4报警";
+CM_ SG_ 2561864097 BMS_CellVoltDiff_Warning "单体压差报警";
+CM_ SG_ 2561864097 BMS_PreChrg_Warning "预充报警";
+CM_ SG_ 2561864097 BMS_PowerON_Fault_Warning "簇上电失败报警";
+CM_ SG_ 2561864097 BMS_InsulationWarning "绝缘报警";
+CM_ SG_ 2561864097 BMS_PackVoltDiff_Warning "电池包一致性故障";
+CM_ SG_ 2561864097 BMS_ChrgHeat_Warning "簇充电加热失败报警";
+CM_ SG_ 2561864097 BMS_NBCMU_TimeOut "簇通信失败报警";
+CM_ SG_ 2561864097 BMS_EMS_TimeOut "与PMS/EMS通讯丢失";
+CM_ SG_ 2561864097 BMS_HVIL_Fault "高压互锁报警";
+CM_ SG_ 2561864097 BMS_HVIL_Fault_NBCMU "高压互锁报警簇号";
+CM_ SG_ 2561864097 BMS_NBCMU01_BattVolt_LowWarning "簇1 电池过放";
+CM_ SG_ 2561864097 BMS_NBCMU02_BattVolt_LowWarning "簇2 电池过放";
+CM_ SG_ 2561864097 BMS_NBCMU03_BattVolt_LowWarning "簇3 电池过放";
+CM_ SG_ 2561864097 BMS_NBCMU04_BattVolt_LowWarning "簇4 电池过放";
+CM_ SG_ 2561864097 BMS_NBCMU01_BattVoltHighWarning "簇1 电池过充";
+CM_ SG_ 2561864097 BMS_NBCMU02_BattVoltHighWarning "簇2 电池过充";
+CM_ SG_ 2561864097 BMS_NBCMU03_BattVoltHighWarning "簇3 电池过充";
+CM_ SG_ 2561864097 BMS_NBCMU04_BattVoltHighWarning "簇4 电池过充";
+CM_ SG_ 2561864097 BMS_NBCMU01_SOC_LowWarning "簇1  SOC过低报警";
+CM_ SG_ 2561864097 BMS_NBCMU02_SOC_LowWarning "簇2  SOC过低报警";
+CM_ SG_ 2561864097 BMS_NBCMU03_SOC_LowWarning "簇3  SOC过低报警";
+CM_ SG_ 2561864097 BMS_NBCMU04_SOC_LowWarning "簇4  SOC过低报警";
+CM_ SG_ 2561864097 BMS_NBCMU01_Temp_HighWarning "簇1 过温报警（充/放电）";
+CM_ SG_ 2561864097 BMS_NBCMU02_Temp_HighWarning "簇2 过温报警（充/放电）";
+CM_ SG_ 2561864097 BMS_NBCMU03_Temp_HighWarning "簇3 过温报警（充/放电）";
+CM_ SG_ 2561864097 BMS_NBCMU04_Temp_HighWarning "簇4 过温报警（充/放电）";
+CM_ SG_ 2561864097 BMS_ChrgCurr_OverWarning "充电过流报警";
+CM_ SG_ 2561864097 BMS_DischrgCurr_OverWarning "放电过流报警";
+CM_ SG_ 2561929633 BMS_NBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561929633 BMS_NBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561929633 BMS_NBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561929633 BMS_NBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561929633 BMS_NBCMU01_ChrgFault "簇1 充电故障";
+CM_ SG_ 2561929633 BMS_NBCMU02_ChrgFault "簇2 充电故障";
+CM_ SG_ 2561929633 BMS_NBCMU03_ChrgFault "簇3 充电故障";
+CM_ SG_ 2561929633 BMS_NBCMU04_ChrgFault "簇4 充电故障";
+CM_ SG_ 2561929633 BMS_NBCMU01_ProtectFault "簇1 保护功能故障报警";
+CM_ SG_ 2561929633 BMS_NBCMU02_ProtectFault "簇2 保护功能故障报警";
+CM_ SG_ 2561929633 BMS_NBCMU03_ProtectFault "簇3 保护功能故障报警";
+CM_ SG_ 2561929633 BMS_NBCMU04_ProtectFault "簇4 保护功能故障报警";
+CM_ SG_ 2561929633 BMS_NBCMU01_VoltDetectFault "簇1 电压检测故障";
+CM_ SG_ 2561929633 BMS_NBCMU02_VoltDetectFault "簇2 电压检测故障";
+CM_ SG_ 2561929633 BMS_NBCMU03_VoltDetectFault "簇3 电压检测故障";
+CM_ SG_ 2561929633 BMS_NBCMU04_VoltDetectFault "簇4 电压检测故障";
+CM_ SG_ 2561929633 BMS_NBCMU01_Contactor_Fault "簇1继电器故障";
+CM_ SG_ 2561929633 BMS_NBCMU02_Contactor_Fault "簇2继电器故障";
+CM_ SG_ 2561929633 BMS_NBCMU03_Contactor_Fault "簇3继电器故障";
+CM_ SG_ 2561929633 BMS_NBCMU04_Contactor_Fault "簇4继电器故障";
+CM_ SG_ 2561929633 BMS_NBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561929633 BMS_NBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561929633 BMS_NBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561929633 BMS_NBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561929633 BMS_NBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561929633 BMS_NBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561929633 BMS_NBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561929633 BMS_NBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2561995169 BMS_SBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU01_TempOverFault "簇1 过高温报警（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU02_TempOverFault "簇2 过高温报警（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU03_TempOverFault "簇3 过高温报警（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU04_TempOverFault "簇4 过高温报警（单体）";
+CM_ SG_ 2561995169 BMS_SBCMU01_AmbientTemp_HighWarning "簇1 过高温报警（环境温度）";
+CM_ SG_ 2561995169 BMS_SBCMU02_AmbientTemp_HighWarning "簇2 过高温报警（环境温度）";
+CM_ SG_ 2561995169 BMS_SBCMU03_AmbientTemp_HighWarning "簇3 过高温报警（环境温度）";
+CM_ SG_ 2561995169 BMS_SBCMU04_AmbientTemp_HighWarning "簇4 过高温报警（环境温度）";
+CM_ SG_ 2561995169 BMS_SBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561995169 BMS_SBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561995169 BMS_SBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561995169 BMS_SBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561995169 BMS_SBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561995169 BMS_SBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561995169 BMS_SBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561995169 BMS_SBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2562060705 BMS_EMS_MaxAllowChrgVol "Max Allowed Charging Voltage 请求EMS最大允许充电电压";
+CM_ SG_ 2562060705 BMS_EMS_MaxAllowChrgCur "Max Allowed Charging Current 请求EMS最大允许充电电流";
+CM_ SG_ 2562060705 BMS_EMS_MaxAllowDischrgVol "Max Allowed Charging Voltage 请求EMS最大允许放电电压";
+CM_ SG_ 2562060705 BMS_EMS_MaxAllowDischrgCur "Max Allowed Charging Current 请求EMS最大允许放电电流";
+CM_ SG_ 2560881058 BMS_RunState "系统运行状态";
+CM_ SG_ 2560881058 BMS_DeviceID "设备序号";
+CM_ SG_ 2560881058 BMS_NBCMU_Num "电池簇数量";
+CM_ SG_ 2560881058 BMS_SysFailSta "组当前最大报警等级";
+CM_ SG_ 2560881058 BMS_InsRes_polarity "绝缘电阻极性";
+CM_ SG_ 2560881058 BMS_WarningSum "组当前报警数量";
+CM_ SG_ 2560881058 BMS_FaultSum "组当前故障数量";
+CM_ SG_ 2560881058 BMS_SysSOC "SOC";
+CM_ SG_ 2560881058 BMS_Heat_Req "加热请求";
+CM_ SG_ 2560881058 BMS_Cool_Req "冷却请求";
+CM_ SG_ 2560881058 BMS_PwrDown_Req "高压下电请求";
+CM_ SG_ 2560946594 BMS_SysSOH "SOH";
+CM_ SG_ 2560946594 BMS_ErrTab "故障码";
+CM_ SG_ 2560946594 BMS_ChrgPower "总充电电量";
+CM_ SG_ 2560946594 BMS_DischrgPower "总放电电量";
+CM_ SG_ 2561012130 BMS__SysInsRes "绝缘值";
+CM_ SG_ 2561012130 BMS_Contactor_state_DC_Posi "充放电正继电器状态";
+CM_ SG_ 2561012130 BMS_Contactor_state_DC_Nega "充放电负继电器状态";
+CM_ SG_ 2561012130 BMS_Contactor_state_Precharge "预充继电器状态";
+CM_ SG_ 2561012130 BMS_Contactor_state_Balance "均衡继电器状态";
+CM_ SG_ 2561012130 BMS_Contactor_state_Heat "加热继电器状态";
+CM_ SG_ 2561012130 BMS_DCS_InletConnectSta "充电枪插枪状态";
+CM_ SG_ 2561012130 BMS_Heat_Req "充电加热请求（根据实际项目需求）";
+CM_ SG_ 2561012130 BMS_EmergyShutdown_Fault "急停故障";
+CM_ SG_ 2561012130 BMS_TempDiff "组温差值";
+CM_ SG_ 2561012130 BMS_AmbientTemp "环境温度";
+CM_ SG_ 2561012130 BMS_ActlExchgCurnt "组电流值";
+CM_ SG_ 2561012130 BMS_LifeCnt "心跳信号";
+CM_ SG_ 2561077666 BMS_NBCMU01_Curr "簇1 电流";
+CM_ SG_ 2561077666 BMS_NBCMU02_Curr "簇2 电流";
+CM_ SG_ 2561077666 BMS_NBCMU03_Curr "簇3 电流";
+CM_ SG_ 2561077666 BMS_NBCMU04_Curr "簇4 电流";
+CM_ SG_ 2561143202 BMS_CellVoltDiff "压差值";
+CM_ SG_ 2561143202 BMS_Volt_Input "输入电压值";
+CM_ SG_ 2561143202 BMS_Volt_Output "输出电压值";
+CM_ SG_ 2561208738 BMS_NBCMU01_Volt "簇1 电压";
+CM_ SG_ 2561208738 BMS_NBCMU02_Volt "簇2 电压";
+CM_ SG_ 2561208738 BMS_NBCMU03_Volt "簇3 电压";
+CM_ SG_ 2561208738 BMS_NBCMU04_Volt "簇4 电压";
+CM_ SG_ 2561274274 BMS_NBCMU01_SysCellVoltMax "簇1最大单体电压值";
+CM_ SG_ 2561274274 BMS_NBCMU01_SysVMax_NBICUadd "簇1最大单体电压箱号";
+CM_ SG_ 2561274274 BMS_NBCMU01_SysVMax_Code "簇1最大单体电压编号";
+CM_ SG_ 2561274274 BMS_NBCMU02_SysCellVoltMax "簇2最大单体电压值";
+CM_ SG_ 2561274274 BMS_NBCMU02_SysVMax_NBICUadd "簇2最大单体电压箱号";
+CM_ SG_ 2561274274 BMS_NBCMU02_SysVMax_Code "簇2最大单体电压编号";
+CM_ SG_ 2561339810 BMS_NBCMU03_SysCellVoltMax "簇3最大单体电压值";
+CM_ SG_ 2561339810 BMS_NBCMU03_SysVMax_NBICUadd "簇3最大单体电压箱号";
+CM_ SG_ 2561339810 BMS_NBCMU03_SysVMax_Code "簇3最大单体电压编号";
+CM_ SG_ 2561339810 BMS_NBCMU04_SysCellVoltMax "簇4最大单体电压值";
+CM_ SG_ 2561339810 BMS_NBCMU04_SysVMax_NBICUadd "簇4最大单体电压箱号";
+CM_ SG_ 2561339810 BMS_NBCMU04_SysVMax_Code "簇4最大单体电压编号";
+CM_ SG_ 2561405346 BMS_NBCMU01_SysCellVoltMin "簇1最小单体电压值";
+CM_ SG_ 2561405346 BMS_NBCMU01_SysVMin_NBICUadd "簇1最小单体电压箱号";
+CM_ SG_ 2561405346 BMS_NBCMU01_SysVMin_Code "簇1最小单体电压编号";
+CM_ SG_ 2561405346 BMS_NBCMU02_SysCellVoltMin "簇2最小单体电压值";
+CM_ SG_ 2561405346 BMS_NBCMU02_SysVMin_NBICUadd "簇2最小单体电压箱号";
+CM_ SG_ 2561405346 BMS_NBCMU02_SysVMin_Code "簇2最小单体电压编号";
+CM_ SG_ 2561470882 BMS_NBCMU03_SysCellVoltMin "簇3最小单体电压值";
+CM_ SG_ 2561470882 BMS_NBCMU03_SysVMin_NBICUadd "簇3最小单体电压箱号";
+CM_ SG_ 2561470882 BMS_NBCMU03_SysVMin_Code "簇3最小单体电压编号";
+CM_ SG_ 2561470882 BMS_NBCMU04_SysCellVoltMin "簇4最小单体电压值";
+CM_ SG_ 2561470882 BMS_NBCMU04_SysVMin_NBICUadd "簇4最小单体电压箱号";
+CM_ SG_ 2561470882 BMS_NBCMU04_SysVMin_Code "簇4最小单体电压编号";
+CM_ SG_ 2561536418 BMS_NBCMU01_SysTempMax "簇1最大单体温度值";
+CM_ SG_ 2561536418 BMS_NBCMU01_SysTMax_NBICUadd "簇1最大单体温度箱号";
+CM_ SG_ 2561536418 BMS_NBCMU01_SysTMax_Code "簇1最大单体温度编号";
+CM_ SG_ 2561536418 BMS_NBCMU02_SysTempMax "簇2最大单体温度值";
+CM_ SG_ 2561536418 BMS_NBCMU02_SysTMax_NBICUadd "簇2最大单体温度箱号";
+CM_ SG_ 2561536418 BMS_NBCMU02_SysTMax_Code "簇2最大单体温度编号";
+CM_ SG_ 2561601954 BMS_NBCMU03_SysTempMax "簇3最大单体温度值";
+CM_ SG_ 2561601954 BMS_NBCMU03_SysTMax_NBICUadd "簇3最大单体温度箱号";
+CM_ SG_ 2561601954 BMS_NBCMU03_SysTMax_Code "簇3最大单体温度编号";
+CM_ SG_ 2561601954 BMS_NBCMU04_SysTempMax "簇4最大单体温度值";
+CM_ SG_ 2561601954 BMS_NBCMU04_SysTMax_NBICUadd "簇4最大单体温度箱号";
+CM_ SG_ 2561601954 BMS_NBCMU04_SysTMax_Code "簇4最大单体温度编号";
+CM_ SG_ 2561667490 BMS_NBCMU01_SysTempMin "簇1最小单体温度值";
+CM_ SG_ 2561667490 BMS_NBCMU01_SysTMin_NBICUadd "簇1最小单体温度箱号";
+CM_ SG_ 2561667490 BMS_NBCMU01_SysTMin_Code "簇1最小单体温度编号";
+CM_ SG_ 2561667490 BMS_NBCMU02_SysTempMin "簇2最小单体温度值";
+CM_ SG_ 2561667490 BMS_NBCMU02_SysTMin_NBICUadd "簇2最小单体温度箱号";
+CM_ SG_ 2561667490 BMS_NBCMU02_SysTMin_Code "簇2最小单体温度编号";
+CM_ SG_ 2561798562 BMS_NBCMU03_SysTempMin "簇3最小单体温度值";
+CM_ SG_ 2561798562 BMS_NBCMU03_SysTMin_NBICUadd "簇3最小单体温度箱号";
+CM_ SG_ 2561798562 BMS_NBCMU03_SysTMin_Code "簇3最小单体温度编号";
+CM_ SG_ 2561798562 BMS_NBCMU04_SysTempMin "簇4最小单体温度值";
+CM_ SG_ 2561798562 BMS_NBCMU04_SysTMin_NBICUadd "簇4最小单体温度箱号";
+CM_ SG_ 2561798562 BMS_NBCMU04_SysTMin_Code "簇4最小单体温度编号";
+CM_ SG_ 2561864098 BMS_NBCMU01_Warning "簇1报警";
+CM_ SG_ 2561864098 BMS_NBCMU02_Warning "簇2报警";
+CM_ SG_ 2561864098 BMS_NBCMU03_Warning "簇3报警";
+CM_ SG_ 2561864098 BMS_NBCMU04_Warning "簇4报警";
+CM_ SG_ 2561864098 BMS_CellVoltDiff_Warning "单体压差报警";
+CM_ SG_ 2561864098 BMS_PreChrg_Warning "预充报警";
+CM_ SG_ 2561864098 BMS_PowerON_Fault_Warning "簇上电失败报警";
+CM_ SG_ 2561864098 BMS_InsulationWarning "绝缘报警";
+CM_ SG_ 2561864098 BMS_PackVoltDiff_Warning "电池包一致性故障";
+CM_ SG_ 2561864098 BMS_ChrgHeat_Warning "簇充电加热失败报警";
+CM_ SG_ 2561864098 BMS_NBCMU_TimeOut "簇通信失败报警";
+CM_ SG_ 2561864098 BMS_EMS_TimeOut "与PMS/EMS通讯丢失";
+CM_ SG_ 2561864098 BMS_HVIL_Fault "高压互锁报警";
+CM_ SG_ 2561864098 BMS_HVIL_Fault_NBCMU "高压互锁报警簇号";
+CM_ SG_ 2561864098 BMS_NBCMU01_BattVolt_LowWarning "簇1 电池过放";
+CM_ SG_ 2561864098 BMS_NBCMU02_BattVolt_LowWarning "簇2 电池过放";
+CM_ SG_ 2561864098 BMS_NBCMU03_BattVolt_LowWarning "簇3 电池过放";
+CM_ SG_ 2561864098 BMS_NBCMU04_BattVolt_LowWarning "簇4 电池过放";
+CM_ SG_ 2561864098 BMS_NBCMU01_BattVoltHighWarning "簇1 电池过充";
+CM_ SG_ 2561864098 BMS_NBCMU02_BattVoltHighWarning "簇2 电池过充";
+CM_ SG_ 2561864098 BMS_NBCMU03_BattVoltHighWarning "簇3 电池过充";
+CM_ SG_ 2561864098 BMS_NBCMU04_BattVoltHighWarning "簇4 电池过充";
+CM_ SG_ 2561864098 BMS_NBCMU01_SOC_LowWarning "簇1  SOC过低报警";
+CM_ SG_ 2561864098 BMS_NBCMU02_SOC_LowWarning "簇2  SOC过低报警";
+CM_ SG_ 2561864098 BMS_NBCMU03_SOC_LowWarning "簇3  SOC过低报警";
+CM_ SG_ 2561864098 BMS_NBCMU04_SOC_LowWarning "簇4  SOC过低报警";
+CM_ SG_ 2561864098 BMS_NBCMU01_Temp_HighWarning "簇1 过温报警（充/放电）";
+CM_ SG_ 2561864098 BMS_NBCMU02_Temp_HighWarning "簇2 过温报警（充/放电）";
+CM_ SG_ 2561864098 BMS_NBCMU03_Temp_HighWarning "簇3 过温报警（充/放电）";
+CM_ SG_ 2561864098 BMS_NBCMU04_Temp_HighWarning "簇4 过温报警（充/放电）";
+CM_ SG_ 2561864098 BMS_ChrgCurr_OverWarning "充电过流报警";
+CM_ SG_ 2561864098 BMS_DischrgCurr_OverWarning "放电过流报警";
+CM_ SG_ 2561929634 BMS_NBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561929634 BMS_NBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561929634 BMS_NBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561929634 BMS_NBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561929634 BMS_NBCMU01_ChrgFault "簇1 充电故障";
+CM_ SG_ 2561929634 BMS_NBCMU02_ChrgFault "簇2 充电故障";
+CM_ SG_ 2561929634 BMS_NBCMU03_ChrgFault "簇3 充电故障";
+CM_ SG_ 2561929634 BMS_NBCMU04_ChrgFault "簇4 充电故障";
+CM_ SG_ 2561929634 BMS_NBCMU01_ProtectFault "簇1 保护功能故障报警";
+CM_ SG_ 2561929634 BMS_NBCMU02_ProtectFault "簇2 保护功能故障报警";
+CM_ SG_ 2561929634 BMS_NBCMU03_ProtectFault "簇3 保护功能故障报警";
+CM_ SG_ 2561929634 BMS_NBCMU04_ProtectFault "簇4 保护功能故障报警";
+CM_ SG_ 2561929634 BMS_NBCMU01_VoltDetectFault "簇1 电压检测故障";
+CM_ SG_ 2561929634 BMS_NBCMU02_VoltDetectFault "簇2 电压检测故障";
+CM_ SG_ 2561929634 BMS_NBCMU03_VoltDetectFault "簇3 电压检测故障";
+CM_ SG_ 2561929634 BMS_NBCMU04_VoltDetectFault "簇4 电压检测故障";
+CM_ SG_ 2561929634 BMS_NBCMU01_Contactor_Fault "簇1继电器故障";
+CM_ SG_ 2561929634 BMS_NBCMU02_Contactor_Fault "簇2继电器故障";
+CM_ SG_ 2561929634 BMS_NBCMU03_Contactor_Fault "簇3继电器故障";
+CM_ SG_ 2561929634 BMS_NBCMU04_Contactor_Fault "簇4继电器故障";
+CM_ SG_ 2561929634 BMS_NBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561929634 BMS_NBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561929634 BMS_NBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561929634 BMS_NBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561929634 BMS_NBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561929634 BMS_NBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561929634 BMS_NBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561929634 BMS_NBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2561995170 BMS_SBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU01_TempOverFault "簇1 过高温报警（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU02_TempOverFault "簇2 过高温报警（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU03_TempOverFault "簇3 过高温报警（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU04_TempOverFault "簇4 过高温报警（单体）";
+CM_ SG_ 2561995170 BMS_SBCMU01_AmbientTemp_HighWarning "簇1 过高温报警（环境温度）";
+CM_ SG_ 2561995170 BMS_SBCMU02_AmbientTemp_HighWarning "簇2 过高温报警（环境温度）";
+CM_ SG_ 2561995170 BMS_SBCMU03_AmbientTemp_HighWarning "簇3 过高温报警（环境温度）";
+CM_ SG_ 2561995170 BMS_SBCMU04_AmbientTemp_HighWarning "簇4 过高温报警（环境温度）";
+CM_ SG_ 2561995170 BMS_SBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561995170 BMS_SBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561995170 BMS_SBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561995170 BMS_SBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561995170 BMS_SBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561995170 BMS_SBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561995170 BMS_SBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561995170 BMS_SBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2562060706 BMS_EMS_MaxAllowChrgVol "Max Allowed Charging Voltage 请求EMS最大允许充电电压";
+CM_ SG_ 2562060706 BMS_EMS_MaxAllowChrgCur "Max Allowed Charging Current 请求EMS最大允许充电电流";
+CM_ SG_ 2562060706 BMS_EMS_MaxAllowDischrgVol "Max Allowed Charging Voltage 请求EMS最大允许放电电压";
+CM_ SG_ 2562060706 BMS_EMS_MaxAllowDischrgCur "Max Allowed Charging Current 请求EMS最大允许放电电流";
+CM_ SG_ 2560881059 BMS_RunState "系统运行状态";
+CM_ SG_ 2560881059 BMS_DeviceID "设备序号";
+CM_ SG_ 2560881059 BMS_NBCMU_Num "电池簇数量";
+CM_ SG_ 2560881059 BMS_SysFailSta "组当前最大报警等级";
+CM_ SG_ 2560881059 BMS_InsRes_polarity "绝缘电阻极性";
+CM_ SG_ 2560881059 BMS_WarningSum "组当前报警数量";
+CM_ SG_ 2560881059 BMS_FaultSum "组当前故障数量";
+CM_ SG_ 2560881059 BMS_SysSOC "SOC";
+CM_ SG_ 2560881059 BMS_Heat_Req "加热请求";
+CM_ SG_ 2560881059 BMS_Cool_Req "冷却请求";
+CM_ SG_ 2560881059 BMS_PwrDown_Req "高压下电请求";
+CM_ SG_ 2560946595 BMS_SysSOH "SOH";
+CM_ SG_ 2560946595 BMS_ErrTab "故障码";
+CM_ SG_ 2560946595 BMS_ChrgPower "总充电电量";
+CM_ SG_ 2560946595 BMS_DischrgPower "总放电电量";
+CM_ SG_ 2561012131 BMS__SysInsRes "绝缘值";
+CM_ SG_ 2561012131 BMS_Contactor_state_DC_Posi "充放电正继电器状态";
+CM_ SG_ 2561012131 BMS_Contactor_state_DC_Nega "充放电负继电器状态";
+CM_ SG_ 2561012131 BMS_Contactor_state_Precharge "预充继电器状态";
+CM_ SG_ 2561012131 BMS_Contactor_state_Balance "均衡继电器状态";
+CM_ SG_ 2561012131 BMS_Contactor_state_Heat "加热继电器状态";
+CM_ SG_ 2561012131 BMS_DCS_InletConnectSta "充电枪插枪状态";
+CM_ SG_ 2561012131 BMS_Heat_Req "充电加热请求（根据实际项目需求）";
+CM_ SG_ 2561012131 BMS_EmergyShutdown_Fault "急停故障";
+CM_ SG_ 2561012131 BMS_TempDiff "组温差值";
+CM_ SG_ 2561012131 BMS_AmbientTemp "环境温度";
+CM_ SG_ 2561012131 BMS_ActlExchgCurnt "组电流值";
+CM_ SG_ 2561012131 BMS_LifeCnt "心跳信号";
+CM_ SG_ 2561077667 BMS_NBCMU01_Curr "簇1 电流";
+CM_ SG_ 2561077667 BMS_NBCMU02_Curr "簇2 电流";
+CM_ SG_ 2561077667 BMS_NBCMU03_Curr "簇3 电流";
+CM_ SG_ 2561077667 BMS_NBCMU04_Curr "簇4 电流";
+CM_ SG_ 2561143203 BMS_CellVoltDiff "压差值";
+CM_ SG_ 2561143203 BMS_Volt_Input "输入电压值";
+CM_ SG_ 2561143203 BMS_Volt_Output "输出电压值";
+CM_ SG_ 2561208739 BMS_NBCMU01_Volt "簇1 电压";
+CM_ SG_ 2561208739 BMS_NBCMU02_Volt "簇2 电压";
+CM_ SG_ 2561208739 BMS_NBCMU03_Volt "簇3 电压";
+CM_ SG_ 2561208739 BMS_NBCMU04_Volt "簇4 电压";
+CM_ SG_ 2561274275 BMS_NBCMU01_SysCellVoltMax "簇1最大单体电压值";
+CM_ SG_ 2561274275 BMS_NBCMU01_SysVMax_NBICUadd "簇1最大单体电压箱号";
+CM_ SG_ 2561274275 BMS_NBCMU01_SysVMax_Code "簇1最大单体电压编号";
+CM_ SG_ 2561274275 BMS_NBCMU02_SysCellVoltMax "簇2最大单体电压值";
+CM_ SG_ 2561274275 BMS_NBCMU02_SysVMax_NBICUadd "簇2最大单体电压箱号";
+CM_ SG_ 2561274275 BMS_NBCMU02_SysVMax_Code "簇2最大单体电压编号";
+CM_ SG_ 2561339811 BMS_NBCMU03_SysCellVoltMax "簇3最大单体电压值";
+CM_ SG_ 2561339811 BMS_NBCMU03_SysVMax_NBICUadd "簇3最大单体电压箱号";
+CM_ SG_ 2561339811 BMS_NBCMU03_SysVMax_Code "簇3最大单体电压编号";
+CM_ SG_ 2561339811 BMS_NBCMU04_SysCellVoltMax "簇4最大单体电压值";
+CM_ SG_ 2561339811 BMS_NBCMU04_SysVMax_NBICUadd "簇4最大单体电压箱号";
+CM_ SG_ 2561339811 BMS_NBCMU04_SysVMax_Code "簇4最大单体电压编号";
+CM_ SG_ 2561405347 BMS_NBCMU01_SysCellVoltMin "簇1最小单体电压值";
+CM_ SG_ 2561405347 BMS_NBCMU01_SysVMin_NBICUadd "簇1最小单体电压箱号";
+CM_ SG_ 2561405347 BMS_NBCMU01_SysVMin_Code "簇1最小单体电压编号";
+CM_ SG_ 2561405347 BMS_NBCMU02_SysCellVoltMin "簇2最小单体电压值";
+CM_ SG_ 2561405347 BMS_NBCMU02_SysVMin_NBICUadd "簇2最小单体电压箱号";
+CM_ SG_ 2561405347 BMS_NBCMU02_SysVMin_Code "簇2最小单体电压编号";
+CM_ SG_ 2561470883 BMS_NBCMU03_SysCellVoltMin "簇3最小单体电压值";
+CM_ SG_ 2561470883 BMS_NBCMU03_SysVMin_NBICUadd "簇3最小单体电压箱号";
+CM_ SG_ 2561470883 BMS_NBCMU03_SysVMin_Code "簇3最小单体电压编号";
+CM_ SG_ 2561470883 BMS_NBCMU04_SysCellVoltMin "簇4最小单体电压值";
+CM_ SG_ 2561470883 BMS_NBCMU04_SysVMin_NBICUadd "簇4最小单体电压箱号";
+CM_ SG_ 2561470883 BMS_NBCMU04_SysVMin_Code "簇4最小单体电压编号";
+CM_ SG_ 2561536419 BMS_NBCMU01_SysTempMax "簇1最大单体温度值";
+CM_ SG_ 2561536419 BMS_NBCMU01_SysTMax_NBICUadd "簇1最大单体温度箱号";
+CM_ SG_ 2561536419 BMS_NBCMU01_SysTMax_Code "簇1最大单体温度编号";
+CM_ SG_ 2561536419 BMS_NBCMU02_SysTempMax "簇2最大单体温度值";
+CM_ SG_ 2561536419 BMS_NBCMU02_SysTMax_NBICUadd "簇2最大单体温度箱号";
+CM_ SG_ 2561536419 BMS_NBCMU02_SysTMax_Code "簇2最大单体温度编号";
+CM_ SG_ 2561601955 BMS_NBCMU03_SysTempMax "簇3最大单体温度值";
+CM_ SG_ 2561601955 BMS_NBCMU03_SysTMax_NBICUadd "簇3最大单体温度箱号";
+CM_ SG_ 2561601955 BMS_NBCMU03_SysTMax_Code "簇3最大单体温度编号";
+CM_ SG_ 2561601955 BMS_NBCMU04_SysTempMax "簇4最大单体温度值";
+CM_ SG_ 2561601955 BMS_NBCMU04_SysTMax_NBICUadd "簇4最大单体温度箱号";
+CM_ SG_ 2561601955 BMS_NBCMU04_SysTMax_Code "簇4最大单体温度编号";
+CM_ SG_ 2561667491 BMS_NBCMU01_SysTempMin "簇1最小单体温度值";
+CM_ SG_ 2561667491 BMS_NBCMU01_SysTMin_NBICUadd "簇1最小单体温度箱号";
+CM_ SG_ 2561667491 BMS_NBCMU01_SysTMin_Code "簇1最小单体温度编号";
+CM_ SG_ 2561667491 BMS_NBCMU02_SysTempMin "簇2最小单体温度值";
+CM_ SG_ 2561667491 BMS_NBCMU02_SysTMin_NBICUadd "簇2最小单体温度箱号";
+CM_ SG_ 2561667491 BMS_NBCMU02_SysTMin_Code "簇2最小单体温度编号";
+CM_ SG_ 2561798563 BMS_NBCMU03_SysTempMin "簇3最小单体温度值";
+CM_ SG_ 2561798563 BMS_NBCMU03_SysTMin_NBICUadd "簇3最小单体温度箱号";
+CM_ SG_ 2561798563 BMS_NBCMU03_SysTMin_Code "簇3最小单体温度编号";
+CM_ SG_ 2561798563 BMS_NBCMU04_SysTempMin "簇4最小单体温度值";
+CM_ SG_ 2561798563 BMS_NBCMU04_SysTMin_NBICUadd "簇4最小单体温度箱号";
+CM_ SG_ 2561798563 BMS_NBCMU04_SysTMin_Code "簇4最小单体温度编号";
+CM_ SG_ 2561864099 BMS_NBCMU01_Warning "簇1报警";
+CM_ SG_ 2561864099 BMS_NBCMU02_Warning "簇2报警";
+CM_ SG_ 2561864099 BMS_NBCMU03_Warning "簇3报警";
+CM_ SG_ 2561864099 BMS_NBCMU04_Warning "簇4报警";
+CM_ SG_ 2561864099 BMS_CellVoltDiff_Warning "单体压差报警";
+CM_ SG_ 2561864099 BMS_PreChrg_Warning "预充报警";
+CM_ SG_ 2561864099 BMS_PowerON_Fault_Warning "簇上电失败报警";
+CM_ SG_ 2561864099 BMS_InsulationWarning "绝缘报警";
+CM_ SG_ 2561864099 BMS_PackVoltDiff_Warning "电池包一致性故障";
+CM_ SG_ 2561864099 BMS_ChrgHeat_Warning "簇充电加热失败报警";
+CM_ SG_ 2561864099 BMS_NBCMU_TimeOut "簇通信失败报警";
+CM_ SG_ 2561864099 BMS_EMS_TimeOut "与PMS/EMS通讯丢失";
+CM_ SG_ 2561864099 BMS_HVIL_Fault "高压互锁报警";
+CM_ SG_ 2561864099 BMS_HVIL_Fault_NBCMU "高压互锁报警簇号";
+CM_ SG_ 2561864099 BMS_NBCMU01_BattVolt_LowWarning "簇1 电池过放";
+CM_ SG_ 2561864099 BMS_NBCMU02_BattVolt_LowWarning "簇2 电池过放";
+CM_ SG_ 2561864099 BMS_NBCMU03_BattVolt_LowWarning "簇3 电池过放";
+CM_ SG_ 2561864099 BMS_NBCMU04_BattVolt_LowWarning "簇4 电池过放";
+CM_ SG_ 2561864099 BMS_NBCMU01_BattVoltHighWarning "簇1 电池过充";
+CM_ SG_ 2561864099 BMS_NBCMU02_BattVoltHighWarning "簇2 电池过充";
+CM_ SG_ 2561864099 BMS_NBCMU03_BattVoltHighWarning "簇3 电池过充";
+CM_ SG_ 2561864099 BMS_NBCMU04_BattVoltHighWarning "簇4 电池过充";
+CM_ SG_ 2561864099 BMS_NBCMU01_SOC_LowWarning "簇1  SOC过低报警";
+CM_ SG_ 2561864099 BMS_NBCMU02_SOC_LowWarning "簇2  SOC过低报警";
+CM_ SG_ 2561864099 BMS_NBCMU03_SOC_LowWarning "簇3  SOC过低报警";
+CM_ SG_ 2561864099 BMS_NBCMU04_SOC_LowWarning "簇4  SOC过低报警";
+CM_ SG_ 2561864099 BMS_NBCMU01_Temp_HighWarning "簇1 过温报警（充/放电）";
+CM_ SG_ 2561864099 BMS_NBCMU02_Temp_HighWarning "簇2 过温报警（充/放电）";
+CM_ SG_ 2561864099 BMS_NBCMU03_Temp_HighWarning "簇3 过温报警（充/放电）";
+CM_ SG_ 2561864099 BMS_NBCMU04_Temp_HighWarning "簇4 过温报警（充/放电）";
+CM_ SG_ 2561864099 BMS_ChrgCurr_OverWarning "充电过流报警";
+CM_ SG_ 2561864099 BMS_DischrgCurr_OverWarning "放电过流报警";
+CM_ SG_ 2561929635 BMS_NBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561929635 BMS_NBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561929635 BMS_NBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561929635 BMS_NBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561929635 BMS_NBCMU01_ChrgFault "簇1 充电故障";
+CM_ SG_ 2561929635 BMS_NBCMU02_ChrgFault "簇2 充电故障";
+CM_ SG_ 2561929635 BMS_NBCMU03_ChrgFault "簇3 充电故障";
+CM_ SG_ 2561929635 BMS_NBCMU04_ChrgFault "簇4 充电故障";
+CM_ SG_ 2561929635 BMS_NBCMU01_ProtectFault "簇1 保护功能故障报警";
+CM_ SG_ 2561929635 BMS_NBCMU02_ProtectFault "簇2 保护功能故障报警";
+CM_ SG_ 2561929635 BMS_NBCMU03_ProtectFault "簇3 保护功能故障报警";
+CM_ SG_ 2561929635 BMS_NBCMU04_ProtectFault "簇4 保护功能故障报警";
+CM_ SG_ 2561929635 BMS_NBCMU01_VoltDetectFault "簇1 电压检测故障";
+CM_ SG_ 2561929635 BMS_NBCMU02_VoltDetectFault "簇2 电压检测故障";
+CM_ SG_ 2561929635 BMS_NBCMU03_VoltDetectFault "簇3 电压检测故障";
+CM_ SG_ 2561929635 BMS_NBCMU04_VoltDetectFault "簇4 电压检测故障";
+CM_ SG_ 2561929635 BMS_NBCMU01_Contactor_Fault "簇1继电器故障";
+CM_ SG_ 2561929635 BMS_NBCMU02_Contactor_Fault "簇2继电器故障";
+CM_ SG_ 2561929635 BMS_NBCMU03_Contactor_Fault "簇3继电器故障";
+CM_ SG_ 2561929635 BMS_NBCMU04_Contactor_Fault "簇4继电器故障";
+CM_ SG_ 2561929635 BMS_NBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561929635 BMS_NBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561929635 BMS_NBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561929635 BMS_NBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561929635 BMS_NBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561929635 BMS_NBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561929635 BMS_NBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561929635 BMS_NBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2561995171 BMS_SBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU01_TempOverFault "簇1 过高温报警（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU02_TempOverFault "簇2 过高温报警（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU03_TempOverFault "簇3 过高温报警（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU04_TempOverFault "簇4 过高温报警（单体）";
+CM_ SG_ 2561995171 BMS_SBCMU01_AmbientTemp_HighWarning "簇1 过高温报警（环境温度）";
+CM_ SG_ 2561995171 BMS_SBCMU02_AmbientTemp_HighWarning "簇2 过高温报警（环境温度）";
+CM_ SG_ 2561995171 BMS_SBCMU03_AmbientTemp_HighWarning "簇3 过高温报警（环境温度）";
+CM_ SG_ 2561995171 BMS_SBCMU04_AmbientTemp_HighWarning "簇4 过高温报警（环境温度）";
+CM_ SG_ 2561995171 BMS_SBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561995171 BMS_SBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561995171 BMS_SBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561995171 BMS_SBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561995171 BMS_SBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561995171 BMS_SBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561995171 BMS_SBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561995171 BMS_SBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2562060707 BMS_EMS_MaxAllowChrgVol "Max Allowed Charging Voltage 请求EMS最大允许充电电压";
+CM_ SG_ 2562060707 BMS_EMS_MaxAllowChrgCur "Max Allowed Charging Current 请求EMS最大允许充电电流";
+CM_ SG_ 2562060707 BMS_EMS_MaxAllowDischrgVol "Max Allowed Charging Voltage 请求EMS最大允许放电电压";
+CM_ SG_ 2562060707 BMS_EMS_MaxAllowDischrgCur "Max Allowed Charging Current 请求EMS最大允许放电电流";
+CM_ SG_ 2560881060 BMS_RunState "系统运行状态";
+CM_ SG_ 2560881060 BMS_DeviceID "设备序号";
+CM_ SG_ 2560881060 BMS_NBCMU_Num "电池簇数量";
+CM_ SG_ 2560881060 BMS_SysFailSta "组当前最大报警等级";
+CM_ SG_ 2560881060 BMS_InsRes_polarity "绝缘电阻极性";
+CM_ SG_ 2560881060 BMS_WarningSum "组当前报警数量";
+CM_ SG_ 2560881060 BMS_FaultSum "组当前故障数量";
+CM_ SG_ 2560881060 BMS_SysSOC "SOC";
+CM_ SG_ 2560881060 BMS_Heat_Req "加热请求";
+CM_ SG_ 2560881060 BMS_Cool_Req "冷却请求";
+CM_ SG_ 2560881060 BMS_PwrDown_Req "高压下电请求";
+CM_ SG_ 2560946596 BMS_SysSOH "SOH";
+CM_ SG_ 2560946596 BMS_ErrTab "故障码";
+CM_ SG_ 2560946596 BMS_ChrgPower "总充电电量";
+CM_ SG_ 2560946596 BMS_DischrgPower "总放电电量";
+CM_ SG_ 2561012132 BMS__SysInsRes "绝缘值";
+CM_ SG_ 2561012132 BMS_Contactor_state_DC_Posi "充放电正继电器状态";
+CM_ SG_ 2561012132 BMS_Contactor_state_DC_Nega "充放电负继电器状态";
+CM_ SG_ 2561012132 BMS_Contactor_state_Precharge "预充继电器状态";
+CM_ SG_ 2561012132 BMS_Contactor_state_Balance "均衡继电器状态";
+CM_ SG_ 2561012132 BMS_Contactor_state_Heat "加热继电器状态";
+CM_ SG_ 2561012132 BMS_DCS_InletConnectSta "充电枪插枪状态";
+CM_ SG_ 2561012132 BMS_Heat_Req "充电加热请求（根据实际项目需求）";
+CM_ SG_ 2561012132 BMS_EmergyShutdown_Fault "急停故障";
+CM_ SG_ 2561012132 BMS_TempDiff "组温差值";
+CM_ SG_ 2561012132 BMS_AmbientTemp "环境温度";
+CM_ SG_ 2561012132 BMS_ActlExchgCurnt "组电流值";
+CM_ SG_ 2561012132 BMS_LifeCnt "心跳信号";
+CM_ SG_ 2561077668 BMS_NBCMU01_Curr "簇1 电流";
+CM_ SG_ 2561077668 BMS_NBCMU02_Curr "簇2 电流";
+CM_ SG_ 2561077668 BMS_NBCMU03_Curr "簇3 电流";
+CM_ SG_ 2561077668 BMS_NBCMU04_Curr "簇4 电流";
+CM_ SG_ 2561143204 BMS_CellVoltDiff "压差值";
+CM_ SG_ 2561143204 BMS_Volt_Input "输入电压值";
+CM_ SG_ 2561143204 BMS_Volt_Output "输出电压值";
+CM_ SG_ 2561208740 BMS_NBCMU01_Volt "簇1 电压";
+CM_ SG_ 2561208740 BMS_NBCMU02_Volt "簇2 电压";
+CM_ SG_ 2561208740 BMS_NBCMU03_Volt "簇3 电压";
+CM_ SG_ 2561208740 BMS_NBCMU04_Volt "簇4 电压";
+CM_ SG_ 2561274276 BMS_NBCMU01_SysCellVoltMax "簇1最大单体电压值";
+CM_ SG_ 2561274276 BMS_NBCMU01_SysVMax_NBICUadd "簇1最大单体电压箱号";
+CM_ SG_ 2561274276 BMS_NBCMU01_SysVMax_Code "簇1最大单体电压编号";
+CM_ SG_ 2561274276 BMS_NBCMU02_SysCellVoltMax "簇2最大单体电压值";
+CM_ SG_ 2561274276 BMS_NBCMU02_SysVMax_NBICUadd "簇2最大单体电压箱号";
+CM_ SG_ 2561274276 BMS_NBCMU02_SysVMax_Code "簇2最大单体电压编号";
+CM_ SG_ 2561339812 BMS_NBCMU03_SysCellVoltMax "簇3最大单体电压值";
+CM_ SG_ 2561339812 BMS_NBCMU03_SysVMax_NBICUadd "簇3最大单体电压箱号";
+CM_ SG_ 2561339812 BMS_NBCMU03_SysVMax_Code "簇3最大单体电压编号";
+CM_ SG_ 2561339812 BMS_NBCMU04_SysCellVoltMax "簇4最大单体电压值";
+CM_ SG_ 2561339812 BMS_NBCMU04_SysVMax_NBICUadd "簇4最大单体电压箱号";
+CM_ SG_ 2561339812 BMS_NBCMU04_SysVMax_Code "簇4最大单体电压编号";
+CM_ SG_ 2561405348 BMS_NBCMU01_SysCellVoltMin "簇1最小单体电压值";
+CM_ SG_ 2561405348 BMS_NBCMU01_SysVMin_NBICUadd "簇1最小单体电压箱号";
+CM_ SG_ 2561405348 BMS_NBCMU01_SysVMin_Code "簇1最小单体电压编号";
+CM_ SG_ 2561405348 BMS_NBCMU02_SysCellVoltMin "簇2最小单体电压值";
+CM_ SG_ 2561405348 BMS_NBCMU02_SysVMin_NBICUadd "簇2最小单体电压箱号";
+CM_ SG_ 2561405348 BMS_NBCMU02_SysVMin_Code "簇2最小单体电压编号";
+CM_ SG_ 2561470884 BMS_NBCMU03_SysCellVoltMin "簇3最小单体电压值";
+CM_ SG_ 2561470884 BMS_NBCMU03_SysVMin_NBICUadd "簇3最小单体电压箱号";
+CM_ SG_ 2561470884 BMS_NBCMU03_SysVMin_Code "簇3最小单体电压编号";
+CM_ SG_ 2561470884 BMS_NBCMU04_SysCellVoltMin "簇4最小单体电压值";
+CM_ SG_ 2561470884 BMS_NBCMU04_SysVMin_NBICUadd "簇4最小单体电压箱号";
+CM_ SG_ 2561470884 BMS_NBCMU04_SysVMin_Code "簇4最小单体电压编号";
+CM_ SG_ 2561536420 BMS_NBCMU01_SysTempMax "簇1最大单体温度值";
+CM_ SG_ 2561536420 BMS_NBCMU01_SysTMax_NBICUadd "簇1最大单体温度箱号";
+CM_ SG_ 2561536420 BMS_NBCMU01_SysTMax_Code "簇1最大单体温度编号";
+CM_ SG_ 2561536420 BMS_NBCMU02_SysTempMax "簇2最大单体温度值";
+CM_ SG_ 2561536420 BMS_NBCMU02_SysTMax_NBICUadd "簇2最大单体温度箱号";
+CM_ SG_ 2561536420 BMS_NBCMU02_SysTMax_Code "簇2最大单体温度编号";
+CM_ SG_ 2561601956 BMS_NBCMU03_SysTempMax "簇3最大单体温度值";
+CM_ SG_ 2561601956 BMS_NBCMU03_SysTMax_NBICUadd "簇3最大单体温度箱号";
+CM_ SG_ 2561601956 BMS_NBCMU03_SysTMax_Code "簇3最大单体温度编号";
+CM_ SG_ 2561601956 BMS_NBCMU04_SysTempMax "簇4最大单体温度值";
+CM_ SG_ 2561601956 BMS_NBCMU04_SysTMax_NBICUadd "簇4最大单体温度箱号";
+CM_ SG_ 2561601956 BMS_NBCMU04_SysTMax_Code "簇4最大单体温度编号";
+CM_ SG_ 2561667492 BMS_NBCMU01_SysTempMin "簇1最小单体温度值";
+CM_ SG_ 2561667492 BMS_NBCMU01_SysTMin_NBICUadd "簇1最小单体温度箱号";
+CM_ SG_ 2561667492 BMS_NBCMU01_SysTMin_Code "簇1最小单体温度编号";
+CM_ SG_ 2561667492 BMS_NBCMU02_SysTempMin "簇2最小单体温度值";
+CM_ SG_ 2561667492 BMS_NBCMU02_SysTMin_NBICUadd "簇2最小单体温度箱号";
+CM_ SG_ 2561667492 BMS_NBCMU02_SysTMin_Code "簇2最小单体温度编号";
+CM_ SG_ 2561798564 BMS_NBCMU03_SysTempMin "簇3最小单体温度值";
+CM_ SG_ 2561798564 BMS_NBCMU03_SysTMin_NBICUadd "簇3最小单体温度箱号";
+CM_ SG_ 2561798564 BMS_NBCMU03_SysTMin_Code "簇3最小单体温度编号";
+CM_ SG_ 2561798564 BMS_NBCMU04_SysTempMin "簇4最小单体温度值";
+CM_ SG_ 2561798564 BMS_NBCMU04_SysTMin_NBICUadd "簇4最小单体温度箱号";
+CM_ SG_ 2561798564 BMS_NBCMU04_SysTMin_Code "簇4最小单体温度编号";
+CM_ SG_ 2561864100 BMS_NBCMU01_Warning "簇1报警";
+CM_ SG_ 2561864100 BMS_NBCMU02_Warning "簇2报警";
+CM_ SG_ 2561864100 BMS_NBCMU03_Warning "簇3报警";
+CM_ SG_ 2561864100 BMS_NBCMU04_Warning "簇4报警";
+CM_ SG_ 2561864100 BMS_CellVoltDiff_Warning "单体压差报警";
+CM_ SG_ 2561864100 BMS_PreChrg_Warning "预充报警";
+CM_ SG_ 2561864100 BMS_PowerON_Fault_Warning "簇上电失败报警";
+CM_ SG_ 2561864100 BMS_InsulationWarning "绝缘报警";
+CM_ SG_ 2561864100 BMS_PackVoltDiff_Warning "电池包一致性故障";
+CM_ SG_ 2561864100 BMS_ChrgHeat_Warning "簇充电加热失败报警";
+CM_ SG_ 2561864100 BMS_NBCMU_TimeOut "簇通信失败报警";
+CM_ SG_ 2561864100 BMS_EMS_TimeOut "与PMS/EMS通讯丢失";
+CM_ SG_ 2561864100 BMS_HVIL_Fault "高压互锁报警";
+CM_ SG_ 2561864100 BMS_HVIL_Fault_NBCMU "高压互锁报警簇号";
+CM_ SG_ 2561864100 BMS_NBCMU01_BattVolt_LowWarning "簇1 电池过放";
+CM_ SG_ 2561864100 BMS_NBCMU02_BattVolt_LowWarning "簇2 电池过放";
+CM_ SG_ 2561864100 BMS_NBCMU03_BattVolt_LowWarning "簇3 电池过放";
+CM_ SG_ 2561864100 BMS_NBCMU04_BattVolt_LowWarning "簇4 电池过放";
+CM_ SG_ 2561864100 BMS_NBCMU01_BattVoltHighWarning "簇1 电池过充";
+CM_ SG_ 2561864100 BMS_NBCMU02_BattVoltHighWarning "簇2 电池过充";
+CM_ SG_ 2561864100 BMS_NBCMU03_BattVoltHighWarning "簇3 电池过充";
+CM_ SG_ 2561864100 BMS_NBCMU04_BattVoltHighWarning "簇4 电池过充";
+CM_ SG_ 2561864100 BMS_NBCMU01_SOC_LowWarning "簇1  SOC过低报警";
+CM_ SG_ 2561864100 BMS_NBCMU02_SOC_LowWarning "簇2  SOC过低报警";
+CM_ SG_ 2561864100 BMS_NBCMU03_SOC_LowWarning "簇3  SOC过低报警";
+CM_ SG_ 2561864100 BMS_NBCMU04_SOC_LowWarning "簇4  SOC过低报警";
+CM_ SG_ 2561864100 BMS_NBCMU01_Temp_HighWarning "簇1 过温报警（充/放电）";
+CM_ SG_ 2561864100 BMS_NBCMU02_Temp_HighWarning "簇2 过温报警（充/放电）";
+CM_ SG_ 2561864100 BMS_NBCMU03_Temp_HighWarning "簇3 过温报警（充/放电）";
+CM_ SG_ 2561864100 BMS_NBCMU04_Temp_HighWarning "簇4 过温报警（充/放电）";
+CM_ SG_ 2561864100 BMS_ChrgCurr_OverWarning "充电过流报警";
+CM_ SG_ 2561864100 BMS_DischrgCurr_OverWarning "放电过流报警";
+CM_ SG_ 2561929636 BMS_NBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561929636 BMS_NBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561929636 BMS_NBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561929636 BMS_NBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561929636 BMS_NBCMU01_ChrgFault "簇1 充电故障";
+CM_ SG_ 2561929636 BMS_NBCMU02_ChrgFault "簇2 充电故障";
+CM_ SG_ 2561929636 BMS_NBCMU03_ChrgFault "簇3 充电故障";
+CM_ SG_ 2561929636 BMS_NBCMU04_ChrgFault "簇4 充电故障";
+CM_ SG_ 2561929636 BMS_NBCMU01_ProtectFault "簇1 保护功能故障报警";
+CM_ SG_ 2561929636 BMS_NBCMU02_ProtectFault "簇2 保护功能故障报警";
+CM_ SG_ 2561929636 BMS_NBCMU03_ProtectFault "簇3 保护功能故障报警";
+CM_ SG_ 2561929636 BMS_NBCMU04_ProtectFault "簇4 保护功能故障报警";
+CM_ SG_ 2561929636 BMS_NBCMU01_VoltDetectFault "簇1 电压检测故障";
+CM_ SG_ 2561929636 BMS_NBCMU02_VoltDetectFault "簇2 电压检测故障";
+CM_ SG_ 2561929636 BMS_NBCMU03_VoltDetectFault "簇3 电压检测故障";
+CM_ SG_ 2561929636 BMS_NBCMU04_VoltDetectFault "簇4 电压检测故障";
+CM_ SG_ 2561929636 BMS_NBCMU01_Contactor_Fault "簇1继电器故障";
+CM_ SG_ 2561929636 BMS_NBCMU02_Contactor_Fault "簇2继电器故障";
+CM_ SG_ 2561929636 BMS_NBCMU03_Contactor_Fault "簇3继电器故障";
+CM_ SG_ 2561929636 BMS_NBCMU04_Contactor_Fault "簇4继电器故障";
+CM_ SG_ 2561929636 BMS_NBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561929636 BMS_NBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561929636 BMS_NBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561929636 BMS_NBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561929636 BMS_NBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561929636 BMS_NBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561929636 BMS_NBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561929636 BMS_NBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2561995172 BMS_SBCMU01_TempDetectFault "簇1 温度检测故障（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU02_TempDetectFault "簇2 温度检测故障（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU03_TempDetectFault "簇3 温度检测故障（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU04_TempDetectFault "簇4 温度检测故障（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU01_TempOverFault "簇1 过高温报警（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU02_TempOverFault "簇2 过高温报警（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU03_TempOverFault "簇3 过高温报警（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU04_TempOverFault "簇4 过高温报警（单体）";
+CM_ SG_ 2561995172 BMS_SBCMU01_AmbientTemp_HighWarning "簇1 过高温报警（环境温度）";
+CM_ SG_ 2561995172 BMS_SBCMU02_AmbientTemp_HighWarning "簇2 过高温报警（环境温度）";
+CM_ SG_ 2561995172 BMS_SBCMU03_AmbientTemp_HighWarning "簇3 过高温报警（环境温度）";
+CM_ SG_ 2561995172 BMS_SBCMU04_AmbientTemp_HighWarning "簇4 过高温报警（环境温度）";
+CM_ SG_ 2561995172 BMS_SBCMU01_SupplyVolt_HighWarning "簇1 供电电压过高";
+CM_ SG_ 2561995172 BMS_SBCMU02_SupplyVolt_LowWarning "簇1 供电电压过低";
+CM_ SG_ 2561995172 BMS_SBCMU02_SupplyVolt_HighWarning "簇2 供电电压过高";
+CM_ SG_ 2561995172 BMS_SBCMU02_SupplyVolt_LowWarning "簇2 供电电压过低";
+CM_ SG_ 2561995172 BMS_SBCMU03_SupplyVolt_HighWarning "簇3 供电电压过高";
+CM_ SG_ 2561995172 BMS_SBCMU03_SupplyVolt_LowWarning "簇3 供电电压过低";
+CM_ SG_ 2561995172 BMS_SBCMU04_SupplyVolt_HighWarning "簇4 供电电压过高";
+CM_ SG_ 2561995172 BMS_SBCMU04_SupplyVolt_LowWarning "簇4 供电电压过低";
+CM_ SG_ 2562060708 BMS_EMS_MaxAllowChrgVol "Max Allowed Charging Voltage 请求EMS最大允许充电电压";
+CM_ SG_ 2562060708 BMS_EMS_MaxAllowChrgCur "Max Allowed Charging Current 请求EMS最大允许充电电流";
+CM_ SG_ 2562060708 BMS_EMS_MaxAllowDischrgVol "Max Allowed Charging Voltage 请求EMS最大允许放电电压";
+CM_ SG_ 2562060708 BMS_EMS_MaxAllowDischrgCur "Max Allowed Charging Current 请求EMS最大允许放电电流";
+BA_DEF_ SG_  "GenSigSendType" ENUM  "Cycle","OnChangeWithRepetition","OnChange","OnWriteWithRepetition","OnWrite","IfActiveWithRepetition","IfActive";
+BA_DEF_ BO_  "GenMsgSendType" ENUM  "Cycle","Event","CycleEvent","IfActive";
+BA_DEF_ BO_ "VFrameFormat" ENUM "StandardCAN","ExtendedCAN","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","StandardCAN_FD","ExtendedCAN_FD";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 65536;
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_ BU_  "NodeLayerModules" STRING ;
+BA_DEF_ BU_  "ECU" STRING ;
+BA_DEF_DEF_  "GenSigSendType" "Cycle";
+BA_DEF_DEF_  "GenMsgSendType" "Cycle";
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "NodeLayerModules" "";
+BA_DEF_DEF_  "ECU" "";
+BA_ "VFrameFormat" BO_ 2560750833 1;
+BA_ "GenMsgCycleTime" BO_ 2560750833 100;
+BA_ "GenMsgSendType" BO_ 2560750833 0;
+BA_ "VFrameFormat" BO_ 2550588916 1;
+BA_ "GenMsgCycleTime" BO_ 2550588916 1000;
+BA_ "GenMsgSendType" BO_ 2550588916 0;
+BA_ "VFrameFormat" BO_ 2566869221 1;
+BA_ "GenMsgCycleTime" BO_ 2566869221 1000;
+BA_ "GenMsgSendType" BO_ 2566869221 0;
+BA_ "VFrameFormat" BO_ 2550243568 1;
+BA_ "GenMsgCycleTime" BO_ 2550243568 200;
+BA_ "GenMsgSendType" BO_ 2550243568 0;
+BA_ "VFrameFormat" BO_ 2550309104 1;
+BA_ "GenMsgCycleTime" BO_ 2550309104 200;
+BA_ "GenMsgSendType" BO_ 2550309104 0;
+BA_ "VFrameFormat" BO_ 2550374640 1;
+BA_ "GenMsgCycleTime" BO_ 2550374640 200;
+BA_ "GenMsgSendType" BO_ 2550374640 0;
+BA_ "VFrameFormat" BO_ 2550440176 1;
+BA_ "GenMsgCycleTime" BO_ 2550440176 200;
+BA_ "GenMsgSendType" BO_ 2550440176 0;
+BA_ "VFrameFormat" BO_ 2550767856 1;
+BA_ "GenMsgCycleTime" BO_ 2550767856 1000;
+BA_ "GenMsgSendType" BO_ 2550767856 0;
+BA_ "VFrameFormat" BO_ 2551226608 1;
+BA_ "GenMsgCycleTime" BO_ 2551226608 200;
+BA_ "GenMsgSendType" BO_ 2551226608 0;
+BA_ "VFrameFormat" BO_ 2551292144 1;
+BA_ "GenMsgCycleTime" BO_ 2551292144 200;
+BA_ "GenMsgSendType" BO_ 2551292144 0;
+BA_ "VFrameFormat" BO_ 2551357680 1;
+BA_ "GenMsgCycleTime" BO_ 2551357680 500;
+BA_ "GenMsgSendType" BO_ 2551357680 0;
+BA_ "VFrameFormat" BO_ 2551423216 1;
+BA_ "GenMsgCycleTime" BO_ 2551423216 500;
+BA_ "GenMsgSendType" BO_ 2551423216 0;
+BA_ "VFrameFormat" BO_ 2560881057 1;
+BA_ "GenMsgCycleTime" BO_ 2560881057 100;
+BA_ "GenMsgSendType" BO_ 2560881057 0;
+BA_ "VFrameFormat" BO_ 2560946593 1;
+BA_ "GenMsgCycleTime" BO_ 2560946593 100;
+BA_ "GenMsgSendType" BO_ 2560946593 0;
+BA_ "VFrameFormat" BO_ 2561012129 1;
+BA_ "GenMsgCycleTime" BO_ 2561012129 100;
+BA_ "GenMsgSendType" BO_ 2561012129 0;
+BA_ "VFrameFormat" BO_ 2561077665 1;
+BA_ "GenMsgCycleTime" BO_ 2561077665 100;
+BA_ "GenMsgSendType" BO_ 2561077665 0;
+BA_ "VFrameFormat" BO_ 2561143201 1;
+BA_ "GenMsgCycleTime" BO_ 2561143201 100;
+BA_ "GenMsgSendType" BO_ 2561143201 0;
+BA_ "VFrameFormat" BO_ 2561208737 1;
+BA_ "GenMsgCycleTime" BO_ 2561208737 100;
+BA_ "GenMsgSendType" BO_ 2561208737 0;
+BA_ "VFrameFormat" BO_ 2561274273 1;
+BA_ "GenMsgCycleTime" BO_ 2561274273 100;
+BA_ "GenMsgSendType" BO_ 2561274273 0;
+BA_ "VFrameFormat" BO_ 2561339809 1;
+BA_ "GenMsgCycleTime" BO_ 2561339809 100;
+BA_ "GenMsgSendType" BO_ 2561339809 0;
+BA_ "VFrameFormat" BO_ 2561405345 1;
+BA_ "GenMsgCycleTime" BO_ 2561405345 100;
+BA_ "GenMsgSendType" BO_ 2561405345 0;
+BA_ "VFrameFormat" BO_ 2561470881 1;
+BA_ "GenMsgCycleTime" BO_ 2561470881 100;
+BA_ "GenMsgSendType" BO_ 2561470881 0;
+BA_ "VFrameFormat" BO_ 2561536417 1;
+BA_ "GenMsgCycleTime" BO_ 2561536417 500;
+BA_ "GenMsgSendType" BO_ 2561536417 0;
+BA_ "VFrameFormat" BO_ 2561601953 1;
+BA_ "GenMsgCycleTime" BO_ 2561601953 500;
+BA_ "GenMsgSendType" BO_ 2561601953 0;
+BA_ "VFrameFormat" BO_ 2561667489 1;
+BA_ "GenMsgCycleTime" BO_ 2561667489 500;
+BA_ "GenMsgSendType" BO_ 2561667489 0;
+BA_ "VFrameFormat" BO_ 2561798561 1;
+BA_ "GenMsgCycleTime" BO_ 2561798561 500;
+BA_ "GenMsgSendType" BO_ 2561798561 0;
+BA_ "VFrameFormat" BO_ 2561864097 1;
+BA_ "GenMsgCycleTime" BO_ 2561864097 100;
+BA_ "GenMsgSendType" BO_ 2561864097 0;
+BA_ "VFrameFormat" BO_ 2561929633 1;
+BA_ "GenMsgCycleTime" BO_ 2561929633 100;
+BA_ "GenMsgSendType" BO_ 2561929633 0;
+BA_ "VFrameFormat" BO_ 2561995169 1;
+BA_ "GenMsgCycleTime" BO_ 2561995169 100;
+BA_ "GenMsgSendType" BO_ 2561995169 0;
+BA_ "VFrameFormat" BO_ 2562060705 1;
+BA_ "GenMsgCycleTime" BO_ 2562060705 100;
+BA_ "GenMsgSendType" BO_ 2562060705 0;
+BA_ "VFrameFormat" BO_ 2560881058 1;
+BA_ "GenMsgCycleTime" BO_ 2560881058 100;
+BA_ "GenMsgSendType" BO_ 2560881058 0;
+BA_ "VFrameFormat" BO_ 2560946594 1;
+BA_ "GenMsgCycleTime" BO_ 2560946594 100;
+BA_ "GenMsgSendType" BO_ 2560946594 0;
+BA_ "VFrameFormat" BO_ 2561012130 1;
+BA_ "GenMsgCycleTime" BO_ 2561012130 100;
+BA_ "GenMsgSendType" BO_ 2561012130 0;
+BA_ "VFrameFormat" BO_ 2561077666 1;
+BA_ "GenMsgCycleTime" BO_ 2561077666 100;
+BA_ "GenMsgSendType" BO_ 2561077666 0;
+BA_ "VFrameFormat" BO_ 2561143202 1;
+BA_ "GenMsgCycleTime" BO_ 2561143202 100;
+BA_ "GenMsgSendType" BO_ 2561143202 0;
+BA_ "VFrameFormat" BO_ 2561208738 1;
+BA_ "GenMsgCycleTime" BO_ 2561208738 100;
+BA_ "GenMsgSendType" BO_ 2561208738 0;
+BA_ "VFrameFormat" BO_ 2561274274 1;
+BA_ "GenMsgCycleTime" BO_ 2561274274 100;
+BA_ "GenMsgSendType" BO_ 2561274274 0;
+BA_ "VFrameFormat" BO_ 2561339810 1;
+BA_ "GenMsgCycleTime" BO_ 2561339810 100;
+BA_ "GenMsgSendType" BO_ 2561339810 0;
+BA_ "VFrameFormat" BO_ 2561405346 1;
+BA_ "GenMsgCycleTime" BO_ 2561405346 100;
+BA_ "GenMsgSendType" BO_ 2561405346 0;
+BA_ "VFrameFormat" BO_ 2561470882 1;
+BA_ "GenMsgCycleTime" BO_ 2561470882 100;
+BA_ "GenMsgSendType" BO_ 2561470882 0;
+BA_ "VFrameFormat" BO_ 2561536418 1;
+BA_ "GenMsgCycleTime" BO_ 2561536418 500;
+BA_ "GenMsgSendType" BO_ 2561536418 0;
+BA_ "VFrameFormat" BO_ 2561601954 1;
+BA_ "GenMsgCycleTime" BO_ 2561601954 500;
+BA_ "GenMsgSendType" BO_ 2561601954 0;
+BA_ "VFrameFormat" BO_ 2561667490 1;
+BA_ "GenMsgCycleTime" BO_ 2561667490 500;
+BA_ "GenMsgSendType" BO_ 2561667490 0;
+BA_ "VFrameFormat" BO_ 2561798562 1;
+BA_ "GenMsgCycleTime" BO_ 2561798562 500;
+BA_ "GenMsgSendType" BO_ 2561798562 0;
+BA_ "VFrameFormat" BO_ 2561864098 1;
+BA_ "GenMsgCycleTime" BO_ 2561864098 100;
+BA_ "GenMsgSendType" BO_ 2561864098 0;
+BA_ "VFrameFormat" BO_ 2561929634 1;
+BA_ "GenMsgCycleTime" BO_ 2561929634 100;
+BA_ "GenMsgSendType" BO_ 2561929634 0;
+BA_ "VFrameFormat" BO_ 2561995170 1;
+BA_ "GenMsgCycleTime" BO_ 2561995170 100;
+BA_ "GenMsgSendType" BO_ 2561995170 0;
+BA_ "VFrameFormat" BO_ 2562060706 1;
+BA_ "GenMsgCycleTime" BO_ 2562060706 100;
+BA_ "GenMsgSendType" BO_ 2562060706 0;
+BA_ "VFrameFormat" BO_ 2560881059 1;
+BA_ "GenMsgCycleTime" BO_ 2560881059 100;
+BA_ "GenMsgSendType" BO_ 2560881059 0;
+BA_ "VFrameFormat" BO_ 2560946595 1;
+BA_ "GenMsgCycleTime" BO_ 2560946595 100;
+BA_ "GenMsgSendType" BO_ 2560946595 0;
+BA_ "VFrameFormat" BO_ 2561012131 1;
+BA_ "GenMsgCycleTime" BO_ 2561012131 100;
+BA_ "GenMsgSendType" BO_ 2561012131 0;
+BA_ "VFrameFormat" BO_ 2561077667 1;
+BA_ "GenMsgCycleTime" BO_ 2561077667 100;
+BA_ "GenMsgSendType" BO_ 2561077667 0;
+BA_ "VFrameFormat" BO_ 2561143203 1;
+BA_ "GenMsgCycleTime" BO_ 2561143203 100;
+BA_ "GenMsgSendType" BO_ 2561143203 0;
+BA_ "VFrameFormat" BO_ 2561208739 1;
+BA_ "GenMsgCycleTime" BO_ 2561208739 100;
+BA_ "GenMsgSendType" BO_ 2561208739 0;
+BA_ "VFrameFormat" BO_ 2561274275 1;
+BA_ "GenMsgCycleTime" BO_ 2561274275 100;
+BA_ "GenMsgSendType" BO_ 2561274275 0;
+BA_ "VFrameFormat" BO_ 2561339811 1;
+BA_ "GenMsgCycleTime" BO_ 2561339811 100;
+BA_ "GenMsgSendType" BO_ 2561339811 0;
+BA_ "VFrameFormat" BO_ 2561405347 1;
+BA_ "GenMsgCycleTime" BO_ 2561405347 100;
+BA_ "GenMsgSendType" BO_ 2561405347 0;
+BA_ "VFrameFormat" BO_ 2561470883 1;
+BA_ "GenMsgCycleTime" BO_ 2561470883 100;
+BA_ "GenMsgSendType" BO_ 2561470883 0;
+BA_ "VFrameFormat" BO_ 2561536419 1;
+BA_ "GenMsgCycleTime" BO_ 2561536419 500;
+BA_ "GenMsgSendType" BO_ 2561536419 0;
+BA_ "VFrameFormat" BO_ 2561601955 1;
+BA_ "GenMsgCycleTime" BO_ 2561601955 500;
+BA_ "GenMsgSendType" BO_ 2561601955 0;
+BA_ "VFrameFormat" BO_ 2561667491 1;
+BA_ "GenMsgCycleTime" BO_ 2561667491 500;
+BA_ "GenMsgSendType" BO_ 2561667491 0;
+BA_ "VFrameFormat" BO_ 2561798563 1;
+BA_ "GenMsgCycleTime" BO_ 2561798563 500;
+BA_ "GenMsgSendType" BO_ 2561798563 0;
+BA_ "VFrameFormat" BO_ 2561864099 1;
+BA_ "GenMsgCycleTime" BO_ 2561864099 100;
+BA_ "GenMsgSendType" BO_ 2561864099 0;
+BA_ "VFrameFormat" BO_ 2561929635 1;
+BA_ "GenMsgCycleTime" BO_ 2561929635 100;
+BA_ "GenMsgSendType" BO_ 2561929635 0;
+BA_ "VFrameFormat" BO_ 2561995171 1;
+BA_ "GenMsgCycleTime" BO_ 2561995171 100;
+BA_ "GenMsgSendType" BO_ 2561995171 0;
+BA_ "VFrameFormat" BO_ 2562060707 1;
+BA_ "GenMsgCycleTime" BO_ 2562060707 100;
+BA_ "GenMsgSendType" BO_ 2562060707 0;
+BA_ "VFrameFormat" BO_ 2560881060 1;
+BA_ "GenMsgCycleTime" BO_ 2560881060 100;
+BA_ "GenMsgSendType" BO_ 2560881060 0;
+BA_ "VFrameFormat" BO_ 2560946596 1;
+BA_ "GenMsgCycleTime" BO_ 2560946596 100;
+BA_ "GenMsgSendType" BO_ 2560946596 0;
+BA_ "VFrameFormat" BO_ 2561012132 1;
+BA_ "GenMsgCycleTime" BO_ 2561012132 100;
+BA_ "GenMsgSendType" BO_ 2561012132 0;
+BA_ "VFrameFormat" BO_ 2561077668 1;
+BA_ "GenMsgCycleTime" BO_ 2561077668 100;
+BA_ "GenMsgSendType" BO_ 2561077668 0;
+BA_ "VFrameFormat" BO_ 2561143204 1;
+BA_ "GenMsgCycleTime" BO_ 2561143204 100;
+BA_ "GenMsgSendType" BO_ 2561143204 0;
+BA_ "VFrameFormat" BO_ 2561208740 1;
+BA_ "GenMsgCycleTime" BO_ 2561208740 100;
+BA_ "GenMsgSendType" BO_ 2561208740 0;
+BA_ "VFrameFormat" BO_ 2561274276 1;
+BA_ "GenMsgCycleTime" BO_ 2561274276 100;
+BA_ "GenMsgSendType" BO_ 2561274276 0;
+BA_ "VFrameFormat" BO_ 2561339812 1;
+BA_ "GenMsgCycleTime" BO_ 2561339812 100;
+BA_ "GenMsgSendType" BO_ 2561339812 0;
+BA_ "VFrameFormat" BO_ 2561405348 1;
+BA_ "GenMsgCycleTime" BO_ 2561405348 100;
+BA_ "GenMsgSendType" BO_ 2561405348 0;
+BA_ "VFrameFormat" BO_ 2561470884 1;
+BA_ "GenMsgCycleTime" BO_ 2561470884 100;
+BA_ "GenMsgSendType" BO_ 2561470884 0;
+BA_ "VFrameFormat" BO_ 2561536420 1;
+BA_ "GenMsgCycleTime" BO_ 2561536420 500;
+BA_ "GenMsgSendType" BO_ 2561536420 0;
+BA_ "VFrameFormat" BO_ 2561601956 1;
+BA_ "GenMsgCycleTime" BO_ 2561601956 500;
+BA_ "GenMsgSendType" BO_ 2561601956 0;
+BA_ "VFrameFormat" BO_ 2561667492 1;
+BA_ "GenMsgCycleTime" BO_ 2561667492 500;
+BA_ "GenMsgSendType" BO_ 2561667492 0;
+BA_ "VFrameFormat" BO_ 2561798564 1;
+BA_ "GenMsgCycleTime" BO_ 2561798564 500;
+BA_ "GenMsgSendType" BO_ 2561798564 0;
+BA_ "VFrameFormat" BO_ 2561864100 1;
+BA_ "GenMsgCycleTime" BO_ 2561864100 100;
+BA_ "GenMsgSendType" BO_ 2561864100 0;
+BA_ "VFrameFormat" BO_ 2561929636 1;
+BA_ "GenMsgCycleTime" BO_ 2561929636 100;
+BA_ "GenMsgSendType" BO_ 2561929636 0;
+BA_ "VFrameFormat" BO_ 2561995172 1;
+BA_ "GenMsgCycleTime" BO_ 2561995172 100;
+BA_ "GenMsgSendType" BO_ 2561995172 0;
+BA_ "VFrameFormat" BO_ 2562060708 1;
+BA_ "GenMsgCycleTime" BO_ 2562060708 100;
+BA_ "GenMsgSendType" BO_ 2562060708 0;
+
+
+VAL_ 2560750833 EMS_HVPwr_OnOff_Cmd 0 "PowerOff" 1 "DischrgPowerON" 2 "ChrgPowerON";
+VAL_ 2550588916 BMS_OBC_ChrgCtrl 0 "Charge start" 1 "Charge stop";
+VAL_ 2566869221 OBC_HardwareFaultSta 0 "Normal" 1 "Hardware fault";
+VAL_ 2566869221 OBC_TempSta 0 "Normal" 1 "High temp protect";
+VAL_ 2566869221 OBC_InputVoltSta 0 "Normal" 1 "Input volt error";
+VAL_ 2566869221 OBC_StartSta 0 "Start up" 1 "stop";
+VAL_ 2566869221 OBC_CommunicationSta 0 "Normal" 1 "Time out";
+VAL_ 2550243568 VCU_PwrOnCmd 48 "PowerOff" 49 "PowerOn";
+VAL_ 2550243568 VCU_DCDCCmd 0 "DCDC OFF" 1 "DCDC ON";
+VAL_ 2550243568 VCU_PTCCmd 0 "PTC OFF" 1 "PTC ON";
+VAL_ 2550309104 BMS_PwrOnCmd 0 "PowerOff" 1 "PowerOn";
+VAL_ 2550309104 BMS_DCDCState 0 "DCDC OFF" 1 "DCDC ON";
+VAL_ 2550309104 BMS_PTCState 0 "PTC OFF" 1 "PTC ON";
+VAL_ 2550374640 VCU_ChrgCmd 48 "Not Allow" 49 "Allow";
+VAL_ 2550374640 VCU_PreChrgCmd 48 "Not Allow" 49 "Allow";
+VAL_ 2550374640 VCU_OBCCmd 48 "OBC OFF" 49 "OBC ON";
+VAL_ 2550440176 BMS_ChrgCmd 0 "Not Charge" 1 "DC Connect and Charging" 2 "DC Connect but no Charge" 3 "AC Connect and Charging" 4 "AC Connect but no Charge";
+VAL_ 2550440176 BMS_PreChrgCmd 48 "Not Allow" 49 "Allow";
+VAL_ 2550440176 BMS_OBCState 48 "OBC OFF" 49 "OBC ON";
+VAL_ 2551357680 BMS_HVOff_Request 0 "No Request" 1 "Request HVOff";
+VAL_ 2551423216 VCU_HVOff_Request 0 "No Request" 1 "HVOff Finish";
+VAL_ 2560881057 BMS_RunState 0 "Invalid" 1 "Initial" 2 "DisCharge" 3 "Charge" 4 "Charge Finish" 5 "Emergy Shutdown" 6 "System Protect" 7 "Charge Protect" 8 "DisCharge Protect" 9 "Standing" 16 "PowerOff" 17 "Standby" 18 "PreCharge" 19 "Charge Heat" 20 "NBCMU Powering" 21 "NBCMU Balancing";
+VAL_ 2560881057 BMS_SysFailSta 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881057 BMS_InsRes_polarity 0 "InsResP equal InsResN" 1 "InsResP Lesser" 2 "InsResN Lesser" 3 "Reserved";
+VAL_ 2560881057 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2560881057 BMS_Cool_Req 0 "No Request" 1 "Request";
+VAL_ 2560881057 BMS_PwrDown_Req 0 "No Request" 1 "Request";
+VAL_ 2561012129 BMS_Contactor_state_DC_Posi 0 "open" 1 "close";
+VAL_ 2561012129 BMS_Contactor_state_DC_Nega 0 "open" 1 "close";
+VAL_ 2561012129 BMS_Contactor_state_Precharge 0 "open" 1 "close";
+VAL_ 2561012129 BMS_Contactor_state_Balance 0 "open" 1 "close";
+VAL_ 2561012129 BMS_Contactor_state_Heat 0 "open" 1 "close";
+VAL_ 2561012129 BMS_DCS_InletConnectSta 0 "Not Connected" 1 "Connected";
+VAL_ 2561012129 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2561012129 BMS_EmergyShutdown_Fault 0 "Normal" 1 "Fault";
+VAL_ 2561864097 BMS_NBCMU01_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU02_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU03_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU04_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_CellVoltDiff_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_PreChrg_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_PowerON_Fault_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_InsulationWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_PackVoltDiff_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_ChrgHeat_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_NBCMU_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864097 BMS_EMS_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864097 BMS_HVIL_Fault 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_HVIL_Fault_NBCMU 0 "Normal" 1 "Warning";
+VAL_ 2561864097 BMS_NBCMU01_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU02_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU03_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU04_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU01_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU02_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU03_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU04_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU01_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU02_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU03_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU04_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU01_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU02_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU03_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_NBCMU04_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_ChrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864097 BMS_DischrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU01_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU02_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU03_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU04_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU01_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU02_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU03_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU04_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU01_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU02_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU03_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU04_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929633 BMS_NBCMU01_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929633 BMS_NBCMU02_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929633 BMS_NBCMU03_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929633 BMS_NBCMU04_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929633 BMS_NBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929633 BMS_NBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU01_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU02_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU03_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU04_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU01_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU02_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU03_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU04_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995169 BMS_SBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995169 BMS_SBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881058 BMS_RunState 0 "Invalid" 1 "Initial" 2 "DisCharge" 3 "Charge" 4 "Charge Finish" 5 "Emergy Shutdown" 6 "System Protect" 7 "Charge Protect" 8 "DisCharge Protect" 9 "Standing" 16 "PowerOff" 17 "Standby" 18 "PreCharge" 19 "Charge Heat" 20 "NBCMU Powering" 21 "NBCMU Balancing";
+VAL_ 2560881058 BMS_SysFailSta 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881058 BMS_InsRes_polarity 0 "InsResP equal InsResN" 1 "InsResP Lesser" 2 "InsResN Lesser" 3 "Reserved";
+VAL_ 2560881058 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2560881058 BMS_Cool_Req 0 "No Request" 1 "Request";
+VAL_ 2560881058 BMS_PwrDown_Req 0 "No Request" 1 "Request";
+VAL_ 2561012130 BMS_Contactor_state_DC_Posi 0 "open" 1 "close";
+VAL_ 2561012130 BMS_Contactor_state_DC_Nega 0 "open" 1 "close";
+VAL_ 2561012130 BMS_Contactor_state_Precharge 0 "open" 1 "close";
+VAL_ 2561012130 BMS_Contactor_state_Balance 0 "open" 1 "close";
+VAL_ 2561012130 BMS_Contactor_state_Heat 0 "open" 1 "close";
+VAL_ 2561012130 BMS_DCS_InletConnectSta 0 "Not Connected" 1 "Connected";
+VAL_ 2561012130 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2561012130 BMS_EmergyShutdown_Fault 0 "Normal" 1 "Fault";
+VAL_ 2561864098 BMS_NBCMU01_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU02_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU03_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU04_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_CellVoltDiff_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_PreChrg_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_PowerON_Fault_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_InsulationWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_PackVoltDiff_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_ChrgHeat_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_NBCMU_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864098 BMS_EMS_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864098 BMS_HVIL_Fault 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_HVIL_Fault_NBCMU 0 "Normal" 1 "Warning";
+VAL_ 2561864098 BMS_NBCMU01_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU02_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU03_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU04_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU01_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU02_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU03_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU04_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU01_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU02_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU03_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU04_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU01_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU02_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU03_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_NBCMU04_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_ChrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864098 BMS_DischrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU01_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU02_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU03_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU04_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU01_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU02_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU03_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU04_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU01_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU02_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU03_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU04_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929634 BMS_NBCMU01_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929634 BMS_NBCMU02_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929634 BMS_NBCMU03_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929634 BMS_NBCMU04_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929634 BMS_NBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929634 BMS_NBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU01_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU02_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU03_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU04_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU01_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU02_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU03_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU04_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995170 BMS_SBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995170 BMS_SBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881059 BMS_RunState 0 "Invalid" 1 "Initial" 2 "DisCharge" 3 "Charge" 4 "Charge Finish" 5 "Emergy Shutdown" 6 "System Protect" 7 "Charge Protect" 8 "DisCharge Protect" 9 "Standing" 16 "PowerOff" 17 "Standby" 18 "PreCharge" 19 "Charge Heat" 20 "NBCMU Powering" 21 "NBCMU Balancing";
+VAL_ 2560881059 BMS_SysFailSta 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881059 BMS_InsRes_polarity 0 "InsResP equal InsResN" 1 "InsResP Lesser" 2 "InsResN Lesser" 3 "Reserved";
+VAL_ 2560881059 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2560881059 BMS_Cool_Req 0 "No Request" 1 "Request";
+VAL_ 2560881059 BMS_PwrDown_Req 0 "No Request" 1 "Request";
+VAL_ 2561012131 BMS_Contactor_state_DC_Posi 0 "open" 1 "close";
+VAL_ 2561012131 BMS_Contactor_state_DC_Nega 0 "open" 1 "close";
+VAL_ 2561012131 BMS_Contactor_state_Precharge 0 "open" 1 "close";
+VAL_ 2561012131 BMS_Contactor_state_Balance 0 "open" 1 "close";
+VAL_ 2561012131 BMS_Contactor_state_Heat 0 "open" 1 "close";
+VAL_ 2561012131 BMS_DCS_InletConnectSta 0 "Not Connected" 1 "Connected";
+VAL_ 2561012131 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2561012131 BMS_EmergyShutdown_Fault 0 "Normal" 1 "Fault";
+VAL_ 2561864099 BMS_NBCMU01_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU02_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU03_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU04_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_CellVoltDiff_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_PreChrg_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_PowerON_Fault_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_InsulationWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_PackVoltDiff_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_ChrgHeat_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_NBCMU_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864099 BMS_EMS_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864099 BMS_HVIL_Fault 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_HVIL_Fault_NBCMU 0 "Normal" 1 "Warning";
+VAL_ 2561864099 BMS_NBCMU01_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU02_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU03_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU04_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU01_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU02_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU03_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU04_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU01_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU02_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU03_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU04_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU01_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU02_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU03_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_NBCMU04_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_ChrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864099 BMS_DischrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU01_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU02_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU03_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU04_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU01_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU02_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU03_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU04_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU01_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU02_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU03_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU04_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929635 BMS_NBCMU01_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929635 BMS_NBCMU02_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929635 BMS_NBCMU03_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929635 BMS_NBCMU04_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929635 BMS_NBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929635 BMS_NBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU01_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU02_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU03_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU04_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU01_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU02_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU03_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU04_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995171 BMS_SBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995171 BMS_SBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881060 BMS_RunState 0 "Invalid" 1 "Initial" 2 "DisCharge" 3 "Charge" 4 "Charge Finish" 5 "Emergy Shutdown" 6 "System Protect" 7 "Charge Protect" 8 "DisCharge Protect" 9 "Standing" 16 "PowerOff" 17 "Standby" 18 "PreCharge" 19 "Charge Heat" 20 "NBCMU Powering" 21 "NBCMU Balancing";
+VAL_ 2560881060 BMS_SysFailSta 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2560881060 BMS_InsRes_polarity 0 "InsResP equal InsResN" 1 "InsResP Lesser" 2 "InsResN Lesser" 3 "Reserved";
+VAL_ 2560881060 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2560881060 BMS_Cool_Req 0 "No Request" 1 "Request";
+VAL_ 2560881060 BMS_PwrDown_Req 0 "No Request" 1 "Request";
+VAL_ 2561012132 BMS_Contactor_state_DC_Posi 0 "open" 1 "close";
+VAL_ 2561012132 BMS_Contactor_state_DC_Nega 0 "open" 1 "close";
+VAL_ 2561012132 BMS_Contactor_state_Precharge 0 "open" 1 "close";
+VAL_ 2561012132 BMS_Contactor_state_Balance 0 "open" 1 "close";
+VAL_ 2561012132 BMS_Contactor_state_Heat 0 "open" 1 "close";
+VAL_ 2561012132 BMS_DCS_InletConnectSta 0 "Not Connected" 1 "Connected";
+VAL_ 2561012132 BMS_Heat_Req 0 "No Request" 1 "Request";
+VAL_ 2561012132 BMS_EmergyShutdown_Fault 0 "Normal" 1 "Fault";
+VAL_ 2561864100 BMS_NBCMU01_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU02_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU03_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU04_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_CellVoltDiff_Warning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_PreChrg_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_PowerON_Fault_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_InsulationWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_PackVoltDiff_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_ChrgHeat_Warning 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_NBCMU_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864100 BMS_EMS_TimeOut 0 "Normal" 1 "TimeOut";
+VAL_ 2561864100 BMS_HVIL_Fault 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_HVIL_Fault_NBCMU 0 "Normal" 1 "Warning";
+VAL_ 2561864100 BMS_NBCMU01_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU02_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU03_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU04_BattVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU01_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU02_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU03_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU04_BattVoltHighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU01_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU02_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU03_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU04_SOC_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU01_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU02_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU03_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_NBCMU04_Temp_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_ChrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561864100 BMS_DischrgCurr_OverWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU01_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU02_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU03_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU04_ChrgFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU01_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU02_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU03_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU04_ProtectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU01_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU02_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU03_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU04_VoltDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561929636 BMS_NBCMU01_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929636 BMS_NBCMU02_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929636 BMS_NBCMU03_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929636 BMS_NBCMU04_Contactor_Fault 0 "Normal" 1 "can not close" 2 "can not open" 3 "reserved";
+VAL_ 2561929636 BMS_NBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561929636 BMS_NBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU01_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU02_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU03_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU04_TempDetectFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU01_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU02_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU03_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU04_TempOverFault 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU01_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU02_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU03_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU04_AmbientTemp_HighWarning 0 "Normal" 1 "Fault";
+VAL_ 2561995172 BMS_SBCMU01_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU02_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU02_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU03_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU03_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU04_SupplyVolt_HighWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";
+VAL_ 2561995172 BMS_SBCMU04_SupplyVolt_LowWarning 0 "Normal" 1 "Level 1 Warning" 2 "Level 2 Warning" 3 "Level 3 Warning";

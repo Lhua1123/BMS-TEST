@@ -5,13 +5,26 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QPushButton, QGroupBox, QComboBox, QCheckBox, QLineEdit, QFrame
+    QPushButton, QGroupBox, QComboBox, QCheckBox, QLineEdit, QFrame,
+    QStyledItemDelegate, QListView, QToolTip
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from convert_ascii.core.converter import ASCIIConverter
 from shared.style import COLORS, FONTS
+
+
+class _ComboToolTipDelegate(QStyledItemDelegate):
+    def helpEvent(self, event, view, option, index):
+        if event and event.type() == event.ToolTip:
+            tip = index.data(Qt.ToolTipRole)
+            if tip:
+                QToolTip.showText(event.globalPos(), tip, view)
+            else:
+                QToolTip.hideText()
+            return True
+        return super().helpEvent(event, view, option, index)
 
 
 class ConvertAsciiTab(QWidget):
@@ -35,9 +48,21 @@ class ConvertAsciiTab(QWidget):
         row = QHBoxLayout()
         row.addWidget(QLabel("输入类型:"))
         self.cb_input_type = QComboBox()
-        self.cb_input_type.addItems(["智能检测", "二进制", "八进制",
-                                      "十进制", "十六进制", "字符串"])
-        self.cb_input_type.setToolTip("选择'智能检测'可自动识别输入的进制类型")
+        items = ["二进制", "八进制", "十进制", "十六进制", "字符串"]
+        tips = [
+            "例: 01000001 00100001",
+            "例: 101 102",
+            "例: 65 66",
+            "例: 41 42（BMS数据常用）",
+            "直接输入文本，如 Hello",
+        ]
+        self.cb_input_type.addItems(items)
+        for i, tip in enumerate(tips):
+            self.cb_input_type.setItemData(i, tip, Qt.ToolTipRole)
+        self.cb_input_type.setItemDelegate(_ComboToolTipDelegate())
+        view = self.cb_input_type.view()
+        if isinstance(view, QListView):
+            view.setMouseTracking(True)
         row.addWidget(self.cb_input_type)
         row.addStretch()
         gi.addLayout(row)
@@ -150,9 +175,6 @@ class ConvertAsciiTab(QWidget):
     def get_input_text(self):
         return self.txt_input.toPlainText().strip()
 
-    def get_input_type(self):
-        return self.cb_input_type.currentText()
-
     def is_auto_convert(self):
         return self.chk_auto.isChecked()
 
@@ -180,14 +202,7 @@ class ConvertAsciiTab(QWidget):
             self.clear_outputs()
             return
 
-        raw_type = self.cb_input_type.currentText()
-        if raw_type == "智能检测":
-            detected = self.converter.detect_type(text)
-            if not detected:
-                return
-            input_type = detected
-        else:
-            input_type = raw_type
+        input_type = self.cb_input_type.currentText()
 
         try:
             if input_type == "二进制":
@@ -202,7 +217,7 @@ class ConvertAsciiTab(QWidget):
                 result_str = text
                 ascii_codes = [ord(c) for c in text]
 
-            all_fmts = self.converter.str_to_all(result_str)
+            all_fmts = self.converter.codes_to_all(ascii_codes)
 
             bin_val = all_fmts['binary']
             if self.chk_group4.isChecked():
@@ -220,7 +235,7 @@ class ConvertAsciiTab(QWidget):
 
         except ValueError as e:
             self.set_output('ascii_output', f"转换错误: {str(e)}")
-        except Exception as e:
+        except (OverflowError, TypeError) as e:
             self.set_output('ascii_output', f"转换出错: {str(e)}")
 
     def clear_all(self):

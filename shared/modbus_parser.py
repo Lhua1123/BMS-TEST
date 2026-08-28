@@ -87,7 +87,7 @@ def decode_register(value: int, data_type: str, bit_start: int, bit_length: int,
     return physical
 
 
-def decode_registers(raw_registers: list, register_defs: list) -> dict:
+def decode_registers(raw_registers: list, register_defs: list, start_addr: int = None) -> dict:
     result = {}
     addr_to_regs = {}
     for reg in register_defs:
@@ -95,12 +95,12 @@ def decode_registers(raw_registers: list, register_defs: list) -> dict:
         if addr not in addr_to_regs:
             addr_to_regs[addr] = []
         addr_to_regs[addr].append(reg)
+
+    if start_addr is None and register_defs:
+        start_addr = register_defs[0][0]
+
     for i, raw_val in enumerate(raw_registers):
-        if register_defs:
-            base_addr = register_defs[0][0]
-            current_addr = base_addr + i
-        else:
-            continue
+        current_addr = start_addr + i
         if current_addr in addr_to_regs:
             for reg_def in addr_to_regs[current_addr]:
                 name = reg_def[1]
@@ -122,7 +122,7 @@ def parse_batch_response(response: bytes, start_addr: int, reg_defs: list) -> di
         return None
     if parsed['function_code'] & 0x80:
         return None
-    return decode_registers(parsed['registers'], reg_defs)
+    return decode_registers(parsed['registers'], reg_defs, start_addr)
 
 
 def bytes_to_hex(data: bytes) -> str:

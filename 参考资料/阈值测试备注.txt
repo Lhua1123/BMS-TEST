@@ -1,0 +1,42 @@
+1、阈值PID对应故障码
+F001对应故障码1,2,3
+F002对应故障码4,5,6
+F003对应故障码7,8,9
+F01E对应故障码10,11,12
+F01F对应故障码13,14,15
+F00B对应故障码16,17,18
+F00C对应故障码19,20,21
+F008对应故障码43,44,45
+F023对应故障码49,50,51
+F024对应故障码52,53,54
+F012对应故障码66,67,68
+F013对应故障码69,70,71
+F010对应故障码74,75,76
+F011对应故障码77,78,79
+F019对应故障码91
+F01A对应故障码92
+F01B对应故障码93,94
+其他PID不测
+2、测试应该读的报文
+- NBCMU（161）
+单体电压实际值读：0x18B2FFA1里的极值
+单体压差读：0x18A7F1A1里的BMS_CellVoltDiff
+模块总压读：0x18C1FF01的NBICU01_CellSumVolt
+簇总压读：0x18B5FFA1的NBCMU01_SysHVoltage
+温差读：0x18A5F1A1的BMS_TempDiff
+SOC读：0x18B4FFA1的NBCMU01_SysSOC_Dis
+SOH读：0x18B4FFA1的NBCMU01_SysSOH_Cal
+供电电压：0x18C2FF01的NBICU01_SupplyVolt
+环境温度：0x18B3FFA1的NBCMU01_AmbientTemp
+- 以下要用SBCMU（177）来触发：
+S单体温度：0x18B3FFA1的温度极值
+S板过高温(环境)：0x18B3FFA1的NBCMU01_AmbientTemp
+S板充电插座过温：0x18A2FFB1的SBCMU01_TempMax_ChargeSocket_Posi和SBCMU01_TempMax_ChargeSocket_Nega
+- 以下几个故障不测:
+簇放电电流过大
+簇充电电流过大
+高压绝缘故障
+充电温度高
+充电温度低
+放电温度高
+放电温度低

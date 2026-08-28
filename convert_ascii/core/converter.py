@@ -2,7 +2,7 @@
 # 核心转换模块 - V2.0 优化版
 
 import re
-from typing import Optional, List, Tuple, Dict
+from typing import List, Tuple, Dict
 
 
 class ASCIIConverter:
@@ -78,6 +78,18 @@ class ASCIIConverter:
         codes = [int(p, 10) for p in parts]
         return self._codes_to_str(codes), codes
 
+    def codes_to_all(self, codes: List[int]) -> Dict[str, str]:
+        if not codes:
+            return {'binary': '', 'hex': '', 'octal': '', 'decimal': ''}
+        bin_parts = []; hex_parts = []; oct_parts = []; dec_parts = []
+        for c in codes:
+            bin_parts.append(format(c, '08b'))
+            hex_parts.append(format(c, '02X'))
+            oct_parts.append(format(c, '03o'))
+            dec_parts.append(str(c))
+        return {'binary': ' '.join(bin_parts), 'hex': ' '.join(hex_parts),
+                'octal': ' '.join(oct_parts), 'decimal': ' '.join(dec_parts)}
+
     def str_to_all(self, text: str) -> Dict[str, str]:
         if not text:
             return {'binary': '', 'hex': '', 'octal': '',
@@ -104,53 +116,6 @@ class ASCIIConverter:
         elif base_type == 'hex':
             return ' '.join(value[i:i+2] for i in range(0, len(value), 2))
         return value
-
-    @staticmethod
-    def detect_type(text: str) -> Optional[str]:
-        t = text.strip()
-        if not t:
-            return None
-
-        lower = t.lower()
-        if lower.startswith('0x'):
-            return "十六进制"
-        if lower.startswith('0b'):
-            return "二进制"
-        if lower.startswith('0o'):
-            return "八进制"
-
-        parts = t.split()
-        if not parts:
-            return None
-
-        re_bin = re.compile(r'^[01]+$')
-        re_hex = re.compile(r'^[0-9a-fA-F]+$')
-        re_dec = re.compile(r'^[0-9]+$')
-
-        if all(re_bin.match(p) for p in parts):
-            return "二进制"
-
-        if any(re_hex.match(p) and re.search(r'[a-fA-F]', p) for p in parts):
-            return "十六进制"
-
-        if any('8' in p or '9' in p for p in parts) and all(re_dec.match(p) for p in parts):
-            return "十进制"
-
-        if all(re_dec.match(p) for p in parts):
-            try:
-                vals = [int(p) for p in parts]
-                if any(v > 127 for v in vals):
-                    return "十六进制"
-            except ValueError:
-                pass
-            if len(parts) >= 2:
-                return "十六进制"
-            return "十进制"
-
-        if all(re_hex.match(p) for p in parts):
-            return "十六进制"
-
-        return "字符串"
 
     @staticmethod
     def clean_hex_input(hex_str: str) -> str:

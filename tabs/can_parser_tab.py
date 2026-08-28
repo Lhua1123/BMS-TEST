@@ -267,7 +267,7 @@ class CanParserTab(QWidget):
 
                 self.txt_parse_result.setHtml(html)
 
-        except Exception as e:
+        except (ValueError, FileNotFoundError, PermissionError) as e:
             self.txt_parse_result.setHtml(f"<p>❌ 解析异常: {str(e)}</p>")
 
     def _on_copy_parse(self):
@@ -299,7 +299,7 @@ class CanParserTab(QWidget):
                 self.dbc_imported.emit(success)
             else:
                 pass  # 未成功导入任何文件
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, RuntimeError) as e:
             self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败: {str(e)}</p>")
 
     def _on_remove_dbc(self):
