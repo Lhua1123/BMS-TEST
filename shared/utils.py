@@ -48,14 +48,11 @@ def infer_datatype(bit_length: int, bit_start: int, factor: float, description: 
 def get_protocol_config_path() -> str:
     """
     获取 protocol_user_config.json 的路径。
-    exe 环境下优先读取 exe 同目录，源码环境回退到项目根目录。
+    exe 环境下始终使用 exe 同目录，源码环境使用项目根目录。
     """
     filename = 'protocol_user_config.json'
     if getattr(sys, 'frozen', False):
-        exe_dir = os.path.dirname(sys.executable)
-        candidate = os.path.join(exe_dir, filename)
-        if os.path.exists(candidate):
-            return candidate
+        return os.path.join(os.path.dirname(sys.executable), filename)
     return os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         filename
