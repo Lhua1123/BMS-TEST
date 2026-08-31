@@ -31,6 +31,7 @@ from shared.constants import (
     BMS_REGISTER_START_ADDR,
     REFRESH_INTERVAL_MS
 )
+from shared.utils import get_protocol_config_path
 
 
 class SignalEmitter(QObject):
@@ -131,10 +132,7 @@ class BmsMonitorTab(QWidget):
         self._load_user_config()
 
     def _load_user_config(self):
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'protocol_user_config.json'
-        )
+        config_path = get_protocol_config_path()
         if not os.path.exists(config_path):
             return
         try:

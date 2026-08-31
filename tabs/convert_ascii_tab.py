@@ -6,25 +6,32 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QPushButton, QGroupBox, QComboBox, QCheckBox, QLineEdit, QFrame,
-    QStyledItemDelegate, QListView, QToolTip
+    QToolTip
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QEvent
 from PyQt5.QtGui import QFont
+
+
+class _ComboToolTipFilter(QObject):
+    """事件过滤器：为 QComboBox 下拉项显示 tooltip"""
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.ToolTip:
+            view = obj if hasattr(obj, 'indexAt') else None
+            if view:
+                pos = view.viewport().mapFromGlobal(event.globalPos())
+                index = view.indexAt(pos)
+                if index.isValid():
+                    tip = index.data(Qt.UserRole)
+                    if tip:
+                        QToolTip.showText(event.globalPos(), tip, view)
+                        return True
+                    else:
+                        QToolTip.hideText()
+                        return True
+        return False
 
 from convert_ascii.core.converter import ASCIIConverter
 from shared.style import COLORS, FONTS
-
-
-class _ComboToolTipDelegate(QStyledItemDelegate):
-    def helpEvent(self, event, view, option, index):
-        if event and event.type() == event.ToolTip:
-            tip = index.data(Qt.ToolTipRole)
-            if tip:
-                QToolTip.showText(event.globalPos(), tip, view)
-            else:
-                QToolTip.hideText()
-            return True
-        return super().helpEvent(event, view, option, index)
 
 
 class ConvertAsciiTab(QWidget):
@@ -58,11 +65,10 @@ class ConvertAsciiTab(QWidget):
         ]
         self.cb_input_type.addItems(items)
         for i, tip in enumerate(tips):
-            self.cb_input_type.setItemData(i, tip, Qt.ToolTipRole)
-        self.cb_input_type.setItemDelegate(_ComboToolTipDelegate())
+            self.cb_input_type.setItemData(i, tip, Qt.UserRole)
         view = self.cb_input_type.view()
-        if isinstance(view, QListView):
-            view.setMouseTracking(True)
+        view.setMouseTracking(True)
+        view.viewport().installEventFilter(_ComboToolTipFilter(self))
         row.addWidget(self.cb_input_type)
         row.addStretch()
         gi.addLayout(row)

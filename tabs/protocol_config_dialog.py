@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QColor
 
-from shared.utils import infer_datatype
+from shared.utils import infer_datatype, get_protocol_config_path
 
 
 class ProtocolConfigDialog(QDialog):
@@ -24,10 +24,7 @@ class ProtocolConfigDialog(QDialog):
         super().__init__(parent)
         self.mode = mode
         self.parent_tab = parent
-        self.user_config_path = user_config_path or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'protocol_user_config.json'
-        )
+        self.user_config_path = user_config_path or get_protocol_config_path()
         self.default_config = {}
         self.user_overrides = {}
         self._updating = False
