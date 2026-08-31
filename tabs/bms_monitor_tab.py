@@ -178,6 +178,25 @@ class BmsMonitorTab(QWidget):
         self._build_signal_info()
         self._calc_register_range()
         self._init_reg_display()
+
+        # 用更新后的 register_groups 重新解码已有 raw 值，使 factor/offset 等参数立即生效
+        if self.register_values:
+            try:
+                from shared.modbus_parser import decode_registers
+                all_reg_defs = []
+                for regs in self.register_groups.values():
+                    all_reg_defs.extend(regs)
+                if all_reg_defs:
+                    min_addr = min(self.register_values.keys())
+                    max_addr = max(self.register_values.keys())
+                    registers = [self.register_values.get(addr, 0) for addr in range(min_addr, max_addr + 1)]
+                    new_decoded = decode_registers(registers, all_reg_defs, min_addr)
+                    if new_decoded:
+                        self.parsed_data.clear()
+                        self.parsed_data.update(new_decoded)
+            except Exception:
+                pass
+
         for tab_name, table in self.tab_tables.items():
             for idx in range(table.rowCount()):
                 item0 = table.item(idx, 0)
