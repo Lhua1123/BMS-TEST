@@ -13,6 +13,7 @@ class CANConstants:
 
     # 报文ID定义
     DAPP_FAULTSET_MSG_ID = 0x18D1FFDF  # 故障注入报文ID
+    DAPP_THRESHOLDSET_MSG_ID = 0x18D2FFDF  # 阈值设置报文ID
 
     # 通道0关注的报文ID
     CH0_MONITORED_IDS = {
@@ -23,6 +24,13 @@ class CANConstants:
         0x18A2FFB1,  # SBCMU01_DCChrgState
         0x18FFA0F4,  # DAPP_PIDReadResp（PID读取响应）
         0x18D2FFDF,  # DAPP_ThresholdSet（阈值设置）
+        # 阈值测试环境实际值（默认簇1；其他簇由引擎动态扩展）
+        0x18B2FFA1,  # NBCMU01_VoltExtremeInfo
+        0x18B3FFA1,  # NBCMU01_TempExtremeInfo
+        0x18B4FFA1,  # NBCMU01_SysSOX
+        0x18B5FFA1,  # NBCMU01_SysHVoltage
+        0x18C1FF01,  # NBICU01_VoltExtremeInfo
+        0x18C2FF01,  # NBICU01_TempExtremeInfo
     }
 
     # 通道1关注的报文ID（基础模式）

@@ -9,12 +9,6 @@ import logging
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 
-try:
-    import cantools
-    HAS_CANTOOLS = True
-except ImportError:
-    HAS_CANTOOLS = False
-
 from convert_ascii.core.converter import ASCIIConverter
 
 logger = logging.getLogger(__name__)
@@ -52,6 +46,7 @@ class BMSFormatter:
         self.dbc_files = []
         self.dbc_message_ids = set()
         self.signal_comments = {}
+        self.last_load_errors: List[str] = []
 
     def parse_can_id(self, can_id_hex: str) -> Dict[str, Any]:
         try:
@@ -271,20 +266,61 @@ Data: 0F A0 0E 10 0D 80 0C F0
     # DBC 导入与解码
     # ============================================================
 
+    def _resolve_duplicate_signals(self, content: str) -> str:
+        """同报文内重名 SG_ 自动加序号后缀，避免 cantools 因 overlap 拒绝加载"""
+        result_lines = []
+        in_message = False
+        name_counts = {}
+
+        for line in content.splitlines(keepends=True):
+            stripped = line.lstrip()
+            if stripped.startswith('BO_ '):
+                in_message = True
+                name_counts = {}
+                result_lines.append(line)
+                continue
+
+            if in_message and stripped.startswith('SG_'):
+                m = re.match(r'(\s*SG_\s+)([A-Za-z_][A-Za-z0-9_]*)(\s*:.*)', line)
+                if m:
+                    prefix, name, rest = m.group(1), m.group(2), m.group(3)
+                    name_counts[name] = name_counts.get(name, 0) + 1
+                    if name_counts[name] > 1:
+                        new_name = f"{name}_dup{name_counts[name]}"
+                        logger.warning("DBC 重名信号: 同报文内将 %s 重命名为 %s", name, new_name)
+                        line = f"{prefix}{new_name}{rest}"
+                result_lines.append(line)
+                continue
+
+            if not stripped.strip():
+                in_message = False
+                name_counts = {}
+            result_lines.append(line)
+
+        return ''.join(result_lines)
+
     def load_dbc(self, dbc_file: str, encoding: str = None) -> bool:
         """加载单个 DBC 文件，自动尝试常见编码"""
-        if not HAS_CANTOOLS:
+        try:
+            import cantools
+        except ImportError:
             raise ImportError("cantools 未安装，请先安装依赖: pip install cantools")
 
+        if dbc_file in self.dbc_files:
+            logger.info("DBC 已加载，跳过重复导入: %s", dbc_file)
+            return True
+
         encodings = [encoding] if encoding else ['utf-8', 'gbk', 'gb2312', 'iso-8859-1']
+        last_error = None
         for enc in encodings:
             try:
                 with open(dbc_file, 'r', encoding=enc) as f:
                     dbc_content = f.read()
+                dbc_content = self._resolve_duplicate_signals(dbc_content)
                 db = cantools.database.load_string(dbc_content)
                 if not db.messages:
                     logger.warning("DBC 文件不包含任何消息: %s", dbc_file)
-                    return False
+                    raise ValueError("DBC 文件不包含任何消息")
 
                 self.dbc_files.append(dbc_file)
                 self.db_list.append(db)
@@ -298,25 +334,31 @@ Data: 0F A0 0E 10 0D 80 0C F0
 
                 logger.info("成功加载 DBC: %s，消息数=%d", os.path.basename(dbc_file), len(db.messages))
                 return True
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as e:
+                last_error = e
                 logger.warning("以 %s 编码加载 DBC 失败，尝试下一个编码", enc)
                 continue
             except Exception as e:
+                last_error = e
                 logger.error("加载 DBC 时出错 (编码 %s): %s", enc, e)
                 continue
 
+        detail = f"；最后错误: {last_error}" if last_error else ""
         raise ValueError(
-            "无法加载 DBC 文件，请确保文件格式正确且使用支持的编码(UTF-8, GBK, GB2312, ISO-8859-1)"
+            f"无法加载 DBC 文件，请确保文件格式正确且使用支持的编码(UTF-8, GBK, GB2312, ISO-8859-1){detail}"
         )
 
     def load_dbc_files(self, dbc_files: List[str]) -> List[str]:
         """批量加载 DBC 文件，返回成功加载的文件名列表"""
         success = []
+        self.last_load_errors = []
         for dbc_file in dbc_files:
             try:
                 if self.load_dbc(dbc_file):
                     success.append(os.path.basename(dbc_file))
             except Exception as e:
+                err = f"{os.path.basename(dbc_file)}: {e}"
+                self.last_load_errors.append(err)
                 logger.error("加载 DBC 文件失败: %s, 错误: %s", dbc_file, e)
         return success
 
@@ -378,8 +420,183 @@ Data: 0F A0 0E 10 0D 80 0C F0
 
         return None, None
 
+    @staticmethod
+    def _extract_signal_bits(
+        data_bytes: bytes,
+        start: int,
+        length: int,
+        byte_order: str,
+        is_signed: bool,
+    ) -> Tuple[int, str, List[int], str]:
+        """
+        按 DBC 规则从原始帧中提取信号位。
+
+        返回: (raw整数, 二进制串, 涉及的字节索引列表, 位范围描述)
+
+        小端 Intel(@1+):
+            DBC start 即 LSB 的“位序号”，位序号 = 字节索引×8 + 位内偏移(LSB=0)。
+            从 start 起向高位连续取 length 位，bits[0] 是 raw 的最低位。
+
+        大端 Motorola(@0+):
+            DBC start 是 MSB 的锯齿位号；先换算成网络顺序位号
+            seq = 8*(start//8) + (7-(start%8))，其中 seq%8==0 表示该字节的 MSB。
+            再从 seq 起向后取 length 位，bits[0] 是 raw 的最高位。
+        """
+        if length <= 0:
+            return 0, "", [], ""
+        if length > 64:
+            length = 64
+
+        bits: List[int] = []
+        bit_positions: List[int] = []  # 存放 (byte_idx, bit_in_byte_lsb)
+
+        if byte_order == 'little_endian':
+            for i in range(length):
+                pos = start + i
+                byte_idx = pos // 8
+                bit_in_byte = pos % 8  # LSB=0
+                bit_positions.append((byte_idx, bit_in_byte))
+        else:
+            seq_start = 8 * (start // 8) + (7 - (start % 8))
+            for i in range(length):
+                pos = seq_start + i
+                byte_idx = pos // 8
+                bit_in_byte = 7 - (pos % 8)  # 顺序位号%8==0 → 字节内 MSB
+                bit_positions.append((byte_idx, bit_in_byte))
+
+        for byte_idx, bit_in_byte in bit_positions:
+            if byte_idx >= len(data_bytes):
+                bits.append(0)
+                continue
+            bits.append((data_bytes[byte_idx] >> bit_in_byte) & 1)
+
+        raw = 0
+        if byte_order == 'little_endian':
+            for i, b in enumerate(bits):
+                raw |= (b << i)
+        else:
+            for b in bits:
+                raw = (raw << 1) | b
+
+        # 有符号数：二补码
+        if is_signed and length < 64 and (raw & (1 << (length - 1))):
+            raw_signed = raw - (1 << length)
+        else:
+            raw_signed = raw
+
+        # 展示用二进制：统一 MSB 在左
+        if byte_order == 'little_endian':
+            bin_str = ''.join(str(b) for b in bits[::-1])
+        else:
+            bin_str = ''.join(str(b) for b in bits)
+
+        involved = sorted(set(bp[0] for bp in bit_positions))
+        if byte_order == 'little_endian':
+            pos_desc = f"位{start}(LSB) ~ 位{start + length - 1}(MSB)，共{length}bit，小端"
+        else:
+            pos_desc = f"位{start}(MSB锯齿位号) 起，共{length}bit，大端(Motorola)"
+
+        return raw_signed, bin_str, involved, pos_desc
+
+    def _explain_signal(
+        self,
+        signal,
+        data_bytes: bytes,
+        decoded_value,
+    ) -> Dict[str, Any]:
+        """生成单个信号的逐步计算说明"""
+        raw, bin_str, involved, pos_desc = self._extract_signal_bits(
+            data_bytes,
+            signal.start,
+            signal.length,
+            signal.byte_order,
+            signal.is_signed,
+        )
+
+        involved_hex = ', '.join(
+            f"Byte{i}=0x{data_bytes[i]:02X}" for i in involved if i < len(data_bytes)
+        )
+        involved_hex_short = ' '.join(
+            f"{data_bytes[i]:02X}" for i in involved if i < len(data_bytes)
+        )
+
+        scale = signal.scale if signal.scale is not None else 1.0
+        offset = signal.offset if signal.offset is not None else 0.0
+
+        # 构造公式
+        if scale == 1 and offset == 0:
+            formula = f"物理值 = 原始值 = {raw}"
+            calc_detail = f"原始整数直接使用"
+        elif offset == 0:
+            formula = f"物理值 = 原始值 × {scale} = {raw} × {scale}"
+            phys = raw * scale
+            formula += f" = {phys}"
+            calc_detail = f"{raw} × {scale} = {phys}"
+        elif scale == 1:
+            formula = f"物理值 = 原始值 + ({offset}) = {raw} + ({offset})"
+            phys = raw + offset
+            formula += f" = {phys}"
+            calc_detail = f"{raw} + ({offset}) = {phys}"
+        else:
+            formula = f"物理值 = 原始值 × {scale} + ({offset}) = {raw} × {scale} + ({offset})"
+            phys = raw * scale + offset
+            formula += f" = {phys}"
+            calc_detail = f"{raw} × {scale} + ({offset}) = {phys}"
+
+        # 枚举映射
+        choices = getattr(signal, 'choices', None)
+        choice_text = ""
+        if choices and raw in choices:
+            choice_text = f"枚举: {raw} → {choices[raw]}"
+
+        signed_note = ""
+        if signal.is_signed:
+            unsigned_raw = raw if raw >= 0 else raw + (1 << signal.length)
+            signed_note = f"有符号({signal.length}bit): 原码/无符号={unsigned_raw}, 补码解释={raw}"
+
+        order_cn = "小端 Intel(@1)" if signal.byte_order == 'little_endian' else "大端 Motorola(@0)"
+
+        if isinstance(decoded_value, float):
+            formatted_value = "0" if abs(decoded_value) < 0.001 else f"{decoded_value:.3f}"
+        else:
+            formatted_value = str(decoded_value).strip()
+
+        steps = [
+            f"1. DBC定义: start={signal.start}, length={signal.length}, byte_order={order_cn}"
+            + (", 有符号" if signal.is_signed else ", 无符号"),
+            f"2. 涉及字节: {involved_hex}（{involved_hex_short}）",
+            f"3. 位序({pos_desc}): {bin_str}",
+            f"4. 原始整数: {raw} (0x{raw & ((1 << max(signal.length, 1)) - 1):X})",
+            f"5. 线性变换: {calc_detail}",
+        ]
+        if choice_text:
+            steps.append(f"6. {choice_text}")
+        if signed_note:
+            steps.append(f"说明: {signed_note}")
+
+        return {
+            '信号名': signal.name,
+            '值': formatted_value,
+            '单位': signal.unit or '',
+            '注释': "",
+            '起始位': signal.start,
+            '长度': signal.length,
+            '字节序': order_cn,
+            '有符号': signal.is_signed,
+            '涉及字节': involved_hex,
+            '涉及字节HEX': involved_hex_short,
+            '位序': bin_str,
+            '原始值': raw,
+            '原始值HEX': f"0x{raw & ((1 << max(signal.length, 1)) - 1):X}",
+            '系数': scale,
+            '偏移': offset,
+            '公式': formula,
+            '计算步骤': steps,
+            '枚举': choice_text,
+        }
+
     def decode_with_dbc(self, can_id_hex: str, hex_data: str) -> Dict[str, Any]:
-        """用 DBC 解码 CAN 数据，返回结构化结果"""
+        """用 DBC 解码 CAN 数据，返回结构化结果（含逐步计算过程）"""
         if not self.db_list:
             return {'错误': '未加载 DBC 文件'}
 
@@ -434,27 +651,46 @@ Data: 0F A0 0E 10 0D 80 0C F0
         for signal in sorted_signals:
             if signal.name not in decoded:
                 continue
-            value = decoded[signal.name]
-            if isinstance(value, float):
-                formatted_value = "0" if abs(value) < 0.001 else f"{value:.3f}"
-            else:
-                formatted_value = str(value)
-
-            signal_list.append({
-                '信号名': signal.name,
-                '值': formatted_value,
-                '单位': signal.unit or '',
-                '注释': self.signal_comments.get(f"{can_id_int}_{signal.name}", ""),
-                '起始位': signal.start,
-                '长度': signal.length,
-            })
+            try:
+                explained = self._explain_signal(signal, data_bytes, decoded[signal.name])
+            except Exception as e:
+                logger.warning("信号 %s 计算过程生成失败: %s", signal.name, e)
+                value = decoded[signal.name]
+                if isinstance(value, float):
+                    formatted_value = "0" if abs(value) < 0.001 else f"{value:.3f}"
+                else:
+                    formatted_value = str(value).strip()
+                explained = {
+                    '信号名': signal.name,
+                    '值': formatted_value,
+                    '单位': signal.unit or '',
+                    '注释': '',
+                    '起始位': signal.start,
+                    '长度': signal.length,
+                    '字节序': "小端 Intel(@1)" if signal.byte_order == 'little_endian' else "大端 Motorola(@0)",
+                    '有符号': signal.is_signed,
+                    '涉及字节': '',
+                    '涉及字节HEX': '',
+                    '位序': '',
+                    '原始值': '',
+                    '原始值HEX': '',
+                    '系数': signal.scale,
+                    '偏移': signal.offset,
+                    '公式': f'计算过程生成失败: {e}',
+                    '计算步骤': [f'计算过程生成失败: {e}', f'cantools 解码值: {formatted_value}'],
+                    '枚举': '',
+                }
+            explained['注释'] = self.signal_comments.get(f"{can_id_int}_{signal.name}", "")
+            signal_list.append(explained)
 
         return {
             'CAN ID': can_id_hex,
             '消息名': message.name,
             '信号列表': signal_list,
             '原始数据': hex_data,
+            '原始数据HEX': ' '.join(f'{b:02X}' for b in data_bytes),
             '字节数': len(data_bytes),
+            'DLC说明': f"数据共 {len(data_bytes)} 字节，按 DBC 信号位定义提取",
         }
 
     def parse_can_data_with_dbc(self, can_id_hex: str, hex_data: str) -> Dict[str, Any]:

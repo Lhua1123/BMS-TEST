@@ -193,14 +193,47 @@ class PIDTable:
                 if cell:
                     col_name = str(cell).strip()
                     col_indices[col_name] = idx
-                    
+
+            # 列名别名：兼容 DIC.BMS参数-原始.xlsx（参数PID / 成熟解除确认时间 等）
+            alias = {
+                "PID": ["PID", "参数PID"],
+                "告警类别": ["告警类别", "参数群"],
+                "对应故障码": ["对应故障码"],
+                "告警使能": ["告警使能"],
+                "成熟时间(s)": ["成熟时间(s)", "成熟/解除确认时间", "成熟解除确认时间"],
+                "一级阈值": ["一级阈值"],
+                "二级阈值": ["二级阈值"],
+                "三级阈值": ["三级阈值"],
+                "精度&单位": ["精度&单位"],
+                "HEX": ["HEX"],
+            }
+            resolved = {}
+            for canon, names in alias.items():
+                for n in names:
+                    if n in col_indices:
+                        resolved[canon] = col_indices[n]
+                        break
+            # 故障码列（DIC：一级/二级/三级 各一列）
+            fault_level_cols = []
+            for lv_name in ("一级", "二级", "三级"):
+                if lv_name in col_indices:
+                    fault_level_cols.append((lv_name, col_indices[lv_name]))
+
             # 检查必要的列
-            required_cols = ["PID", "告警类别", "对应故障码", "告警使能", "成熟时间(s)", 
+            required_cols = ["PID", "告警类别", "告警使能",
                            "一级阈值", "二级阈值", "三级阈值", "精度&单位"]
-            missing_cols = [col for col in required_cols if col not in col_indices]
+            missing_cols = [col for col in required_cols if col not in resolved]
+            if "对应故障码" not in resolved and not fault_level_cols:
+                missing_cols.append("对应故障码")
             if missing_cols:
                 logger.error(f"缺少必要的列: {missing_cols}")
                 return False
+            if "成熟时间(s)" not in resolved:
+                resolved["成熟时间(s)"] = None
+
+            # 使用解析后的列索引
+            col_indices = resolved
+            has_fault_col = "对应故障码" in col_indices and col_indices["对应故障码"] is not None
                 
             # 解析数据行
             data_start_row = None
@@ -240,28 +273,65 @@ class PIDTable:
                         pid = int(pid_str)
                         
                     # 解析告警类别
-                    alarm_category = str(row[col_indices["告警类别"]]).strip()
+                    alarm_category = str(row[col_indices["告警类别"]]).strip() if row[col_indices["告警类别"]] is not None else ""
+                    # 跳过表外/串列脏数据（例如把 HEX 列读成类别）
+                    if not alarm_category or alarm_category.startswith("[") or alarm_category.startswith("0x"):
+                        continue
                     
                     # 解析对应故障码
-                    fault_codes_str = str(row[col_indices["对应故障码"]]).strip()
                     fault_codes = []
-                    if fault_codes_str and fault_codes_str != "—":
-                        # 处理多种格式：单个数字、范围、逗号分隔
-                        for part in fault_codes_str.split(","):
-                            part = part.strip()
-                            if "-" in part:
-                                # 范围格式，如"1-3"
-                                start_end = part.split("-")
-                                if len(start_end) == 2:
-                                    start = int(start_end[0].strip())
-                                    end = int(start_end[1].strip())
-                                    fault_codes.extend(range(start, end + 1))
-                            else:
-                                # 单个数字
-                                try:
-                                    fault_codes.append(int(part))
-                                except ValueError:
-                                    pass
+                    if has_fault_col:
+                        fault_codes_str = str(row[col_indices["对应故障码"]]).strip()
+                        if fault_codes_str and fault_codes_str != "—":
+                            # 处理多种格式：单个数字、范围、逗号分隔
+                            for part in fault_codes_str.split(","):
+                                part = part.strip()
+                                if "-" in part:
+                                    # 范围格式，如"1-3"
+                                    start_end = part.split("-")
+                                    if len(start_end) == 2:
+                                        start = int(start_end[0].strip())
+                                        end = int(start_end[1].strip())
+                                        fault_codes.extend(range(start, end + 1))
+                                else:
+                                    # 单个数字
+                                    try:
+                                        fault_codes.append(int(part))
+                                    except ValueError:
+                                        pass
+                    else:
+                        # DIC：一级/二级/三级 列存放各等级故障码，按有阈值的等级顺序收集
+                        level_faults = {}
+                        for lv_name, col_i in fault_level_cols:
+                            try:
+                                cell_v = row[col_i]
+                            except Exception:
+                                cell_v = None
+                            if cell_v is None:
+                                continue
+                            s = str(cell_v).strip()
+                            if not s or s in ("—", "-", "None", "无"):
+                                continue
+                            try:
+                                level_faults[lv_name] = int(float(s))
+                            except ValueError:
+                                continue
+                        # 与阈值等级顺序对齐：有一级/二级/三级阈值则对应取码
+                        thr_probe = {
+                            "一级": row[col_indices["一级阈值"]],
+                            "二级": row[col_indices["二级阈值"]],
+                            "三级": row[col_indices["三级阈值"]],
+                        }
+                        aligned = [0, 0, 0]
+                        name_to_idx = {"一级": 0, "二级": 1, "三级": 2}
+                        for lv_name, idx in name_to_idx.items():
+                            if lv_name in level_faults and level_faults[lv_name]:
+                                aligned[idx] = int(level_faults[lv_name])
+                        # 始终按 1/2/3 级对齐存放（0 表示该级无故障码）
+                        fault_codes = aligned
+                        # 若三级皆空，再退回非零列表
+                        if not any(fault_codes):
+                            fault_codes = [c for c in level_faults.values() if c]
                     
                     # 解析告警使能
                     alarm_enable_str = str(row[col_indices["告警使能"]]).strip()
@@ -276,15 +346,21 @@ class PIDTable:
                         alarm_enable = int(alarm_enable_str)
                         
                     # 解析成熟时间
-                    mature_time_str = str(row[col_indices["成熟时间(s)"]]).strip()
-                    mature_time = float(mature_time_str) if mature_time_str else 0.0
+                    mature_idx = col_indices.get("成熟时间(s)")
+                    if mature_idx is None:
+                        mature_time = 0.0
+                    else:
+                        mature_time_str = str(row[mature_idx]).strip() if row[mature_idx] is not None else ""
+                        mature_time = float(mature_time_str) if mature_time_str else 0.0
                     
                     # 解析阈值
                     def parse_threshold(val):
-                        if not val:
+                        if val is None:
                             return None
+                        if isinstance(val, (int, float)):
+                            return float(val)
                         val_str = str(val).strip()
-                        if val_str in ("无", "—", "无(暂)", "无(暂无)"):
+                        if val_str in ("无", "—", "无(暂)", "无(暂无)", ""):
                             return None
                         try:
                             return float(val_str)
@@ -324,15 +400,21 @@ class PIDTable:
                     if hex_col is not None:
                         try:
                             raw_hex = []
-                            for _k in range(1, 18):
-                                cell_val = row[hex_col + _k]
+                            for _k in range(0, 17):
+                                col_i = hex_col + _k
+                                if col_i >= len(row):
+                                    raw_hex.append(0)
+                                    continue
+                                cell_val = row[col_i]
                                 if cell_val is None:
+                                    raw_hex.append(0)
                                     continue
                                 s = str(cell_val).strip()
                                 if s == "":
+                                    raw_hex.append(0)
                                     continue
                                 raw_hex.append((int(s, 16)) & 0xFF)
-                            if raw_hex:
+                            if any(raw_hex):
                                 while len(raw_hex) < 17:
                                     raw_hex.append(0)
                                 threshold_hex = raw_hex[:17]
@@ -355,10 +437,16 @@ class PIDTable:
                         threshold_hex=threshold_hex
                     )
                     
-                    # 添加到索引
+                    # 添加到索引（已有有效配置时不被脏行覆盖）
+                    existing = self._pids_by_id.get(pid)
+                    if existing and existing.get_supported_levels() and not (
+                        level1_threshold is not None or level2_threshold is not None or level3_threshold is not None
+                    ):
+                        continue
                     self._pids_by_id[pid] = pid_config
                     for fault_code in fault_codes:
-                        self._pids_by_fault[fault_code] = pid_config
+                        if fault_code:
+                            self._pids_by_fault[fault_code] = pid_config
                         
                     logger.debug(f"加载PID: 0x{pid:04X} - {alarm_category}")
                     

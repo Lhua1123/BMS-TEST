@@ -1,4 +1,4 @@
-﻿"""
+"""
 协议配置编辑弹窗
 支持查看/编辑信号参数，导入Excel，保存用户配置
 """
@@ -8,10 +8,9 @@ import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox, QWidget,
-    QAbstractItemView, QLineEdit, QStyledItemDelegate, QApplication,
-    QStyle, QStyleOptionButton
+    QAbstractItemView, QLineEdit, QStyledItemDelegate
 )
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
 from shared.utils import infer_datatype, get_protocol_config_path
@@ -161,7 +160,7 @@ class ProtocolConfigDialog(QDialog):
             bit_end = bit_start + cfg['bit_length'] - 1
 
             fields = [
-                ('signal_name', sig_name.strip(), True),
+                ('signal_name', sig_name.strip(), False),
                 ('addr', cfg['addr'], False),
                 ('bit_start', bit_start, False),
                 ('bit_end', bit_end, False),
@@ -169,7 +168,7 @@ class ProtocolConfigDialog(QDialog):
                 ('factor', cfg['factor'], False),
                 ('offset', cfg['offset'], False),
                 ('unit', cfg['unit'], False),
-                ('datatype', cfg['datatype'], True),
+                ('datatype', cfg['datatype'], False),
             ]
 
             for col_idx, (field, default_val, read_only) in enumerate(fields):
@@ -188,7 +187,11 @@ class ProtocolConfigDialog(QDialog):
                 else:
                     item.setFlags(item.flags() | Qt.ItemIsEditable)
 
-                item.setTextAlignment(Qt.AlignCenter)
+                # 信号名/单位/类型等文本左对齐，数值列居中
+                if col_idx in (0, 7, 8):
+                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                else:
+                    item.setTextAlignment(Qt.AlignCenter)
 
                 if field != 'signal_name' and field != 'datatype':
                     if self._is_modified(sig_name, field):
@@ -322,6 +325,9 @@ class ProtocolConfigDialog(QDialog):
                 defaults[sig_name] = overrides
 
         config[self.mode]['signals'] = defaults
+        # 记录当前协议版本，便于后续校验
+        if hasattr(self.parent_tab, 'protocol_version') and self.parent_tab.protocol_version:
+            config[self.mode]['protocol_version'] = self.parent_tab.protocol_version
 
         try:
             with open(self.user_config_path, 'w', encoding='utf-8') as f:
@@ -354,6 +360,7 @@ class ProtocolConfigDialog(QDialog):
 
         if self.mode in config:
             config[self.mode]['signals'] = {}
+            config[self.mode]['protocol_version'] = ''
 
         try:
             with open(self.user_config_path, 'w', encoding='utf-8') as f:
@@ -395,28 +402,7 @@ class ProtocolConfigDialog(QDialog):
 
 
 class _CellDelegate(QStyledItemDelegate):
-    """单元格委托：默认居中，选择列复选框左对齐"""
+    """单元格委托：默认居中对齐"""
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
-        if index.column() != 0:
-            option.displayAlignment = Qt.AlignCenter
-
-    def paint(self, painter, option, index):
-        if index.column() == 0:
-            self._paint_checkbox_left(painter, option, index)
-        else:
-            super().paint(painter, option, index)
-
-    def _paint_checkbox_left(self, painter, option, index):
-        """选择列复选框左对齐绘制"""
-        style = option.widget.style() if option.widget else QApplication.style()
-        opt = QStyleOptionButton()
-        checked = index.data(Qt.CheckStateRole)
-        opt.state = QStyle.State_On if checked == Qt.Checked else QStyle.State_Off
-        opt.state |= QStyle.State_Enabled
-        checkbox_size = style.pixelMetric(QStyle.PM_IndicatorWidth)
-        y_offset = (option.rect.height() - checkbox_size) // 2
-        x = option.rect.left() + 4
-        y = option.rect.top() + y_offset
-        opt.rect = QRect(x, y, checkbox_size, checkbox_size)
-        style.drawControl(QStyle.CE_CheckBox, opt, painter)
+        option.displayAlignment = Qt.AlignCenter

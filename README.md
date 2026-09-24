@@ -9,7 +9,18 @@
 | **进制转换** | 二进制/八进制/十进制/十六进制/ASCII 互转，一键复制 |
 | **CAN报文解析** | CAN ID 解析、数据帧解析、DBC 文件导入解码 |
 | **BMS监控(L2/L3)** | 单个监控 Tab，左侧下拉切换 L2/L3 架构，Modbus RTU 轮询、寄存器实时监控、信号物理值解析、控制指令 |
-| **协议配置** | 弹窗编辑信号参数（地址/起始位/结束位/长度/因子/偏移/单位），导入 Excel 协议文件，用户配置持久化，恢复默认回到初始配置 |
+| **报警测试** | 故障码测试、阈值测试、测试报告 |
+| **协议核对** | 以 Excel 接收模板为标准，对离线 asc/blf 或实时 ZLG 报文做 ID/DLC/信号可解码自动核对 |
+
+### 协议核对功能说明
+
+- **判断标准**：内置编辑器生成的接收模板；可从 **DBC 导入** 或 **Excel 导入**，编辑后保存
+- **DBC 导入**：默认将文档 ID `&0x1FFFFFFF` 映射为总线 ID（如 `0x98A3FFA1`→`0x18A3FFA1`）；「必须出现」默认否，由测试范围手改
+- **内置编辑器**：中栏可改报文 ID/名称/DLC/是否必须；选中报文后可增删信号；支持「按实报补齐缺失 ID」
+- **报文来源**：离线 `.asc`/`.blf`/宽松 HEX `.txt`，或 ZLG 通道+波特率实时采集
+- **核对规则**：协议外 ID、必须出现但缺失、DLC 不一致、信号位段无法解码（Intel/Motorola 按 DBC 规则）
+- **界面**：左=模板/设备，中=编辑器，右=实报统计，底=异常列表
+- **新增代码**：`protocol_check/` + `tabs/protocol_check_tab.py`
 
 ### 协议配置功能说明
 
@@ -68,7 +79,16 @@ BMS测试-整合版/
 │   ├── convert_ascii_tab.py       # 进制转换标签页
 │   ├── can_parser_tab.py          # CAN 报文解析标签页
 │   ├── bms_monitor_tab.py         # L2/L3 BMS 监控标签页
+│   ├── bms_alarm_test_tab.py      # 报警测试标签页
+│   ├── protocol_check_tab.py      # 协议核对标签页
 │   └── protocol_config_dialog.py  # 协议配置编辑弹窗
+│
+├── protocol_check/                 # CAN 协议核对引擎
+│   ├── models.py                  # 帧/模板/异常模型
+│   ├── excel_template.py          # Excel 接收模板读写
+│   ├── log_parser.py              # ASC/BLF/HEX 解析
+│   ├── checker.py                 # ID/DLC/信号核对
+│   └── zlg_live.py                # ZLG 实时采集（独立开关）
 │
 ├── l2_protocol/                    # L2 协议定义
 │   ├── protocol_config.py         # L2 寄存器配置（从 Excel 自动生成）

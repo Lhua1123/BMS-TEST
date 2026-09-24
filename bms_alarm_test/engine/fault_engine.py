@@ -12,6 +12,7 @@ from typing import List, Optional, Dict, Any, Callable, Union
 from dataclasses import dataclass
 from enum import Enum
 
+from bms_alarm_test.config.can_readback_config import get_readback_config
 from bms_alarm_test.config.fault_mapping import Fault, FaultMapping, FaultDomain
 from bms_alarm_test.models.test_result import TestResult, CheckStatus
 from bms_alarm_test.can.can_manager import CANManager
@@ -82,6 +83,7 @@ class FaultTestEngine:
         self.is_running = False
         self.stop_requested = False
         self.fail_on_first_error = False
+        self._clear_aborted = False
         self.current_thread: Optional[threading.Thread] = None
 
         # 回调函数
@@ -245,7 +247,32 @@ class FaultTestEngine:
         self._update_progress(TestState.PREPARING)
         self.verifier.clear_signal_cache()
         for domain in self.target_addresses:
-            self.clear_all_faults(domain)
+            if self.stop_requested:
+                break
+            ok = self.clear_all_faults(domain)
+            # 发送层连续失败说明总线/通道异常，继续清码只会空转
+            if not ok and self._clear_aborted:
+                logger.error("准备阶段清除故障失败（CAN 发送异常），中断测试")
+                self.progress.current_state = TestState.FAILED
+                self.is_running = False
+                self._update_progress(TestState.FAILED)
+                if self.on_test_complete:
+                    try:
+                        self.on_test_complete([])
+                    except Exception:
+                        pass
+                return
+
+        if self.stop_requested:
+            self.is_running = False
+            self.progress.current_state = TestState.COMPLETED
+            self._update_progress(TestState.COMPLETED)
+            if self.on_test_complete:
+                try:
+                    self.on_test_complete([])
+                except Exception:
+                    pass
+            return
 
         # 根据 target_addresses 动态扩展 CH0 监控报文范围
         self._update_monitored_ids()
@@ -361,27 +388,59 @@ class FaultTestEngine:
         logger.info(f"故障{fault.code}测试完成: {result.overall_status.value}")
         return result
 
+    def _get_inner_channel(self) -> int:
+        """获取当前配置的对内通道号（发送故障注入的通道）"""
+        try:
+            settings = self.can_manager.settings
+            if settings:
+                return settings.get_inner_channel()
+        except Exception:
+            pass
+        return CANConstants.CHANNEL_1
+
+    @staticmethod
+    def _inject_can_id() -> int:
+        """注入/清除报文 CAN ID：优先读可编辑回读协议配置"""
+        try:
+            inj = get_readback_config().inject or {}
+            cid = inj.get("can_id", None)
+            if cid is not None:
+                return int(str(cid), 0) if not isinstance(cid, int) else cid
+        except Exception:
+            pass
+        return CANConstants.DAPP_FAULTSET_MSG_ID
+
+    @staticmethod
+    def _inject_extended() -> bool:
+        try:
+            return bool((get_readback_config().inject or {}).get("is_extended", True))
+        except Exception:
+            return True
+
     def _inject_fault(self, fault: Fault) -> bool:
         """
-        注入故障 - 发送DAPP_FaultSet报文
+        注入故障 - 发送故障设置报文
         策略：连续发N次，帧间隔M毫秒，两遍间隔K毫秒
+        CAN ID/扩展帧来自「CAN 回读协议配置」
         """
         try:
-            message_id = CANConstants.DAPP_FAULTSET_MSG_ID
+            message_id = self._inject_can_id()
+            is_ext = self._inject_extended()
             data = self._build_fault_injection_data(fault)
             if data is None:
                 return False
+            inner_ch = self._get_inner_channel()
             data_hex = ' '.join(f'{b:02X}' for b in data)
             logger.info(f"[注入] 故障{fault.code} 目标={self._resolve_address(fault.domain)} "
-                        f"报文ID=0x{message_id:X} 数据=[{data_hex}]")
+                        f"通道=CH{inner_ch} 报文ID=0x{message_id:X} 数据=[{data_hex}]")
 
             # 第一遍
             for i in range(TimingConstants.FAULT_INJECTION_REPEAT_COUNT):
                 success = self.can_manager.send_message(
-                    channel=CANConstants.CHANNEL_1,
+                    channel=inner_ch,
                     message_id=message_id,
                     data=data,
-                    is_extended_id=True
+                    is_extended_id=is_ext
                 )
                 if not success:
                     logger.error(f"故障注入报文发送失败(第{i+1}次): {fault.code}")
@@ -396,10 +455,10 @@ class FaultTestEngine:
             # 第二遍
             for i in range(TimingConstants.FAULT_INJECTION_REPEAT_COUNT):
                 success = self.can_manager.send_message(
-                    channel=CANConstants.CHANNEL_1,
+                    channel=inner_ch,
                     message_id=message_id,
                     data=data,
-                    is_extended_id=True
+                    is_extended_id=is_ext
                 )
                 if not success:
                     logger.error(f"故障注入报文发送失败(第{i+3}次): {fault.code}")
@@ -429,14 +488,15 @@ class FaultTestEngine:
             data = self._build_fault_clear_data(fault)
             if data is None:
                 return False
+            inner_ch = self._get_inner_channel()
             data_hex = ' '.join(f'{b:02X}' for b in data)
             logger.info(f"[清除] 故障{fault.code} 目标={self._resolve_address(fault.domain)} "
-                        f"报文ID=0x{message_id:X} 数据=[{data_hex}]")
+                        f"通道=CH{inner_ch} 报文ID=0x{message_id:X} 数据=[{data_hex}]")
 
             # 第一遍
             for i in range(TimingConstants.FAULT_CLEAR_REPEAT_COUNT):
                 success = self.can_manager.send_message(
-                    channel=CANConstants.CHANNEL_1,
+                    channel=inner_ch,
                     message_id=message_id,
                     data=data,
                     is_extended_id=True
@@ -453,7 +513,7 @@ class FaultTestEngine:
             # 第二遍
             for i in range(TimingConstants.FAULT_CLEAR_REPEAT_COUNT):
                 success = self.can_manager.send_message(
-                    channel=CANConstants.CHANNEL_1,
+                    channel=inner_ch,
                     message_id=message_id,
                     data=data,
                     is_extended_id=True
@@ -572,12 +632,14 @@ class FaultTestEngine:
         logger.info("测试引擎已重置")
 
     def _update_monitored_ids(self):
-        """根据 target_addresses 动态扩展 CH0 监控报文ID"""
+        """根据 target_addresses 动态扩展对内通道监控报文ID"""
         if not self.can_manager._listener:
             return
 
         listener = self.can_manager._listener
-        monitored = listener._monitored_message_ids[CANChannel.CH1]
+        inner_ch = self._get_inner_channel()
+        can_ch = CANChannel.CH1 if inner_ch == 1 else CANChannel.CH2
+        monitored = listener._monitored_message_ids[can_ch]
 
         for domain, addr in self.target_addresses.items():
             last_byte = addr & 0xFF
@@ -598,10 +660,20 @@ class FaultTestEngine:
                     monitored.add(msg_id)
                     logger.info(f"[monitor] 添加监控报文: 0x{msg_id:08X}")
 
+        # 合并「CAN 回读协议配置」中的 monitored_ids
+        try:
+            for mid in get_readback_config().monitored_ids:
+                if mid and mid not in monitored:
+                    monitored.add(mid)
+                    logger.info(f"[monitor] 按回读配置添加监控报文: 0x{mid:08X}")
+        except Exception as e:
+            logger.debug(f"合并回读配置监控ID失败: {e}")
+
     def clear_all_faults(self, domain: Union[FaultDomain, int, None] = None) -> bool:
         """
         一键清除所有故障（故障码 1-96）
         domain: FaultDomain 枚举值，或直接传入 int 地址（向后兼容）
+        连续发送失败过多或收到停止请求时提前中止，避免界面假死。
         """
         # 归一化 domain：枚举 → 字符串值，避免后续 domain.upper() 崩溃
         if isinstance(domain, FaultDomain):
@@ -618,10 +690,17 @@ class FaultTestEngine:
             logger.error("[clear_all_faults] CAN未连接")
             return False
 
+        # 连续发送失败阈值：约 3 个故障码全失败（每码 2 轮 × 2 次 = 4 帧）
+        max_consecutive_fail = 12
+        self._clear_aborted = False
+
         try:
-            message_id = CANConstants.DAPP_FAULTSET_MSG_ID
+            message_id = self._inject_can_id()
+            inner_ch = self._get_inner_channel()
             success_count = 0
             fail_count = 0
+            consecutive_fail = 0
+            is_ext = self._inject_extended()
 
             # 按域决定清码范围
             if domain_str == "SBCMU":
@@ -630,6 +709,11 @@ class FaultTestEngine:
                 clear_codes = range(1, 97)
 
             for code in clear_codes:
+                if self.stop_requested:
+                    logger.info("[clear_all_faults] 收到停止请求，中断清除")
+                    self._clear_aborted = True
+                    return False
+
                 data = bytearray(8)
                 data[0] = addr
                 data[1] = code
@@ -639,15 +723,17 @@ class FaultTestEngine:
                 for round_idx in range(2):
                     for i in range(TimingConstants.FAULT_CLEAR_REPEAT_COUNT):
                         ok = self.can_manager.send_message(
-                            channel=CANConstants.CHANNEL_1,
+                            channel=inner_ch,
                             message_id=message_id,
                             data=bytes(data),
-                            is_extended_id=True
+                            is_extended_id=is_ext
                         )
                         if ok:
                             success_count += 1
+                            consecutive_fail = 0
                         else:
                             fail_count += 1
+                            consecutive_fail += 1
                             logger.warning(f"[clear_all_faults] 发送失败: 故障码={code}")
                         if i < TimingConstants.FAULT_CLEAR_REPEAT_COUNT - 1:
                             time.sleep(TimingConstants.FAULT_CLEAR_FRAME_INTERVAL_MS / 1000.0)
@@ -661,10 +747,25 @@ class FaultTestEngine:
                 if code % 10 == 0 or domain_str == "SBCMU":
                     logger.info(f"[clear_all_faults] 进度: {code}/96 (成功={success_count}, 失败={fail_count})")
 
+                if consecutive_fail >= max_consecutive_fail:
+                    self._clear_aborted = True
+                    hint = ""
+                    try:
+                        hint = "\n" + self.can_manager.tx_fail_hint(inner_ch, message_id)
+                    except Exception:
+                        pass
+                    logger.error(
+                        f"[clear_all_faults] 连续 {consecutive_fail} 次发送失败，"
+                        f"判定 CAN 发送异常，提前中止（已完成到故障码 {code}）"
+                        f"。常见原因：对内CAN线未接在配置的对内通道上。{hint}"
+                    )
+                    return False
+
             logger.info(f"[clear_all_faults] 完成: 成功={success_count}, 失败={fail_count}")
             return fail_count == 0
 
         except Exception as e:
             logger.error(f"[clear_all_faults] 异常: {e}")
+            self._clear_aborted = True
             return False
 

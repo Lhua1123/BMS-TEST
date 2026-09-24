@@ -6,6 +6,7 @@ BMS监控Tab - PyQt5重写
 import sys
 import os
 import json
+import logging
 import threading
 import time
 from datetime import datetime
@@ -18,8 +19,8 @@ from PyQt5.QtWidgets import (
     QTabWidget, QSizePolicy, QLayout, QStyledItemDelegate, QStyleOptionViewItem,
     QStyle
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QModelIndex
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QModelIndex, QEvent
+from PyQt5.QtGui import QFont, QColor, QFontMetrics
 
 from tabs.protocol_config_dialog import ProtocolConfigDialog
 from shared.style import COLORS, FONTS
@@ -32,6 +33,34 @@ from shared.constants import (
     REFRESH_INTERVAL_MS
 )
 from shared.utils import get_protocol_config_path
+
+logger = logging.getLogger(__name__)
+
+
+class _SignalTableColumnFilter(QObject):
+    """监视表格 viewport 尺寸变化，触发列宽按权重重分配"""
+
+    def __init__(self, table: QTableWidget, reflow_fn, parent=None):
+        super().__init__(parent if parent is not None else table)
+        self._table = table
+        self._reflow = reflow_fn
+        self._pending = False
+        table.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if watched is self._table.viewport() and event.type() in (QEvent.Resize, QEvent.Show):
+            if not self._pending:
+                self._pending = True
+                # 合并同帧多次 resize，避免抖动
+                QTimer.singleShot(0, self._do_reflow)
+        return super().eventFilter(watched, event)
+
+    def _do_reflow(self):
+        self._pending = False
+        try:
+            self._reflow()
+        except Exception:
+            pass
 
 
 class SignalEmitter(QObject):
@@ -78,6 +107,7 @@ class BmsMonitorTab(QWidget):
         self.signal_info = {}
         self.is_polling = False
         self.tab_tables = {}
+        self.active_poll_groups = []
 
         self.emitter = SignalEmitter()
         self.emitter.data_updated.connect(self._update_display)
@@ -103,6 +133,7 @@ class BmsMonitorTab(QWidget):
         self.poll_groups = cfg.POLL_GROUPS
         self.status_tabs = cfg.STATUS_TABS
         self.protocol_source = cfg.PROTOCOL_SOURCE
+        self.protocol_version = getattr(cfg, 'PROTOCOL_VERSION', '')
 
     def _on_mode_changed(self, mode):
         """架构切换：断开连接、重载协议、重建信号表格与寄存器视图"""
@@ -142,6 +173,13 @@ class BmsMonitorTab(QWidget):
             return
 
         mode_config = data.get(self.mode, {}).get('signals', {})
+        saved_version = data.get(self.mode, {}).get('protocol_version', '')
+        if saved_version and self.protocol_version and saved_version != self.protocol_version:
+            logger.warning(
+                f"[{self.mode}] 协议版本不匹配：用户配置={saved_version}，当前协议={self.protocol_version}，"
+                f"建议点击「恢复默认」或重新导入协议"
+            )
+
         for name, overrides in mode_config.items():
             if name not in self.signal_info:
                 continue
@@ -213,15 +251,27 @@ class BmsMonitorTab(QWidget):
                     raw_hex = "--"
                     raw_dec = "--"
                 physical = self.parsed_data.get(signal_name, "--")
+                item1 = table.item(idx, 1)
                 item2 = table.item(idx, 2)
                 item3 = table.item(idx, 3)
+                item4 = table.item(idx, 4)
+                item5 = table.item(idx, 5)
                 item6 = table.item(idx, 6)
+                item7 = table.item(idx, 7)
+                if item1:
+                    item1.setText(str(addr))
                 if item2:
                     item2.setText(raw_hex)
                 if item3:
                     item3.setText(raw_dec)
+                if item4:
+                    item4.setText(f"{factor}")
+                if item5:
+                    item5.setText(f"{offset}")
                 if item6:
                     item6.setText(str(physical))
+                if item7:
+                    item7.setText(unit)
 
     def _apply_excel_import(self, result):
         from shared.excel_parser import parse_excel
@@ -372,22 +422,28 @@ class BmsMonitorTab(QWidget):
                 ctrl_layout.addWidget(lbl)
                 row = QHBoxLayout()
                 row.setSpacing(6)
+                if label_text.startswith("上下电"):
+                    if not hasattr(self, 'pwr_group'):
+                        self.pwr_group = QButtonGroup()
+                        self.pwr_group.setExclusive(False)
+                        self.pwr_btns = {}
+                    btns_map = self.pwr_btns
+                    group = self.pwr_group
+                else:
+                    if not hasattr(self, 'rst_group'):
+                        self.rst_group = QButtonGroup()
+                        self.rst_group.setExclusive(False)
+                        self.rst_btns = {}
+                    btns_map = self.rst_btns
+                    group = self.rst_group
                 for text in items:
                     btn = QRadioButton(text)
-                    if text == items[0]:
-                        btn.setChecked(True)
-                    if label_text.startswith("上下电"):
-                        if not hasattr(self, 'pwr_group'):
-                            self.pwr_group = QButtonGroup()
-                            self.pwr_btns = {}
-                        self.pwr_btns[text] = btn
-                        self.pwr_group.addButton(btn)
-                    else:
-                        if not hasattr(self, 'rst_group'):
-                            self.rst_group = QButtonGroup()
-                            self.rst_btns = {}
-                        self.rst_btns[text] = btn
-                        self.rst_group.addButton(btn)
+                    btns_map[text] = btn
+                    group.addButton(btn)
+                    # 再次点击已选项可取消，恢复“未选”空白状态
+                    btn.clicked.connect(
+                        lambda checked, b=btn, m=btns_map: self._on_ctrl_radio_clicked(b, m)
+                    )
                     row.addWidget(btn)
                 row.addStretch()
                 ctrl_layout.addLayout(row)
@@ -397,13 +453,15 @@ class BmsMonitorTab(QWidget):
             estop_row = QHBoxLayout()
             estop_row.setSpacing(6)
             self.estop_group = QButtonGroup()
+            self.estop_group.setExclusive(False)
             self.estop_btns = {}
             for text in ["正常", "急停"]:
                 btn = QRadioButton(text)
-                if text == "正常":
-                    btn.setChecked(True)
                 self.estop_btns[text] = btn
                 self.estop_group.addButton(btn)
+                btn.clicked.connect(
+                    lambda checked, b=btn, m=self.estop_btns: self._on_ctrl_radio_clicked(b, m)
+                )
                 estop_row.addWidget(btn)
             estop_row.addStretch()
             ctrl_layout.addLayout(estop_row)
@@ -412,6 +470,18 @@ class BmsMonitorTab(QWidget):
             self.send_ctrl_btn.setEnabled(False)
             self.send_ctrl_btn.clicked.connect(self._send_control)
             ctrl_layout.addWidget(self.send_ctrl_btn)
+
+            # 心跳开关
+            hb_row = QHBoxLayout()
+            hb_row.setSpacing(6)
+            self.heartbeat_btn = QPushButton("▶ 启动心跳")
+            self.heartbeat_btn.setMinimumHeight(30)
+            self.heartbeat_btn.setEnabled(False)
+            self.heartbeat_btn.setCheckable(True)
+            self.heartbeat_btn.clicked.connect(self._toggle_heartbeat)
+            hb_row.addWidget(self.heartbeat_btn)
+            hb_row.addStretch()
+            ctrl_layout.addLayout(hb_row)
 
             layout.addWidget(ctrl_group)
 
@@ -474,6 +544,83 @@ class BmsMonitorTab(QWidget):
         self.interval_spin.setValue(1.0)
         return self.interval_spin
 
+    # 各列最小宽度（px）
+    _SIGNAL_COL_MIN = (140, 64, 80, 80, 56, 56, 110, 56)
+    # 富余宽度分配权重：信号名略高，其余更均衡（不要再把信号名撑爆）
+    _SIGNAL_COL_SHARE = (1.35, 0.9, 1.0, 1.0, 0.75, 0.75, 1.15, 0.75)
+
+    def _setup_signal_table_columns(self, table: QTableWidget, col_count: int):
+        """列宽可拖拽；默认按内容自适应 + 剩余宽度较均衡铺满"""
+        header = table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setMinimumSectionSize(48)
+
+        mins = list(self._SIGNAL_COL_MIN[:col_count])
+        shares = list(self._SIGNAL_COL_SHARE[:col_count])
+        while len(mins) < col_count:
+            mins.append(48)
+            while len(shares) < col_count:
+                shares.append(0.9)
+
+        for i in range(col_count):
+            header.setSectionResizeMode(i, QHeaderView.Interactive)
+
+        font = QFont('Microsoft YaHei', 10)
+        fm = QFontMetrics(font)
+
+        def content_widths():
+            """按表头+单元格文字估算自然宽度"""
+            widths = []
+            for i in range(col_count):
+                label = header.model().headerData(i, Qt.Horizontal)
+                w = fm.horizontalAdvance(str(label) if label else "")
+                for row in range(table.rowCount()):
+                    item = table.item(row, i)
+                    if item:
+                        w = max(w, fm.horizontalAdvance(item.text()))
+                widths.append(w + 20)  # 左右内边距
+            return widths
+
+        def reflow(viewport_w: int = None):
+            if viewport_w is None:
+                viewport_w = table.viewport().width()
+            if viewport_w <= 40:
+                return
+
+            content = content_widths()
+            preferred = [max(c, m) for c, m in zip(content, mins)]
+            total_pref = sum(preferred)
+
+            if total_pref <= viewport_w:
+                # 不够占满：把富余按 share 分掉（信号名只多拿一点）
+                extra = viewport_w - total_pref
+                share_sum = float(sum(shares)) or 1.0
+                target = [p + int(extra * s / share_sum)
+                          for p, s in zip(preferred, shares)]
+                # 消掉取整误差
+                gap = viewport_w - sum(target)
+                if gap != 0:
+                    target[-1] += gap
+            else:
+                # 超出视口：按 preferred 等比缩小，但不低于 min
+                scale = viewport_w / float(total_pref)
+                target = [max(int(p * scale), m) for p, m in zip(preferred, mins)]
+                # 仍可能略超，从最宽列开始削
+                while sum(target) > viewport_w:
+                    idx = max(range(col_count), key=lambda i: target[i] - mins[i])
+                    if target[idx] <= mins[idx]:
+                        break
+                    target[idx] -= 1
+
+            for i, w in enumerate(target):
+                header.resizeSection(i, w)
+
+        table._col_width_filter = _SignalTableColumnFilter(table, reflow)
+        # 数据填完后再量一次内容
+        QTimer.singleShot(0, reflow)
+        QTimer.singleShot(80, reflow)
+        table._reflow_column_widths = reflow
+
     def _build_notebook_tables(self):
         """清空并重建信号表格（架构切换/协议导入后调用）"""
         while self.notebook.count() > 0:
@@ -518,10 +665,7 @@ class BmsMonitorTab(QWidget):
 
             # 信号名列左对齐，其余列居中
             table.setItemDelegateForColumn(0, SignalNameDelegate(table))
-
-            header = table.horizontalHeader()
-            for i in range(len(columns)):
-                header.setSectionResizeMode(i, QHeaderView.Stretch)
+            self._setup_signal_table_columns(table, len(columns))
 
             table.setRowCount(len(signals))
             table.verticalHeader().setDefaultSectionSize(36)
@@ -549,6 +693,10 @@ class BmsMonitorTab(QWidget):
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter if col == 0 else Qt.AlignCenter)
                     table.setItem(idx, col, item)
 
+            # 内容填完后按实际文字宽度再排一次
+            if hasattr(table, '_reflow_column_widths'):
+                QTimer.singleShot(0, table._reflow_column_widths)
+
             tab_layout.addWidget(table)
             self.notebook.addTab(tab, tab_name)
 
@@ -567,6 +715,9 @@ class BmsMonitorTab(QWidget):
         """)
 
         self._build_notebook_tables()
+
+        # 切换分组标签时，只轮询当前标签对应寄存器
+        self.notebook.currentChanged.connect(self._on_status_tab_changed)
 
         # 用垂直 QSplitter 分隔表格和寄存器视图，可拖拽调整比例
         v_splitter = QSplitter(Qt.Vertical)
@@ -704,6 +855,7 @@ class BmsMonitorTab(QWidget):
                                  f"无法连接到 {port}\n{self.comm.stats.get('last_error', '')}")
 
     def _disconnect(self):
+        self.comm.stop_heartbeat()
         self.comm.disconnect()
         self.emitter.connection_changed.emit(False)
         self.register_values.clear()
@@ -715,6 +867,11 @@ class BmsMonitorTab(QWidget):
         self.poll_btn.setEnabled(connected)
         if hasattr(self, 'send_ctrl_btn'):
             self.send_ctrl_btn.setEnabled(connected)
+        if hasattr(self, 'heartbeat_btn'):
+            self.heartbeat_btn.setEnabled(connected)
+            if not connected:
+                self.heartbeat_btn.setChecked(False)
+                self.heartbeat_btn.setText("▶ 启动心跳")
         self.status_indicator.setStyleSheet(
             f"background-color: {'green' if connected else 'gray'}; border-radius: 10px;"
         )
@@ -722,13 +879,55 @@ class BmsMonitorTab(QWidget):
             self.poll_btn.setText("开始监控")
             self.is_polling = False
 
+    def _build_poll_ranges(self, addrs) -> list:
+        """把地址列表合并成尽量少的连续读区间 [(start, quantity), ...]"""
+        addrs = sorted(set(int(a) for a in addrs if a is not None and int(a) >= 20))
+        groups = []
+        if not addrs:
+            return groups
+        start = addrs[0]
+        end = start
+        for addr in addrs[1:]:
+            if addr == end + 1 and addr - start < 20:
+                end = addr
+            else:
+                groups.append((start, end - start + 1))
+                start = addr
+                end = addr
+        groups.append((start, end - start + 1))
+        return groups
+
+    def _current_tab_poll_groups(self) -> list:
+        """当前选中分组标签内信号对应的轮询地址组；无信号时回退为全部 poll_groups"""
+        if not hasattr(self, 'notebook') or self.notebook is None:
+            return list(self.poll_groups)
+        idx = self.notebook.currentIndex()
+        if idx < 0 or idx >= len(self.status_tabs):
+            return list(self.poll_groups)
+        _tab_name, signals = self.status_tabs[idx]
+        addrs = []
+        for name in signals:
+            info = self.signal_info.get(name)
+            if info:
+                addrs.append(info[0])
+        ranges = self._build_poll_ranges(addrs)
+        return ranges if ranges else list(self.poll_groups)
+
+    def _on_status_tab_changed(self, _index=None):
+        """切换分组标签：更新轮询组，保证当前页数据持续刷新"""
+        groups = self._current_tab_poll_groups()
+        self.active_poll_groups = groups
+        if self.is_polling and self.comm.is_connected:
+            self.comm.update_poll_groups(groups)
+
     def _toggle_polling(self):
         if self.is_polling:
             self.comm.stop_polling()
             self.poll_btn.setText("开始监控")
             self.is_polling = False
         else:
-            self.comm.start_polling(self.poll_groups, self._poll_callback)
+            self.active_poll_groups = self._current_tab_poll_groups()
+            self.comm.start_polling(self.active_poll_groups, self._poll_callback)
             self.poll_btn.setText("停止监控")
             self.is_polling = True
 
@@ -736,7 +935,11 @@ class BmsMonitorTab(QWidget):
         if response is None:
             return
 
-        start_addr, quantity = self.poll_groups[group_index]
+        groups = self.active_poll_groups or self.poll_groups
+        if not groups:
+            return
+        group_index %= len(groups)
+        start_addr, quantity = groups[group_index]
         reg_defs = []
         for group in self.register_groups.values():
             for reg in group:
@@ -756,6 +959,14 @@ class BmsMonitorTab(QWidget):
 
         self._need_reg_refresh = True
         self.emitter.data_updated.emit()
+
+    @staticmethod
+    def _on_ctrl_radio_clicked(clicked_btn, btns_map):
+        """组内互斥；再次点击已选按钮可取消，恢复空白（等价未选）"""
+        if clicked_btn.isChecked():
+            for btn in btns_map.values():
+                if btn is not clicked_btn:
+                    btn.setChecked(False)
 
     def _send_control(self):
         if not self.comm.is_connected:
@@ -790,8 +1001,23 @@ class BmsMonitorTab(QWidget):
             else:
                 QMessageBox.critical(self, "错误", "发送控制指令失败")
 
-        except (ValueError, RuntimeError) as e:
+        except Exception as e:
             QMessageBox.critical(self, "错误", f"发送控制指令时出错: {str(e)}")
+
+    def _toggle_heartbeat(self):
+        """启动/停止心跳写指令"""
+        if not self.comm.is_connected:
+            QMessageBox.warning(self, "警告", "请先连接串口")
+            self.heartbeat_btn.setChecked(False)
+            return
+
+        if self.heartbeat_btn.isChecked():
+            self.comm.start_heartbeat()
+            self.heartbeat_btn.setText("■ 停止心跳")
+            self.heartbeat_btn.setChecked(True)
+        else:
+            self.comm.stop_heartbeat()
+            self.heartbeat_btn.setText("▶ 启动心跳")
 
     def _clear_log(self):
         self.register_values.clear()

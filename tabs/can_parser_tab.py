@@ -9,7 +9,7 @@ from typing import List, Tuple
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QTextEdit, QComboBox, QSplitter,
-    QFileDialog, QListWidget, QListWidgetItem, QCompleter
+    QFileDialog, QListWidget, QListWidgetItem, QCompleter, QMessageBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QStringListModel, QTimer
 from PyQt5.QtGui import QFont
@@ -125,8 +125,8 @@ class CanParserTab(QWidget):
                 color: {COLORS['text']};
                 border: 1px solid {COLORS['border']};
                 padding: 8px;
-                font-family: {FONTS['mono'][0]}, Consolas;
-                font-size: {FONTS['mono'][1]}pt;
+                font-family: {FONTS['mono'][0]}, Consolas, "Microsoft YaHei";
+                font-size: 12pt;
             }}
         """)
         gp.addWidget(self.txt_parse_result, 1)
@@ -211,30 +211,102 @@ class CanParserTab(QWidget):
 
             # 有数据时执行数据解析（ID 可选）
             if can_data:
-                # 优先使用 DBC 解码
+                # 优先使用 DBC 解码（含逐步计算过程）
                 if can_id and self.bms_formatter.db_list:
-                    dbc_result = self.bms_formatter.parse_can_data_with_dbc(can_id, can_data)
-                    if '错误' not in dbc_result and dbc_result.get('消息名') != 'Unknown Message':
-                        html = f"<h3>📌 消息名: {dbc_result.get('消息名', '')}</h3>"
-                        html += f"<p>🔢 CAN ID: {dbc_result.get('CAN ID', can_id)} | 📐 字节数: {dbc_result.get('字节数', '')}</p>"
-                        if dbc_result.get('信号列表'):
-                            html += '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">'
-                            html += '<tr style="background-color: #f0f0f0;"><th>信号名</th><th>值</th><th>注释</th></tr>'
-                            for sig in dbc_result['信号列表']:
-                                unit = f" ({sig['单位']})" if sig['单位'] else ""
-                                comment = sig['注释'] if sig['注释'] else ""
-                                html += f"<tr><td>{sig['信号名']}</td><td>{sig['值']}{unit}</td><td>{comment}</td></tr>"
-                            html += '</table>'
-                        else:
-                            html += "<p>（该消息无信号定义）</p>"
+                    try:
+                        dbc_result = self.bms_formatter.parse_can_data_with_dbc(can_id, can_data)
+                    except Exception as e:
+                        dbc_result = {'错误': f'DBC 解码异常: {e}'}
 
-                        if dbc_result.get('DBC 提示'):
-                            html += f"<p>⚠️ {dbc_result['DBC 提示']}</p>"
+                    msg_name = dbc_result.get('消息名') or ''
+                    has_dbc_hit = (
+                        '错误' not in dbc_result
+                        and msg_name
+                        and msg_name != 'Unknown Message'
+                        and bool(dbc_result.get('信号列表'))
+                    )
+
+                    if has_dbc_hit:
+                        html = f"<h3>📌 消息名: {msg_name}</h3>"
+                        html += (
+                            f"<p>🔢 CAN ID: {dbc_result.get('CAN ID', can_id)}"
+                            f" | 📐 字节数: {dbc_result.get('字节数', '')}"
+                            f" | 📦 数据: <code>{dbc_result.get('原始数据HEX', '')}</code></p>"
+                        )
+
+                        html += '<h4>信号概览</h4>'
+                        html += '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size:12pt;">'
+                        html += (
+                            '<tr style="background-color: #f0f0f0;">'
+                            '<th>信号名</th><th>值</th><th>单位</th>'
+                            '<th>Start</th><th>长度</th><th>字节序</th>'
+                            '<th>涉及字节</th><th>原始值</th><th>注释</th></tr>'
+                        )
+                        for sig in dbc_result['信号列表']:
+                            unit = sig.get('单位') or '-'
+                            comment = sig.get('注释') or ''
+                            html += (
+                                f"<tr>"
+                                f"<td>{sig['信号名']}</td>"
+                                f"<td><b>{sig['值']}</b></td>"
+                                f"<td>{unit}</td>"
+                                f"<td>{sig.get('起始位', '')}</td>"
+                                f"<td>{sig.get('长度', '')}</td>"
+                                f"<td>{'小端' if '小端' in str(sig.get('字节序', '')) else '大端'}</td>"
+                                f"<td style='font-family:Consolas,monospace;'>{sig.get('涉及字节HEX', '')}</td>"
+                                f"<td>{sig.get('原始值', '')}</td>"
+                                f"<td>{comment}</td>"
+                                f"</tr>"
+                            )
+                        html += '</table>'
+
+                        html += '<h4>逐步计算过程</h4>'
+                        html += (
+                            '<p style="font-size:11pt;color:#666;">'
+                            '小端Intel(@1+)：start为LSB，bit号=字节序×8+位内偏移(LSB=0)，从低位向高位拼。'
+                            '大端Motorola(@0+)：start为MSB，先换算顺序位号，再MSB优先拼装。'
+                            '物理值 = 原始整数 × 系数 + 偏移。</p>'
+                        )
+                        for sig in dbc_result['信号列表']:
+                            html += (
+                                f'<div style="margin:10px 0;padding:10px 12px;'
+                                f'border:1px solid #ccc;border-radius:6px;background:#fafafa;'
+                                f'font-size:12pt;">'
+                                f'<div style="font-weight:bold;margin-bottom:6px;font-size:12pt;">'
+                                f'{sig["信号名"]} → <span style="color:#0a0;">{sig["值"]}'
+                                f'{(" " + sig["单位"]) if sig.get("单位") else ""}</span></div>'
+                            )
+                            for step in sig.get('计算步骤', []):
+                                html += (
+                                    f'<div style="font-family:Consolas, monospace;'
+                                    f'font-size:11.5pt;line-height:1.5;">{step}</div>'
+                                )
+                            html += '</div>'
 
                         self.txt_parse_result.setHtml(html)
                         return
 
-                # 回退到原有字节解析
+                    # DBC 未命中/出错：明确提示后回退原始字节解析
+                    fail_tip = dbc_result.get('错误') or dbc_result.get('提示') or 'DBC 中未找到该 CAN ID'
+                    result = self.bms_formatter.parse_can_data(can_data)
+                    if '错误' in result:
+                        self.txt_parse_result.setHtml(
+                            f"<p>❌ DBC: {fail_tip}</p><p>❌ 原始解析: {result['错误']}</p>"
+                        )
+                        return
+
+                    html = f"<h3>📦 原始字节解析（DBC 未匹配）</h3>"
+                    html += f"<p>⚠️ {fail_tip}</p>"
+                    html += f"<p>CAN ID: {can_id} | 字节数: {result['字节数']} | 数据: <code>{result.get('格式化十六进制', result['原始数据'])}</code></p>"
+                    html += '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size:12pt;">'
+                    html += '<tr style="background-color: #f0f0f0;"><th>索引</th><th>十六进制</th><th>十进制</th><th>二进制</th><th>ASCII</th></tr>'
+                    for b in result.get('字节详情', []):
+                        html += f"<tr><td>{b['索引']}</td><td>{b['十六进制']}</td><td>{b['十进制']}</td><td>{b['二进制']}</td><td>{b['ASCII']}</td></tr>"
+                    html += '</table>'
+                    self.txt_parse_result.setHtml(html)
+                    return
+
+                # 未加载 DBC 或未填 CAN ID：原有字节解析
                 result = self.bms_formatter.parse_can_data(can_data)
                 if '错误' in result:
                     self.txt_parse_result.setHtml(f"<p>❌ {result['错误']}</p>")
@@ -267,7 +339,7 @@ class CanParserTab(QWidget):
 
                 self.txt_parse_result.setHtml(html)
 
-        except (ValueError, FileNotFoundError, PermissionError) as e:
+        except Exception as e:
             self.txt_parse_result.setHtml(f"<p>❌ 解析异常: {str(e)}</p>")
 
     def _on_copy_parse(self):
@@ -293,14 +365,26 @@ class CanParserTab(QWidget):
 
         try:
             success = self.bms_formatter.load_dbc_files(file_paths)
+            errors = getattr(self.bms_formatter, "last_load_errors", []) or []
             if success:
                 self.set_dbc_files(self.bms_formatter.get_loaded_dbc_files())
                 self.update_can_id_completer(self.bms_formatter.get_dbc_message_list())
                 self.dbc_imported.emit(success)
+                if errors:
+                    QMessageBox.warning(self, "部分 DBC 导入失败", "\n".join(errors))
+                else:
+                    QMessageBox.information(
+                        self, "导入成功",
+                        f"已导入 {len(success)} 个 DBC 文件：\n" + "\n".join(success)
+                    )
             else:
-                pass  # 未成功导入任何文件
-        except (FileNotFoundError, PermissionError, RuntimeError) as e:
-            self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败: {str(e)}</p>")
+                detail = "\n".join(errors) if errors else "未知错误，请检查文件格式"
+                self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败:</p><p>{detail}</p>")
+                QMessageBox.critical(self, "导入失败", detail)
+        except Exception as e:
+            detail = str(e)
+            self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败: {detail}</p>")
+            QMessageBox.critical(self, "导入失败", detail)
 
     def _on_remove_dbc(self):
         dbc_path = self.get_selected_dbc_path()

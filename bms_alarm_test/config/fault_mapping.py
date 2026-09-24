@@ -39,17 +39,18 @@ class Fault:
     
     # 分类信息
     category: str               # 故障类别：电压/电流/绝缘/温度/SBCMU/继电器/通讯/其他
-    
+    # 可编辑扩展（界面可改，覆盖文件优先）
+    extra_checks: Optional[list] = None   # 额外回读项 [{name,channel_role,signal_name,message_name,expected,readback_key}]
+    enabled: bool = True                  # False 时测试列表跳过
+
     def __post_init__(self):
-        """数据验证"""
+        """数据验证（放宽：期望值可由回读协议配置覆盖）"""
         if not 1 <= self.code <= 96:
             raise ValueError(f"故障码必须在1-96范围内: {self.code}")
         if self.level not in (1, 2, 3):
             raise ValueError(f"故障等级必须是1/2/3: {self.level}")
-        if self.sys_fail_sta_expected not in (0, 1, 2, 3):
-            raise ValueError(f"SysFailSta期望值必须是0-3: {self.sys_fail_sta_expected}")
-        if self.err_tab_expected != self.code:
-            raise ValueError(f"ErrTab期望值必须等于故障码: {self.err_tab_expected} != {self.code}")
+        if self.sys_fail_sta_expected is not None and self.sys_fail_sta_expected not in (0, 1, 2, 3):
+            logger.warning(f"故障{self.code} SysFailSta期望值异常: {self.sys_fail_sta_expected}")
             
     @property
     def fault_level(self) -> int:
@@ -107,7 +108,40 @@ class FaultMapping:
         self._faults_by_category: Dict[str, List[Fault]] = {}
         self._all_faults_list: List[Fault] = []
         self._load_all_faults()
-        
+        # 应用可编辑的故障验证覆盖（期望值/额外回读）
+        try:
+            from bms_alarm_test.config.fault_verify_config import get_fault_verify_config
+            cfg = get_fault_verify_config()
+            cfg.ensure_exported(self)
+            cfg.load()
+            cfg.apply_to_mapping(self)
+        except Exception as e:
+            logger.warning(f"加载故障验证覆盖配置失败，使用内置映射: {e}")
+
+    def all_faults_raw(self) -> List[Fault]:
+        """原始故障列表（含禁用项，供配置导出）"""
+        return list(self._all_faults_list)
+
+    def rebuild_indexes(self):
+        """根据 _all_faults_list 重建各类索引（覆盖字段修改后调用）"""
+        self._faults_by_code = {}
+        self._faults_by_domain = {FaultDomain.NBCMU: [], FaultDomain.SBCMU: [], FaultDomain.BOTH: []}
+        self._faults_by_category = {}
+        for fault in self._all_faults_list:
+            self._faults_by_code[fault.code] = fault
+            self._faults_by_domain[fault.domain].append(fault)
+            if fault.category not in self._faults_by_category:
+                self._faults_by_category[fault.category] = []
+            self._faults_by_category[fault.category].append(fault)
+
+    def reload_builtin(self):
+        """清空后重新加载内置故障表（再套用覆盖文件）"""
+        self._faults_by_code = {}
+        self._faults_by_domain = {FaultDomain.NBCMU: [], FaultDomain.SBCMU: [], FaultDomain.BOTH: []}
+        self._faults_by_category = {}
+        self._all_faults_list = []
+        self._load_all_faults()
+
     def _load_all_faults(self):
         """加载所有故障映射数据"""
         # 电压类故障 (1-21, 80, 82)
@@ -329,8 +363,8 @@ class FaultMapping:
         return self._faults_by_category.get(category, [])
         
     def get_all_faults(self) -> List[Fault]:
-        """获取所有故障（包含同码多条，如57-NBCMU/57-SBCMU）"""
-        return list(self._all_faults_list)
+        """获取所有故障（包含同码多条；跳过配置中 enabled=false）"""
+        return [f for f in self._all_faults_list if getattr(f, "enabled", True)]
         
     def get_valid_faults(self) -> List[Fault]:
         """获取所有有效故障（非预留）"""
@@ -399,7 +433,7 @@ class FaultMapping:
         result = []
         
         for fault in all_faults:
-            if fault.code not in seen_codes and not fault.is_reserved():
+            if fault.code not in seen_codes and not fault.is_reserved() and getattr(fault, "enabled", True):
                 seen_codes.add(fault.code)
                 result.append(fault)
                 

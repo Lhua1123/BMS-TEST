@@ -1,29 +1,20 @@
 {
-  "internal_dbc_path": "resources/Ship_Two_5Cu12Pack_Matrix_Full_V1.91_20251207.dbc",
-  "external_dbc_path": "resources/对外通讯信号清单_二级架构5簇_CAN_V1.61(1128).dbc",
-  "fault_excel_path": "resources/YTD-BMS-001 故障列表(CN-2)V1.0.xlsx",
-  "pid_excel_path": "resources/DIC.BMS参数-原始.xlsx",
-  "log_directory": "logs",
-
   "channel1_params": {
     "channel": 1,
     "enabled": true,
-    "baud_rate": 500000,
+    "baud_rate": 250000,
     "description": "通道0（CAN盒物理通道0）"
   },
-
   "channel2_params": {
     "channel": 2,
     "enabled": true,
-    "baud_rate": 250000,
+    "baud_rate": 500000,
     "description": "通道1（CAN盒物理通道1，只读监控，250k）"
   },
-
   "bms_address": {
     "nbcmu_address": 161,
     "sbcmu_address": 177
   },
-
   "timing": {
     "wait_after_send_sec": 15.0,
     "clear_confirm_sec": 2.0,
@@ -31,17 +22,17 @@
     "frame_interval_ms": 50.0,
     "repeat_interval_ms": 200.0
   },
-
+  "paths": {
+    "inner_dbc_path": "D:\\01.Lwq\\01.Lwq\\BMS测试\\BMS测试-整合版\\bms_alarm_test\\resources\\Ship_Two_5Cu12Pack_Matrix_Full_V1.91_20251207.dbc",
+    "outer_dbc_path": "D:\\01.Lwq\\01.Lwq\\BMS测试\\BMS测试-整合版\\bms_alarm_test\\resources\\对外通讯信号清单_二级架构5簇_CAN_V1.61(1128).dbc",
+    "fault_excel_path": "D:\\01.Lwq\\01.Lwq\\BMS测试\\BMS测试-整合版\\bms_alarm_test\\resources\\YTD-BMS-001 故障列表(CN-2)V1.0.xlsx",
+    "pid_excel_path": "D:\\01.Lwq\\01.Lwq\\BMS测试\\BMS测试-整合版\\bms_alarm_test\\resources\\DIC.BMS参数-原始.xlsx",
+    "log_directory": "D:\\01.Lwq\\01.Lwq\\BMS测试\\BMS测试-整合版\\bms_alarm_test\\logs"
+  },
   "auto_test_enabled": false,
   "auto_clear_faults": true,
   "max_clear_retries": 3,
   "test_timeout_sec": 30.0,
-
-  "paths": {
-    "inner_dbc_path": "resources/Ship_Two_5Cu12Pack_Matrix_Full_V1.91_20251207.dbc",
-    "outer_dbc_path": "resources/对外通讯信号清单_二级架构5簇_CAN_V1.61(1128).dbc",
-    "fault_excel_path": "resources/YTD-BMS-001 故障列表(CN-2)V1.0.xlsx",
-    "pid_excel_path": "resources/DIC.BMS参数-原始.xlsx",
-    "log_directory": "logs"
-  }
+  "inner_channel": 2,
+  "outer_channel": 1
 }

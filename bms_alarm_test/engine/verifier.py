@@ -6,7 +6,7 @@
 
 import logging
 import time
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass
 from enum import Enum
 
@@ -67,7 +67,7 @@ class BMSVerifier:
         """
         验证单个故障
         执行对内3项验证和对外2项验证
-        read_outer=True 时读取对外报文(CH2)做对外验证；
+        read_outer=True 时读取对外通道报文做对外验证；
         read_outer=False 时跳过对外验证（对外无报文时不回读）
         """
         from datetime import datetime
@@ -81,11 +81,11 @@ class BMSVerifier:
             metadata={"fault_code": str(fault.code)}
         )
 
-        # 对内验证（CH1）
+        # 对内验证（配置的对内通道）
         inner_checks = self._verify_internal(fault, target_address, domain)
         test_result.checks.extend(inner_checks)
 
-        # 对外验证（从CH1读取，所有响应报文均在CH1上）
+        # 对外验证（配置的对外通道）
         # 需读取对外报文时才执行；对外无报文时跳过，避免无谓等待超时
         if read_outer and not fault.is_skip_outer():
             outer_checks = self._verify_external(fault, target_address, domain)
@@ -96,7 +96,7 @@ class BMSVerifier:
         return test_result
 
     def _verify_internal(self, fault: Fault, target_address: int, domain: str) -> List[Check]:
-        """对内验证（CH1）"""
+        """对内验证（配置的对内通道）"""
         checks = []
 
         # 1. SysFailSta验证
@@ -112,10 +112,68 @@ class BMSVerifier:
             specific_check = self._check_inner_specific(fault, target_address, domain)
             checks.append(specific_check)
 
+        # 4. 配置中的额外回读项（可在「故障期望值配置」里增删）
+        checks.extend(self._check_extra_reads(fault, target_address, domain))
+
+        return checks
+
+    def _check_extra_reads(self, fault: Fault, target_address: int, domain: str) -> List[Check]:
+        """执行故障上的 extra_checks（界面可编辑的额外回读信号+期望值）"""
+        extra = getattr(fault, "extra_checks", None) or []
+        if not extra:
+            return []
+        checks = []
+        idx = self._get_dbc_index(target_address, domain)
+        for i, item in enumerate(extra):
+            name = item.get("name") or item.get("signal_name") or f"extra_{i+1}"
+            expected = item.get("expected")
+            signal_name = item.get("signal_name") or ""
+            message_name = item.get("message_name") or ""
+            role = item.get("channel_role") or "inner"
+            readback_key = item.get("readback_key") or signal_name
+            check = Check(
+                name=f"额外回读: {name}",
+                check_type=CheckType.INNER_SPECIFIC,
+                expected_value=expected,
+                description=item.get("comment") or f"自定义回读 {signal_name}"
+            )
+            check.start()
+            try:
+                channel = self._get_inner_channel() if role == "inner" else self._get_outer_channel()
+                if signal_name and "{idx}" in signal_name:
+                    signal_name = signal_name.replace("{idx}", str(idx))
+                value = self._wait_for_signal(
+                    channel,
+                    message_name or None,
+                    signal_name or readback_key,
+                    expected,
+                    self.config.timeout_sec,
+                    readback_role=None,
+                    readback_idx=idx,
+                )
+                # 也尝试按回读协议配置键解码
+                if value is None and readback_key:
+                    try:
+                        value = self.can_manager.read_signal_via_readback(
+                            channel, signal_name=readback_key, idx=idx
+                        )
+                    except Exception:
+                        value = None
+                if value is not None:
+                    match_value = value.value if hasattr(value, "value") else value
+                    if expected is None or self._match_signal_value(signal_name, match_value, expected):
+                        check.pass_check(f"{name}={match_value}", actual_value=match_value)
+                    else:
+                        check.fail(f"期望值={expected}, 实际值={match_value}", actual_value=match_value)
+                else:
+                    check.fail(f"期望值={expected}, 实际值=None", actual_value=None)
+            except Exception as e:
+                check.error(f"额外回读异常: {e}")
+            checks.append(check)
         return checks
 
     def _verify_external(self, fault: Fault, target_address: int, domain: str) -> List[Check]:
-        """对外验证（从CH2读取，外DBC信号）"""
+        """对外验证（从配置的对外通道读取，外DBC信号）"""
         checks = []
 
         # SBCMU 域：没有对外 SysFailSta 和对外 Warning 汇总，只查对外 specific
@@ -140,6 +198,26 @@ class BMSVerifier:
                 checks.append(specific_check)
 
         return checks
+
+    def _get_inner_channel(self) -> int:
+        """对内通道（发送故障注入 / 读对内信号）"""
+        try:
+            settings = getattr(self.can_manager, 'settings', None)
+            if settings:
+                return settings.get_inner_channel()
+        except Exception:
+            pass
+        return CANConstants.CHANNEL_1
+
+    def _get_outer_channel(self) -> int:
+        """对外通道（读 BMS 对外响应）"""
+        try:
+            settings = getattr(self.can_manager, 'settings', None)
+            if settings:
+                return settings.get_outer_channel()
+        except Exception:
+            pass
+        return CANConstants.CHANNEL_2
 
     def _get_dbc_index(self, target_address: int, domain: str) -> str:
         """将目标地址转换为DBC报文名中的序号"""
@@ -248,15 +326,19 @@ class BMSVerifier:
         try:
             idx = self._get_dbc_index(target_address, domain)
             if domain.upper() in ("NBCMU", "BOTH"):
-                signal_name = f"NBCMU{idx}_SysFailSta"
-                message_name = f"NBCMU{idx}_WarningInfo1"
+                default_signal = f"NBCMU{idx}_SysFailSta"
+                default_message = f"NBCMU{idx}_WarningInfo1"
             else:
-                signal_name = f"SBCMU{idx}_SysFailSta"
-                message_name = f"SBCMU{idx}_WarningInfo"
+                default_signal = f"SBCMU{idx}_SysFailSta"
+                default_message = f"SBCMU{idx}_WarningInfo"
 
+            # DBC 主读固定用默认具体信号名（NBCMU/SBCMU{idx}_SysFailSta）；
+            # 回读配置里的通用 signal_name（如 BMS_SysFailSta）只作 _wait_for_signal 内的
+            # CAN ID 兜底解码，不参与 DBC 名查询，否则缓存 key 对不上会永远读到 None
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_1, message_name, signal_name,
-                fault.sys_fail_sta_expected, self.config.timeout_sec
+                self._get_inner_channel(), default_message, default_signal,
+                fault.sys_fail_sta_expected, self.config.timeout_sec,
+                readback_role="inner_sys_fail_sta", readback_idx=idx,
             )
 
             if value is not None:
@@ -293,7 +375,7 @@ class BMSVerifier:
                 message_name = f"SBCMU{idx}_WarningInfo"
 
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_1, message_name, signal_name,
+                self._get_inner_channel(), message_name, signal_name,
                 fault.err_tab_expected, self.config.timeout_sec
             )
 
@@ -347,7 +429,7 @@ class BMSVerifier:
                     message_name = f"NBCMU{idx}_WarningInfo2"
 
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_1, message_name, inner_signal,
+                self._get_inner_channel(), message_name, inner_signal or "",
                 fault.inner_expected, self.config.timeout_sec
             )
 
@@ -377,7 +459,7 @@ class BMSVerifier:
 
         try:
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_2, "BMS_Msg01", "BMS_SysFailSta",
+                self._get_outer_channel(), "BMS_Msg01", "BMS_SysFailSta",
                 fault.sys_fail_sta_expected, self.config.timeout_sec
             )
 
@@ -417,7 +499,7 @@ class BMSVerifier:
                 return check
 
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_2, message_name, signal_name,
+                self._get_outer_channel(), message_name, signal_name,
                 fault.outer_expected, self.config.timeout_sec
             )
 
@@ -459,7 +541,7 @@ class BMSVerifier:
             signal_name = f"BMS_NBCMU{idx}_Warning"
 
             value = self._wait_for_signal(
-                CANConstants.CHANNEL_2, "BMS_Msg15", signal_name,
+                self._get_outer_channel(), "BMS_Msg15", signal_name,
                 None, self.config.timeout_sec
             )
 
@@ -495,9 +577,12 @@ class BMSVerifier:
 
     def _wait_for_signal(self, channel: int, message_name: Optional[str],
                          signal_name: str, expected_value: Any,
-                         timeout: float) -> Optional[Any]:
+                         timeout: float,
+                         readback_role: Optional[str] = None,
+                         readback_idx: Optional[Union[int, str]] = None) -> Optional[Any]:
         """
-        等待信号达到期望值
+        等待信号达到期望值。
+        优先 DBC 名解码；失败时按「CAN 回读协议配置」用 CAN ID+位定义原始解码。
         """
         start_time = time.time()
         poll_count = 0
@@ -507,11 +592,35 @@ class BMSVerifier:
                 return None
 
             try:
-                value = self.can_manager.read_signal(channel, message_name, signal_name)
-                # 归一化NamedSignalValue为原始数值
+                value = None
+                if message_name:
+                    value = self.can_manager.read_signal(channel, message_name, signal_name)
                 if value is not None and hasattr(value, 'value'):
                     value = value.value
+                if value is None:
+                    try:
+                        raw = self.can_manager.read_signal_via_readback(
+                            channel,
+                            signal_name=signal_name,
+                            role=readback_role,
+                            idx=readback_idx,
+                        )
+                        if raw is not None:
+                            value = raw
+                            if poll_count <= 1:
+                                logger.info(
+                                    f"[verifier] 回读配置解码: role={readback_role} "
+                                    f"sig={signal_name} → {value}"
+                                )
+                    except Exception as rb_err:
+                        logger.debug(f"回读配置解码失败: {rb_err}")
                 poll_count += 1
+                # DEBUG: 第1次轮询时 dump 整个 message 缓存
+                if poll_count == 1 and message_name:
+                    can_ch = CANChannel.CH1 if channel == 1 else CANChannel.CH2
+                    listener = getattr(self.can_manager, "_listener", None)
+                    all_vals = listener.get_message_values(can_ch, message_name) if listener else {}
+                    logger.info(f"[verifier] 首次轮询缓存 dump: {message_name} 所有信号={all_vals}")
                 # 回读到的报文：在第1次/每40次/匹配成功时记录原始帧（避免刷屏）
                 if poll_count == 1 or poll_count % 40 == 0:
                     logger.info(f"[verifier] 轮询 {signal_name} (msg={message_name} ch={channel}): "

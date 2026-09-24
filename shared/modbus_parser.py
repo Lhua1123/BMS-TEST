@@ -3,6 +3,8 @@ Modbus RTU协议解析器
 CRC16计算、帧构建、响应解析、寄存器解码
 """
 
+from typing import Any, Dict, List, Optional, Union
+
 
 def crc16_modbus(data: bytes) -> bytes:
     crc = 0xFFFF
@@ -49,7 +51,7 @@ def build_write_request(slave_id: int, addr: int, value: int) -> bytes:
     return frame + crc16_modbus(frame)
 
 
-def parse_read_response(response: bytes) -> dict:
+def parse_read_response(response: bytes) -> Optional[dict]:
     if response is None or len(response) < 5:
         return None
     result = {
@@ -87,7 +89,7 @@ def decode_register(value: int, data_type: str, bit_start: int, bit_length: int,
     return physical
 
 
-def decode_registers(raw_registers: list, register_defs: list, start_addr: int = None) -> dict:
+def decode_registers(raw_registers: list, register_defs: list, start_addr: Optional[int] = None) -> dict:
     result = {}
     addr_to_regs = {}
     for reg in register_defs:
@@ -96,7 +98,9 @@ def decode_registers(raw_registers: list, register_defs: list, start_addr: int =
             addr_to_regs[addr] = []
         addr_to_regs[addr].append(reg)
 
-    if start_addr is None and register_defs:
+    if start_addr is None:
+        if not register_defs:
+            return {}
         start_addr = register_defs[0][0]
 
     for i, raw_val in enumerate(raw_registers):
@@ -116,7 +120,7 @@ def decode_registers(raw_registers: list, register_defs: list, start_addr: int =
     return result
 
 
-def parse_batch_response(response: bytes, start_addr: int, reg_defs: list) -> dict:
+def parse_batch_response(response: bytes, start_addr: int, reg_defs: list) -> Optional[dict]:
     parsed = parse_read_response(response)
     if parsed is None or not parsed['crc_valid']:
         return None

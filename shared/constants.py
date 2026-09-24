@@ -95,3 +95,11 @@ CONTROL_REGISTER_ADDR = 2
 CTRL_BIT_POWER = 0       # 上下电指令位
 CTRL_BIT_RESET = 2       # 复位/关机/消音位
 CTRL_BIT_ESTOP = 4       # 急停报警位
+
+# ============ 心跳相关 ============
+# 协议：心跳信号(写) 在寄存器 1，8-bit。
+# 若 30s 内只写入相同值、或未收到心跳，BMS 报通信失败（三级报警）。
+# 因此心跳值必须周期变化（0-255 循环），不能一直写 0。
+# 注意：不要写到地址 2——那是上下电/复位/急停控制寄存器。
+HEARTBEAT_REGISTER_ADDR = 1
+DEFAULT_HEARTBEAT_INTERVAL = 1.0  # 心跳发送间隔（秒）

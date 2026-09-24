@@ -217,6 +217,10 @@ class Settings:
             ),
         }
 
+        # 通道角色映射（默认：CH1=对内，CH2=对外）
+        self._inner_channel = 1
+        self._outer_channel = 2
+
         self._bms_address = BMSAddressConfig(
             nbcmu_address=BMSAddressConstants.DEFAULT_NBCMU_ADDRESS,
             sbcmu_address=BMSAddressConstants.DEFAULT_SBCMU_ADDRESS,
@@ -233,7 +237,7 @@ class Settings:
         # 默认路径（相对于项目根目录）
         self._paths = PathConfig(
             inner_dbc_path=str(project_root / "resources" / "Ship_Two_5Cu12Pack_Matrix_Full_V1.91_20251207.dbc"),
-            outer_dbc_path=str(project_root / "resources" / "对外通讯信号清单_二级架构5簇_CAN_V1.71(0806).dbc"),
+            outer_dbc_path=str(project_root / "resources" / "对外通讯信号清单_二级架构5簇_CAN_V1.61(1128).dbc"),
             fault_excel_path=str(project_root / "resources" / "YTD-BMS-001 故障列表(CN-2)V1.0.xlsx"),
             pid_excel_path=str(project_root / "resources" / "DIC.BMS参数-原始.xlsx"),
             log_directory=str(project_root / "logs"),
@@ -300,11 +304,21 @@ class Settings:
             if ConfigKeys.WAIT_AFTER_SEND_SEC in data:
                 self._timing = TimingConfig.from_dict(data.get("timing", {}))
 
-            # 加载路径配置
-            if ConfigKeys.INTERNAL_DBC_PATH in data:
-                self._paths = PathConfig.from_dict(data.get("paths", {}))
-                # 将相对路径解析为基于项目根目录的绝对路径
-                self._resolve_paths()
+            # 加载路径配置（JSON 中嵌套在 "paths" 下，键为 inner_dbc_path/outer_dbc_path...）
+            paths_data = data.get("paths")
+            if isinstance(paths_data, dict) and paths_data:
+                try:
+                    self._paths = PathConfig.from_dict({
+                        "inner_dbc_path": paths_data.get("inner_dbc_path", self._paths.inner_dbc_path),
+                        "outer_dbc_path": paths_data.get("outer_dbc_path", self._paths.outer_dbc_path),
+                        "fault_excel_path": paths_data.get("fault_excel_path", self._paths.fault_excel_path),
+                        "pid_excel_path": paths_data.get("pid_excel_path", self._paths.pid_excel_path),
+                        "log_directory": paths_data.get("log_directory", self._paths.log_directory),
+                    })
+                    # 将相对路径解析为基于项目根目录的绝对路径
+                    self._resolve_paths()
+                except Exception as path_err:
+                    logger.warning(f"路径配置加载失败，保留默认路径: {path_err}")
 
             # 加载其他设置
             if ConfigKeys.AUTO_TEST_ENABLED in data:
@@ -315,6 +329,17 @@ class Settings:
                 self._max_clear_retries = data[ConfigKeys.MAX_CLEAR_RETRIES]
             if ConfigKeys.TEST_TIMEOUT_SEC in data:
                 self._test_timeout_sec = data[ConfigKeys.TEST_TIMEOUT_SEC]
+
+            # 加载通道角色配置
+            if ConfigKeys.INNER_CHANNEL in data:
+                self._inner_channel = data[ConfigKeys.INNER_CHANNEL]
+            if ConfigKeys.OUTER_CHANNEL in data:
+                self._outer_channel = data[ConfigKeys.OUTER_CHANNEL]
+            # 确保角色映射有效（两个通道号不同且在1-2范围内）
+            if self._inner_channel == self._outer_channel or \
+               self._inner_channel not in (1, 2) or self._outer_channel not in (1, 2):
+                self._inner_channel = 1
+                self._outer_channel = 2
 
             logger.info(f"从 {self.config_path} 加载配置成功")
             self._notify_changed()
@@ -330,8 +355,11 @@ class Settings:
             # 确保配置目录存在
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # CAN 通道必须写成 channel1_params / channel2_params，
+            # 与 load() 读取格式一致；can_configs list 格式不再使用
             data = {
-                "can_configs": [cfg.to_dict() for cfg in self._can_configs.values()],
+                ConfigKeys.CHANNEL1_PARAMS: self._can_configs[1].to_dict() if 1 in self._can_configs else {},
+                ConfigKeys.CHANNEL2_PARAMS: self._can_configs[2].to_dict() if 2 in self._can_configs else {},
                 "bms_address": self._bms_address.to_dict(),
                 "timing": self._timing.to_dict(),
                 "paths": self._paths.to_dict(),
@@ -339,6 +367,8 @@ class Settings:
                 ConfigKeys.AUTO_CLEAR_FAULTS: self._auto_clear_faults,
                 ConfigKeys.MAX_CLEAR_RETRIES: self._max_clear_retries,
                 ConfigKeys.TEST_TIMEOUT_SEC: self._test_timeout_sec,
+                ConfigKeys.INNER_CHANNEL: self._inner_channel,
+                ConfigKeys.OUTER_CHANNEL: self._outer_channel,
             }
 
             with open(self.config_path, 'w', encoding='utf-8') as f:
@@ -389,6 +419,35 @@ class Settings:
     def get_all_can_configs(self) -> Dict[int, CANConfig]:
         """获取所有CAN配置"""
         return self._can_configs.copy()
+
+    def get_inner_channel(self) -> int:
+        """获取对内通道号（发送故障注入报文的通道）"""
+        return self._inner_channel
+
+    def get_outer_channel(self) -> int:
+        """获取对外通道号（接收BMS响应报文的通道）"""
+        return self._outer_channel
+
+    def set_channel_roles(self, inner_channel: int, outer_channel: int) -> bool:
+        """设置通道角色映射"""
+        if inner_channel not in (1, 2) or outer_channel not in (1, 2):
+            logger.error(f"无效的通道号: inner={inner_channel}, outer={outer_channel}")
+            return False
+        if inner_channel == outer_channel:
+            logger.error("对内和对外通道不能相同")
+            return False
+        self._inner_channel = inner_channel
+        self._outer_channel = outer_channel
+        self._notify_changed()
+        return True
+
+    def get_channel_role(self, channel: int) -> str:
+        """获取指定通道的角色：'inner' 或 'outer'"""
+        if channel == self._inner_channel:
+            return 'inner'
+        elif channel == self._outer_channel:
+            return 'outer'
+        return 'unknown'
 
     # BMS地址相关方法
     def get_bms_address_config(self) -> BMSAddressConfig:

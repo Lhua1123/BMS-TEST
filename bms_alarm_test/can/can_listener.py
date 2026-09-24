@@ -31,13 +31,27 @@ HARDWARE_ID_TO_DBC_NAME = {}
 
 
 class CANChannel(Enum):
-    """CAN通道枚举"""
-    CH1 = "CH1"  # 通道0（CAN盒物理通道0）
-    CH2 = "CH2"  # 通道1（CAN盒物理通道1）
+    """CAN通道枚举（逻辑通道号，对应 CAN 盒物理 0/1）"""
+    CH1 = "CH1"  # 逻辑通道1 → 物理通道0
+    CH2 = "CH2"  # 逻辑通道2 → 物理通道1
+
+    def to_int(self) -> int:
+        """逻辑通道号 1/2"""
+        return 1 if self == self.CH1 else 2
+
+    @classmethod
+    def from_int(cls, channel: int) -> 'CANChannel':
+        return cls.CH1 if channel == 1 else cls.CH2
 
     def get_dbc_type(self) -> str:
-        """获取对应的DBC类型"""
-        return "inner" if self == self.CH1 else "outer"
+        """按当前配置的角色获取 DBC 类型（对内=inner / 对外=outer）"""
+        try:
+            from bms_alarm_test.config.settings import get_global_settings
+            role = get_global_settings().get_channel_role(self.to_int())
+            return 'inner' if role == 'inner' else 'outer'
+        except Exception:
+            # 回退：CH1=对内, CH2=对外
+            return "inner" if self == self.CH1 else "outer"
 
 
 @dataclass
@@ -101,11 +115,21 @@ class CANListener:
             CANChannel.CH2: 0,
         }
 
-        # 关注的报文ID
-        self._monitored_message_ids: Dict[CANChannel, Set[int]] = {
-            CANChannel.CH1: CANConstants.CH0_MONITORED_IDS.copy(),
-            CANChannel.CH2: CANConstants.CH1_MONITORED_BASE_IDS.copy(),
-        }
+        # 关注的报文ID：按当前通道角色分配（对内=内部报文ID，对外=外部报文ID）
+        self._monitored_message_ids: Dict[CANChannel, Set[int]] = {}
+        self._init_monitored_ids()
+
+    def _init_monitored_ids(self) -> None:
+        """按角色初始化各通道监控报文ID集合"""
+        try:
+            from bms_alarm_test.config.settings import get_global_settings
+            inner_ch = get_global_settings().get_inner_channel()
+            outer_ch = get_global_settings().get_outer_channel()
+        except Exception:
+            inner_ch, outer_ch = 1, 2
+
+        self._monitored_message_ids[CANChannel.from_int(inner_ch)] = CANConstants.CH0_MONITORED_IDS.copy()
+        self._monitored_message_ids[CANChannel.from_int(outer_ch)] = CANConstants.CH1_MONITORED_BASE_IDS.copy()
 
         # 最近报文环形缓冲（每通道最多保留 RECENT_MESSAGE_LIMIT 条）
         self._recent_messages: Dict[CANChannel, deque] = {
@@ -121,6 +145,8 @@ class CANListener:
 
         try:
             self._running = True
+            # 每次启动按当前角色重建监控ID，支持对内/对外通道对调
+            self._init_monitored_ids()
 
             self._message_queues[CANChannel.CH1] = Queue()
             self._message_queues[CANChannel.CH2] = Queue()
@@ -304,6 +330,10 @@ class CANListener:
             if not message_name:
                 logger.debug(f"[{channel.value}] 未找到报文名: ID=0x{can_id:08X}")
                 return
+
+            # DEBUG: 打印 WarningInfo1 的完整解码结果
+            if "WarningInfo1" in message_name:
+                logger.info(f"[{channel.value}] {message_name} 解码结果: {dict(decoded)}")
 
             with self._lock:
                 if message_name not in self._signal_cache[channel]:

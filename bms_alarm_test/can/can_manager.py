@@ -8,7 +8,7 @@
 import logging
 import time
 import threading
-from typing import Dict, List, Optional, Callable, Any, Tuple
+from typing import Dict, List, Optional, Callable, Any, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -246,24 +246,75 @@ class CANManager:
 
         logger.info("CAN管理器已关闭")
 
-    def send_message(self, channel: int, can_id: int = None, data: bytes = b'',
-                     is_extended: bool = True, message_id: int = None,
-                     is_extended_id: bool = None) -> bool:
+    def describe_channel_roles(self) -> str:
+        """用一句话说明当前对内/对外逻辑通道与波特率，便于对照接线"""
+        try:
+            inner = self.settings.get_inner_channel()
+            outer = self.settings.get_outer_channel()
+        except Exception:
+            inner, outer = 1, 2
+
+        def _baud(ch):
+            cfg = self.settings.get_can_config(ch)
+            if not cfg:
+                return "?"
+            b: Any = getattr(cfg, "baud_rate", cfg)
+            b = getattr(b, "value", b)
+            try:
+                b = int(b)
+            except Exception:
+                return str(b)
+            return f"{b // 1000}k" if b >= 1000 else str(b)
+
+        return (
+            f"对内(故障注入/发送)=CH{inner}@{_baud(inner)}k | "
+            f"对外(监控/只读)=CH{outer}@{_baud(outer)}k | "
+            f"ZLG物理口: CH{inner}→通道{inner - 1}, CH{outer}→通道{outer - 1}"
+        )
+
+    def tx_fail_hint(self, channel: int, can_id: Optional[int] = None) -> str:
+        """发送失败时的接线/配置核对提示"""
+        try:
+            inner = self.settings.get_inner_channel()
+            outer = self.settings.get_outer_channel()
+        except Exception:
+            inner, outer = 1, 2
+        id_part = f"ID=0x{can_id:X} " if can_id is not None else ""
+        lines = [
+            f"发送失败排查（{id_part}软件逻辑通道 CH{channel}）",
+            f"1. 当前配置: {self.describe_channel_roles()}",
+            f"2. 故障注入只能从【对内 CH{inner}】发出；若对内线实际接在 CH{outer}，"
+            f"请改接线或在设置里交换对内/对外通道",
+            f"3. 确认对内波特率与 BMS 一致（常见 500k）",
+            f"4. 确认 CAN 盒对应物理口已接终端电阻/收发器，且无其他程序占用",
+            f"5. 用 ZLG 官方工具对物理通道{channel - 1} 试发一帧，硬件通了再回软件测",
+        ]
+        return "\n".join(lines)
+
+    def send_message(self, channel: int, can_id: Optional[int] = None, data: bytes = b'',
+                     is_extended: bool = True, message_id: Optional[int] = None,
+                     is_extended_id: Optional[bool] = None) -> bool:
         """
         发送CAN报文（仅CH1）
         """
         if can_id is None:
             can_id = message_id
+        if can_id is None:
+            logger.error("发送CAN报文失败: can_id/message_id 均未提供")
+            return False
         if is_extended_id is not None:
             is_extended = is_extended_id
 
-        if channel != 1:
-            logger.error(f"通道{channel}为只读，不能发送报文")
+        if channel != self.settings.get_inner_channel():
+            logger.error(
+                f"通道{channel}为只读/非对内通道，不能发送报文。"
+                f" {self.describe_channel_roles()}"
+            )
             return False
 
         with self._lock:
             if self._states[channel] != CANState.CONNECTED:
-                logger.error(f"通道{channel}未连接")
+                logger.error(f"通道{channel}未连接。{self.describe_channel_roles()}")
                 return False
 
             try:
@@ -282,7 +333,19 @@ class CANManager:
                     # 发出的报文记录为INFO（发送量小，便于排查测试报文）
                     logger.info(f"CH{channel}发送报文: ID=0x{can_id:X} 数据={' '.join(f'{b:02X}' for b in data)}")
                 else:
-                    logger.warning(f"CH{channel}发送失败: ID=0x{can_id:X}")
+                    self._status[channel].last_error = "VCI_Transmit失败"
+                    self._tx_fail_log_count = getattr(self, '_tx_fail_log_count', 0) + 1
+                    # 前几次给完整接线提示，避免刷屏
+                    if self._tx_fail_log_count <= 2:
+                        logger.warning(
+                            f"CH{channel}发送失败: ID=0x{can_id:X}\n{self.tx_fail_hint(channel, can_id)}"
+                        )
+                    else:
+                        logger.warning(
+                            f"CH{channel}发送失败: ID=0x{can_id:X} "
+                            f"(第{self._tx_fail_log_count}次；对内={self.settings.get_inner_channel()}，"
+                            f"请核对对内CAN是否接在该通道)"
+                        )
 
                 return success
 
@@ -293,7 +356,7 @@ class CANManager:
     def send_messages(self, channel: int, messages: List[Tuple[int, bytes]],
                      interval_ms: float = 50) -> bool:
         """发送多个CAN报文"""
-        if channel != 1:
+        if channel != self.settings.get_inner_channel():
             logger.error(f"通道{channel}为只读，不能发送报文")
             return False
 
@@ -391,10 +454,22 @@ class CANManager:
             return [ch for ch, state in self._states.items() if state == CANState.CONNECTED]
 
     def reconnect(self, channel: Optional[int] = None) -> bool:
-        """重新连接"""
+        """重新连接（完整关闭后按当前配置重新初始化）"""
         try:
             self.stop()
+            # 清空适配器缓存，确保波特率/角色变更后不会复用旧对象
+            try:
+                self._adapter_manager.adapters.clear()
+            except Exception:
+                pass
             time.sleep(1.0)
+            # 重建监听器，使监控ID/DBC角色按新配置初始化
+            if not self.initialize():
+                return False
+            for ch in [1, 2]:
+                can_config = self.settings.get_can_config(ch)
+                if can_config and ch in self._status:
+                    self._status[ch].baud_rate = can_config.baud_rate
             return self.start()
         except Exception as e:
             logger.error(f"重新连接失败: {e}")
@@ -408,6 +483,43 @@ class CANManager:
 
         can_channel = CANChannel.CH1 if channel == 1 else CANChannel.CH2
         return self._listener.wait_for_signal(can_channel, message_name, signal_name, timeout)
+
+    def read_signal_via_readback(
+        self,
+        channel: int,
+        signal_name: Optional[str] = None,
+        role: Optional[str] = None,
+        idx: Optional[Union[int, str]] = None,
+    ) -> Optional[Any]:
+        """
+        按「CAN 回读协议配置」从最近报文原始帧解码信号。
+        不依赖 DBC 名，适合协议变更后只改配置。
+        """
+        try:
+            from bms_alarm_test.config.can_readback_config import get_readback_config
+        except Exception:
+            return None
+        cfg = get_readback_config()
+        spec = cfg.resolve_spec(signal_name=signal_name, role=role, idx=idx)
+        if not spec:
+            return None
+        can_id = cfg.parse_can_id(spec, idx=idx)
+        try:
+            msgs = self.get_recent_messages(channel, 300)
+        except Exception:
+            return None
+        mask = 0x1FFFFFFF
+        for m in reversed(msgs):
+            mid = getattr(m, "arbitration_id", None)
+            if mid is None:
+                continue
+            if (mid & mask) == (can_id & mask) or mid == can_id:
+                data = getattr(m, "data", b"")
+                try:
+                    return cfg.physical_from_frame(spec, bytes(data))
+                except Exception:
+                    return None
+        return None
 
     def wait_for_signal_change(self, channel: int, message_name: str, signal_name: str,
                               old_value: Any, timeout: float = 5.0) -> Optional[Any]:
@@ -436,7 +548,7 @@ class CANManager:
 
         can_channel = CANChannel.CH1 if channel == 1 else CANChannel.CH2
         recent = self._listener.get_recent_messages(can_channel, count)
-        dbc_type = "inner" if channel == 1 else "outer"
+        dbc_type = self.settings.get_channel_role(channel)
 
         result: List[RuntimeCANMessage] = []
         for message, ts in recent:
@@ -528,7 +640,7 @@ class CANManager:
 _global_can_manager: Optional[CANManager] = None
 
 
-def get_global_can_manager(dbc_loader: Optional[DBCLoader] = None) -> CANManager:
+def get_global_can_manager(dbc_loader: Optional[DBCLoader] = None) -> Optional[CANManager]:
     """获取全局CAN管理器实例"""
     global _global_can_manager
     if _global_can_manager is None and dbc_loader:

@@ -19,6 +19,8 @@ class ConfigKeys:
     # ========== CAN配置 ==========
     CHANNEL1_PARAMS = "channel1_params"
     CHANNEL2_PARAMS = "channel2_params"
+    INNER_CHANNEL = "inner_channel"
+    OUTER_CHANNEL = "outer_channel"
 
     # ========== BMS地址配置 ==========
     NBCMU_ADDRESS = "nbcmu_address"

@@ -1,15 +1,16 @@
 """
 DBC文件解析器
-基于cantools.database.load_file()加载DBC
-支持加载内部DBC和外部DBC（两路独立）
+基于cantools加载DBC，支持加载内部DBC和外部DBC（两路独立）
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 
 import cantools
+from cantools.database.errors import ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -25,22 +26,73 @@ class DBCInfo:
 
 class DBCLoader:
     """DBC文件加载器"""
-    
+
     def __init__(self):
         self._inner_dbc: Optional[DBCInfo] = None
         self._outer_dbc: Optional[DBCInfo] = None
         self._dbc_cache: Dict[Path, DBCInfo] = {}
-        
+
+    @staticmethod
+    def _resolve_duplicate_signals(content: str) -> str:
+        """同报文内重名 SG_ 自动加序号后缀，避免 cantools 因 overlap 拒绝加载"""
+        result_lines = []
+        in_message = False
+        name_counts: Dict[str, int] = {}
+
+        for line in content.splitlines(keepends=True):
+            stripped = line.lstrip()
+            if stripped.startswith('BO_ '):
+                in_message = True
+                name_counts = {}
+                result_lines.append(line)
+                continue
+
+            if in_message and stripped.startswith('SG_'):
+                m = re.match(r'(\s*SG_\s+)([A-Za-z_][A-Za-z0-9_]*)(\s*:.*)', line)
+                if m:
+                    prefix, name, rest = m.group(1), m.group(2), m.group(3)
+                    name_counts[name] = name_counts.get(name, 0) + 1
+                    if name_counts[name] > 1:
+                        new_name = f"{name}_dup{name_counts[name]}"
+                        logger.warning("DBC 重名信号: 同报文内将 %s 重命名为 %s", name, new_name)
+                        line = f"{prefix}{new_name}{rest}"
+                result_lines.append(line)
+                continue
+
+            if not stripped.strip():
+                in_message = False
+                name_counts = {}
+            result_lines.append(line)
+
+        return ''.join(result_lines)
+
+    def _load_db(self, dbc_path: Path) -> cantools.database.Database:
+        """读文件（多编码）→ 去重名 → cantools 解析"""
+        last_error = None
+        for enc in ('utf-8', 'gbk', 'gb2312', 'iso-8859-1'):
+            try:
+                content = dbc_path.read_text(encoding=enc)
+                content = self._resolve_duplicate_signals(content)
+                return cantools.database.load_string(content)
+            except UnicodeDecodeError as e:
+                last_error = e
+                continue
+            except Exception as e:
+                last_error = e
+                logger.warning("以 %s 加载 DBC 失败: %s", enc, e)
+                continue
+        raise ParseError(f"无法解析 DBC {dbc_path.name}: {last_error}")
+
     def load_inner_dbc(self, dbc_path: str | Path) -> DBCInfo:
         """
         加载内部DBC文件（用于CAN1 CH1，故障注入/回读验证）
-        
+
         Args:
             dbc_path: DBC文件路径
-            
+
         Returns:
             DBCInfo对象
-            
+
         Raises:
             FileNotFoundError: DBC文件不存在
             cantools.database.ParseError: DBC文件格式错误
@@ -49,12 +101,12 @@ class DBCLoader:
         if dbc_path in self._dbc_cache:
             self._inner_dbc = self._dbc_cache[dbc_path]
             return self._inner_dbc
-            
+
         if not dbc_path.exists():
             raise FileNotFoundError(f"内部DBC文件不存在: {dbc_path}")
-            
+
         try:
-            db = cantools.database.load_file(str(dbc_path))
+            db = self._load_db(dbc_path)
             # 同样需要归一化内 DBC 报文 ID（减去 0x80000000 偏移，恢复硬件 CAN 空间）
             self._normalize_outer_ids(db)
 
@@ -64,27 +116,27 @@ class DBCLoader:
                 name=dbc_path.stem,
                 description="通道0 DBC（故障注入/回读验证）"
             )
-            
+
             self._dbc_cache[dbc_path] = dbc_info
             self._inner_dbc = dbc_info
-            
+
             logger.info(f"成功加载内部DBC: {dbc_path.name}, 包含 {len(db.messages)} 个报文，并完成 ID 归一化")
             return dbc_info
-            
-        except cantools.database.ParseError as e:
+
+        except ParseError as e:
             logger.error(f"内部DBC文件解析失败: {dbc_path}, 错误: {e}")
             raise
-            
+
     def load_outer_dbc(self, dbc_path: str | Path) -> DBCInfo:
         """
         加载外部DBC文件（用于CAN2 CH2，只读监控）
-        
+
         Args:
             dbc_path: DBC文件路径
-            
+
         Returns:
             DBCInfo对象
-            
+
         Raises:
             FileNotFoundError: DBC文件不存在
             cantools.database.ParseError: DBC文件格式错误
@@ -93,12 +145,12 @@ class DBCLoader:
         if dbc_path in self._dbc_cache:
             self._outer_dbc = self._dbc_cache[dbc_path]
             return self._outer_dbc
-            
+
         if not dbc_path.exists():
             raise FileNotFoundError(f"外部DBC文件不存在: {dbc_path}")
-            
+
         try:
-            db = cantools.database.load_file(str(dbc_path))
+            db = self._load_db(dbc_path)
 
             # 归一化外 DBC 报文 ID（减去 0x80000000 偏移，恢复硬件 CAN 空间）
             self._normalize_outer_ids(db)
@@ -109,14 +161,14 @@ class DBCLoader:
                 name=dbc_path.stem,
                 description="通道1 DBC（只读监控）"
             )
-            
+
             self._dbc_cache[dbc_path] = dbc_info
             self._outer_dbc = dbc_info
-            
+
             logger.info(f"成功加载外部DBC: {dbc_path.name}, 包含 {len(db.messages)} 个报文")
             return dbc_info
-            
-        except cantools.database.ParseError as e:
+
+        except ParseError as e:
             logger.error(f"外部DBC文件解析失败: {dbc_path}, 错误: {e}")
             raise
             

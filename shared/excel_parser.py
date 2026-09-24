@@ -10,6 +10,36 @@ import openpyxl
 from shared.utils import infer_datatype
 
 
+# ── 通用枚举（模块级，供 _assign_signal_enum 与导出共用）──
+ALARM_LEVEL_ENUM = {0: "无报警", 1: "一级报警", 2: "二级报警", 3: "三级报警"}
+BINARY_ALARM_ENUM = {0: "正常", 1: "报警"}
+BINARY_FAULT_ENUM = {0: "正常", 1: "故障"}
+RELAY_FAULT_ENUM = {0: "无报警", 1: "开路", 2: "粘连", 3: "预留"}
+RELAY_STATE_ENUM = {0: "断开", 1: "闭合"}
+CHRG_GUN_ENUM = {0: "未插入", 1: "已插入"}
+INSULATION_ENUM = {0: "正/负对地相等", 1: "正对地绝缘电阻小", 2: "负对地绝缘电阻小"}
+RUN_STATE_ENUM = {
+    0: "无效", 1: "自检", 2: "放电", 3: "充电", 4: "充电完成",
+    5: "急停", 6: "系统保护", 7: "充电保护", 8: "放电保护",
+    9: "静置", 10: "关机", 11: "待机", 12: "预充", 13: "充电加热",
+    14: "簇上电中", 15: "簇压均衡中"
+}
+SPECIAL_ENUMS = {
+    "系统运行状态": RUN_STATE_ENUM,
+    "组当前最大报警等级": ALARM_LEVEL_ENUM,
+    "当前最大报警等级": ALARM_LEVEL_ENUM,
+    "绝缘电阻极性": INSULATION_ENUM,
+    "组当前故障": None,
+}
+
+
+def _extract_version_from_filename(filename: str) -> str:
+    """从协议 Excel 文件名中提取版本号，如 V1.91 / V1.71"""
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    m = re.search(r'(V\d+(?:\.\d+)*)', stem, re.IGNORECASE)
+    return m.group(1) if m else ""
+
+
 def _parse_enum_from_desc(desc):
     if not desc:
         return None
@@ -22,6 +52,68 @@ def _parse_enum_from_desc(desc):
         if label:
             enum_map[val] = label
     return enum_map if enum_map else None
+
+
+def _is_relay_alarm_name(sig_name: str) -> bool:
+    """接触器/继电器故障类信号（有独立枚举，不套报警等级）"""
+    return (('继电器' in sig_name) or ('接触器' in sig_name)) and \
+           (('故障' in sig_name) or ('报警' in sig_name))
+
+
+def _is_alarm_like_name(sig_name: str) -> bool:
+    """名称像报警/故障位的信号"""
+    keys = ('告警', '报警', '过放', '过充', '过温', '故障')
+    return any(k in sig_name for k in keys)
+
+
+def _is_fault_style_name(sig_name: str) -> bool:
+    """1-bit 时用「正常/故障」而非「正常/报警」：名含故障且不以报警为主"""
+    if '故障' not in sig_name:
+        return False
+    # 「××报警」优先按报警；纯「××故障」按故障
+    return not sig_name.endswith('报警')
+
+
+def _assign_signal_enum(sig_name: str, description: str, bit_length: int,
+                        special_enums: dict):
+    """
+    统一给信号挂枚举：
+    - 等级类(2-bit)：无报警/一级报警/二级报警/三级报警（忽略不完整的描述枚举）
+    - 二值报警(1-bit)：正常/报警
+    - 二值故障(1-bit)：正常/故障
+    - 接触器故障：无报警/开路/粘连/预留
+    - 其它：优先完整描述枚举
+    """
+    if sig_name in special_enums:
+        return special_enums[sig_name]
+
+    # 接触器/继电器独立枚举
+    if _is_relay_alarm_name(sig_name):
+        return RELAY_FAULT_ENUM
+
+    alarm_like = _is_alarm_like_name(sig_name)
+
+    # 报警/故障类：按 bit 宽度统一命名，不依赖描述是否写全
+    if alarm_like:
+        if bit_length <= 1:
+            return BINARY_FAULT_ENUM if _is_fault_style_name(sig_name) else BINARY_ALARM_ENUM
+        if bit_length == 2:
+            return ALARM_LEVEL_ENUM
+        # >2bit 仍尝试描述枚举，失败则按等级枚举兜底
+        parsed = _parse_enum_from_desc(description)
+        if parsed and len(parsed) >= 2:
+            return parsed
+        return ALARM_LEVEL_ENUM
+
+    # 非报警类：描述枚举完整才使用
+    parsed = _parse_enum_from_desc(description)
+    if parsed and len(parsed) >= 2:
+        return parsed
+
+    if '继电器状态' in sig_name or '插枪状态' in sig_name:
+        return RELAY_STATE_ENUM
+
+    return None
 
 
 def parse_excel(filepath):
@@ -43,25 +135,6 @@ def parse_excel(filepath):
     REG_INT16 = "int16"
     REG_UINT8 = "uint8"
     REG_BITFIELD = "bitfield"
-
-    RUN_STATE_ENUM = {
-        0: "无效", 1: "自检", 2: "放电", 3: "充电", 4: "充电完成",
-        5: "急停", 6: "系统保护", 7: "充电保护", 8: "放电保护",
-        9: "静置", 10: "关机", 11: "待机", 12: "预充", 13: "充电加热",
-        14: "簇上电中", 15: "簇压均衡中"
-    }
-    ALARM_LEVEL_ENUM = {0: "无报警", 1: "一级报警", 2: "二级报警", 3: "三级报警"}
-    INSULATION_ENUM = {0: "正/负对地相等", 1: "正对地绝缘电阻小", 2: "负对地绝缘电阻小"}
-    RELAY_STATE_ENUM = {0: "断开", 1: "闭合"}
-    CHRG_GUN_ENUM = {0: "未插入", 1: "已插入"}
-    RELAY_FAULT_ENUM = {0: "无报警", 1: "开路", 2: "粘连", 3: "预留"}
-
-    SPECIAL_ENUMS = {
-        "系统运行状态": RUN_STATE_ENUM,
-        "组当前最大报警等级": ALARM_LEVEL_ENUM,
-        "绝缘电阻极性": INSULATION_ENUM,
-        "组当前故障": None,
-    }
 
     signals = []
     control_signals = []
@@ -151,19 +224,7 @@ def parse_excel(filepath):
             continue
 
         datatype = infer_datatype(bit_length, bit_start, factor, description)
-
-        enum_map = SPECIAL_ENUMS.get(sig_name)
-        if enum_map is None and sig_name not in SPECIAL_ENUMS:
-            parsed_enum = _parse_enum_from_desc(description)
-            if parsed_enum and len(parsed_enum) >= 2:
-                enum_map = parsed_enum
-            elif '继电器' in sig_name and ('故障' in sig_name or '报警' in sig_name):
-                enum_map = RELAY_FAULT_ENUM
-            elif '告警' in sig_name or '报警' in sig_name or '过放' in sig_name or '过充' in sig_name or '过温' in sig_name:
-                if bit_length <= 2:
-                    enum_map = ALARM_LEVEL_ENUM
-            elif '继电器状态' in sig_name or '插枪状态' in sig_name:
-                enum_map = RELAY_STATE_ENUM
+        enum_map = _assign_signal_enum(sig_name, description, bit_length, SPECIAL_ENUMS)
 
         signals.append({
             'category': current_category,
@@ -281,10 +342,13 @@ def parse_excel(filepath):
         'enums': {
             'RUN_STATE_ENUM': RUN_STATE_ENUM,
             'ALARM_LEVEL_ENUM': ALARM_LEVEL_ENUM,
+            'BINARY_ALARM_ENUM': BINARY_ALARM_ENUM,
+            'BINARY_FAULT_ENUM': BINARY_FAULT_ENUM,
             'INSULATION_ENUM': INSULATION_ENUM,
             'RELAY_STATE_ENUM': RELAY_STATE_ENUM,
             'CHRG_GUN_ENUM': CHRG_GUN_ENUM,
             'RELAY_FAULT_ENUM': RELAY_FAULT_ENUM,
         },
         'source_info': f'Excel: {filename}',
+        'protocol_version': _extract_version_from_filename(filename),
     }

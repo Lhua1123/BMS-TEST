@@ -13,11 +13,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.excel_parser import parse_excel
 
 PROTOCOL_SOURCE = ""
-CONTROL_SIGNALS = []
+PROTOCOL_VERSION = ""
 
 
 def _load_from_excel():
-    global PROTOCOL_SOURCE
+    global PROTOCOL_SOURCE, PROTOCOL_VERSION
     xlsx_files = _glob.glob(os.path.join(os.path.dirname(__file__), '*.xlsx'))
     xlsx_files = [f for f in xlsx_files if not os.path.basename(f).startswith('~')]
     if not xlsx_files:
@@ -34,6 +34,7 @@ def _load_from_excel():
     if result is None:
         return False
     PROTOCOL_SOURCE = result['source_info']
+    PROTOCOL_VERSION = result.get('protocol_version', '')
     return result
 
 
@@ -58,6 +59,7 @@ if _excel_data:
     STATUS_TABS = merged_tabs
 else:
     PROTOCOL_SOURCE = "内置配置 V1.1"
+    PROTOCOL_VERSION = "builtin"
     REGISTER_GROUPS = {}
     POLL_GROUPS = []
     STATUS_TABS = []

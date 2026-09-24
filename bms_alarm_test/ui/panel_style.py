@@ -5,7 +5,19 @@
 from shared.style import COLORS
 from shared.style import combo_arrow_url, spin_up_arrow_url, spin_down_arrow_url
 
-# 紧凑按钮样式
+def button_fixed_size_qss(width: int, height: int) -> str:
+    """强制按钮等宽等高（写入样式表，避免被 padding/字体撑开）"""
+    return (
+        f"min-width: {width}px; max-width: {width}px; "
+        f"min-height: {height}px; max-height: {height}px; "
+        f"padding: 0px; margin: 0px;"
+    )
+
+
+# 报警测试「测试控制」四按钮统一尺寸
+FAULT_CTRL_BTN_W = 132
+FAULT_CTRL_BTN_H = 34
+
 BTN_PRIMARY = (
     f"background-color: {COLORS['accent']}; color: white; "
     f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
@@ -121,3 +133,82 @@ QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
     height: 8px;
 }}
 """
+
+
+def compact_qss() -> str:
+    """面板用 QSS：替换 SpinBox 箭头资源占位符。
+
+    COMPACT_QSS 直接 setStyleSheet 时占位符不会被全局 apply_style 替换，
+    会导致上下箭头空白。必须经本函数解析后再应用。
+    """
+    sheet = COMPACT_QSS
+    try:
+        up = spin_up_arrow_url()
+        down = spin_down_arrow_url()
+        if up:
+            sheet = sheet.replace("__SPIN_UP_ARROW__", up)
+        if down:
+            sheet = sheet.replace("__SPIN_DOWN_ARROW__", down)
+    except Exception:
+        pass
+    return sheet
+
+
+def table_qss() -> str:
+    """混合对齐表格用 QSS：去掉 COMPACT_QSS 对 item 的 text-align 强制。
+
+    否则 QSS 会覆盖 QTableWidgetItem.setTextAlignment，文本列/数字列无法区分。
+    """
+    return compact_qss().replace("text-align: left;", "")
+
+
+class LeftAlignDelegate:
+    """强制文本左对齐绘制（延迟导入 PyQt，避免无 GUI 环境 import 失败）。"""
+
+    _cls = None
+
+    @classmethod
+    def get(cls):
+        if cls._cls is None:
+            from PyQt5.QtCore import Qt
+            from PyQt5.QtGui import QColor, QFontMetrics
+            from PyQt5.QtWidgets import QStyledItemDelegate, QStyle
+
+            class _LeftAlignDelegate(QStyledItemDelegate):
+                """单元格文字强制左对齐；选中态保持可读。"""
+
+                def paint(self, painter, option, index):
+                    painter.save()
+                    if option.state & QStyle.State_Selected:
+                        painter.fillRect(option.rect, QColor("#dbeafe"))
+                        painter.setPen(QColor("#1a202c"))
+                    else:
+                        painter.setPen(QColor("#1a202c"))
+                    painter.setFont(option.font)
+                    text = index.data(Qt.DisplayRole)
+                    text = "" if text is None else str(text)
+                    # 与列内容左缘对齐：固定 10px 内边距
+                    text_rect = option.rect.adjusted(10, 0, -8, 0)
+                    painter.drawText(text_rect, int(Qt.AlignLeft | Qt.AlignVCenter), text)
+                    painter.restore()
+
+                def sizeHint(self, option, index):
+                    text = index.data(Qt.DisplayRole)
+                    text = "" if text is None else str(text)
+                    try:
+                        fm = QFontMetrics(option.font) if option.font is not None else QFontMetrics()
+                        w = fm.horizontalAdvance(text) if hasattr(fm, "horizontalAdvance") else fm.width(text)
+                    except Exception:
+                        w = len(text) * 12
+                    return option.rect.size().__class__(w + 28, max(option.rect.height(), 28))
+
+            cls._cls = _LeftAlignDelegate
+        return cls._cls
+
+    @staticmethod
+    def attach(table, columns, parent=None):
+        """给指定列挂上左对齐委托。"""
+        delegate_cls = LeftAlignDelegate.get()
+        parent = parent or table
+        for col in columns:
+            table.setItemDelegateForColumn(col, delegate_cls(parent))

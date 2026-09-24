@@ -262,7 +262,11 @@ class ZLGAdapter:
 
         ret = self._dll.VCI_Transmit(self._dev_type, self._dev_index, self.channel, ctypes.byref(msg), 1)
         if not ret:
-            logger.warning(f"[ZLGAdapter] VCI_Transmit 返回={ret}, 报文发送失败")
+            logger.warning(
+                f"[ZLGAdapter] VCI_Transmit 返回={ret}, 报文发送失败 "
+                f"(物理通道{self.channel}, ID=0x{arbitration_id:08X})。"
+                f"若持续失败：核对对内CAN是否接到本物理通道、波特率是否匹配、总线是否空闲"
+            )
         return ret > 0
 
     def recv(self, timeout: float = 0.1):
@@ -458,7 +462,12 @@ class ZLGAdapterManager:
         """创建适配器，channel 为逻辑通道号(1,2)，内部映射到物理通道(0,1)"""
         phys_channel = channel - 1  # 逻辑通道1→物理0, 逻辑通道2→物理1
         if phys_channel in self.adapters:
-            return self.adapters[phys_channel]
+            adapter = self.adapters[phys_channel]
+            # 复用时同步波特率，避免重连后沿用旧配置
+            if adapter.baudrate != baudrate:
+                logger.info(f"通道{channel}适配器复用，波特率更新: {adapter.baudrate} -> {baudrate}")
+                adapter.baudrate = baudrate
+            return adapter
         adapter = ZLGAdapter(channel=phys_channel, baudrate=baudrate)
         self.adapters[phys_channel] = adapter
         return adapter

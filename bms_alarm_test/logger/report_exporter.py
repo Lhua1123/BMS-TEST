@@ -52,7 +52,7 @@ class ReportExporter:
                 passed = report.get("passed_count", 0) or 0
                 failed = report.get("failed_count", 0) or 0
                 rate = passed / total * 100 if total else 0.0
-                status_text = "\u901a\u8fc7" if report.get("status") == "PASS" else "\u5931\u8d25"
+                status_text = "通过" if report.get("status") in ("PASS", "PASSED", "通过") else "失败"
                 test_type = {"fault": "\u6545\u969c\u7801\u6d4b\u8bd5", "threshold": "\u9608\u503c\u6d4b\u8bd5"}.get(
                     report.get("test_type"), report.get("test_type", "")
                 )
@@ -73,7 +73,7 @@ class ReportExporter:
                     name = result.get("fault_name") or result.get("pid_name") or "-"
                     code = metadata.get("fault_code") or metadata.get("pid") or result.get("test_id") or "-"
                     raw_status = result.get("overall_status", "")
-                    result_status = "\u901a\u8fc7" if raw_status in ("\u901a\u8fc7", "PASSED", "PASS") else "\u5931\u8d25"
+                    result_status = "通过" if raw_status in ("通过", "PASSED", "PASS", "成功") else "失败"
                     checks = []
                     for check in result.get("checks", []) or []:
                         checks.append(

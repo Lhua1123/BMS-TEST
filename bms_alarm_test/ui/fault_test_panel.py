@@ -5,17 +5,47 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QPushButton, QSpinBox, QComboBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QProgressBar, QTextEdit, QLineEdit, QSplitter, QCheckBox,
-    QAbstractItemView)
+    QAbstractItemView, QInputDialog, QMessageBox)
 from typing import Optional
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QColor
 import time
 
 from shared.style import COLORS, FONTS
-from bms_alarm_test.ui.panel_style import COMPACT_QSS, BTN_PRIMARY, BTN_WARNING
+from bms_alarm_test.ui.panel_style import (
+    table_qss,
+    compact_qss,
+    LeftAlignDelegate,
+    BTN_PRIMARY,
+    BTN_WARNING,
+    BTN_NEUTRAL,
+    button_fixed_size_qss,
+    FAULT_CTRL_BTN_W,
+    FAULT_CTRL_BTN_H,
+)
 from bms_alarm_test.config.fault_mapping import FaultMapping, FaultDomain, Fault
 from bms_alarm_test.engine.fault_engine import FaultTestEngine
 from bms_alarm_test.models.test_result import TestResult, CheckStatus
+
+# 引擎 TestState → 界面中文
+TEST_STATE_CN = {
+    "idle": "就绪",
+    "preparing": "准备中",
+    "injecting": "注入故障",
+    "verifying": "验证中",
+    "clearing": "清除故障",
+    "completed": "已完成",
+    "failed": "失败",
+    "stopped": "已停止",
+}
+
+
+def _state_cn(state) -> str:
+    if state is None:
+        return "就绪"
+    key = getattr(state, "value", None) or str(state)
+    key = str(key).lower()
+    return TEST_STATE_CN.get(key, str(key))
 
 
 class FaultTestPanel(QWidget):
@@ -33,13 +63,15 @@ class FaultTestPanel(QWidget):
 
     def __init__(self, fault_mapping: FaultMapping, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(COMPACT_QSS)
+        self.setStyleSheet(compact_qss())
         self.fault_mapping = fault_mapping
         self.fault_engine: FaultTestEngine = None
         self._step_fault_codes = []
         self._step_index = -1
         self._test_logger = None
         self._report_batch_start_time = None
+        self._last_project_name = ""
+        self._current_project_name = ""
 
         # 测试结果存储
         self.test_results: list[TestResult] = []
@@ -58,7 +90,7 @@ class FaultTestPanel(QWidget):
         root.setContentsMargins(4, 4, 4, 4)
         root.setSpacing(6)
 
-        # 左侧：配置 + 故障列表
+        # 左侧：配置 + 故障列表（保证故障列表有足够横向空间）
         left = QVBoxLayout()
         left.setSpacing(6)
         config_group = self.create_config_group()
@@ -68,9 +100,10 @@ class FaultTestPanel(QWidget):
 
         left_container = QWidget()
         left_container.setLayout(left)
-        root.addWidget(left_container, 1)
+        left_container.setMinimumWidth(420)
+        root.addWidget(left_container, 3)
 
-        # 右侧：控制 + 测试详情
+        # 右侧：控制 + 测试详情（控制区不再横向堆叠进度条，避免挤占左侧）
         right = QVBoxLayout()
         right.setSpacing(6)
         control_group = self.create_control_group()
@@ -80,7 +113,7 @@ class FaultTestPanel(QWidget):
 
         right_container = QWidget()
         right_container.setLayout(right)
-        root.addWidget(right_container, 1)
+        root.addWidget(right_container, 2)
 
     def create_config_group(self) -> QGroupBox:
         """创建测试配置区域"""
@@ -172,10 +205,11 @@ class FaultTestPanel(QWidget):
         header.setMinimumSectionSize(0)
         header.setSectionResizeMode(QHeaderView.Fixed)
         header.setStretchLastSection(False)
-        self._fault_column_weights = [0.75, 0.95, 2.35, 1.15, 1.25, 1.45, 1.45]
-        self._fault_column_min_widths = [60, 72, 180, 100, 110, 125, 125]
+        # 先保证故障列表在常见宽度下能完整显示，不出现横向滚动
+        self._fault_column_weights = [0.7, 0.85, 2.2, 1.0, 1.05, 1.1, 1.1]
+        self._fault_column_min_widths = [48, 56, 140, 64, 78, 88, 88]
         self.fault_table.setStyleSheet(
-            COMPACT_QSS
+            table_qss()
             + "\nQTableWidget { font-size: 12px; }"
             + "\nQTableWidget::item { padding: 6px 8px; }"
             + "\nQHeaderView::section { font-size: 12px; padding: 7px 8px; }"
@@ -184,6 +218,8 @@ class FaultTestPanel(QWidget):
         # 纯展示/选择列表，禁止双击或按键进入编辑
         self.fault_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.fault_table.verticalHeader().setDefaultSectionSize(38)
+        # 故障名称等文本列强制左对齐
+        LeftAlignDelegate.attach(self.fault_table, [2], self.fault_table)
 
         layout.addWidget(self.fault_table)
 
@@ -191,39 +227,110 @@ class FaultTestPanel(QWidget):
         return group
 
     def create_control_group(self) -> QGroupBox:
-        """创建测试控制区域"""
+        """测试控制：按钮一行 + 通栏进度条 + 状态文字（对齐阈值测试，不挤占左侧列表）"""
+        from PyQt5.QtWidgets import QSizePolicy
+
         group = QGroupBox("测试控制")
-        layout = QHBoxLayout()
+        outer = QVBoxLayout()
+        outer.setSpacing(6)
 
-        # 开始测试按钮
+        # —— 按钮行（仅按钮，不放进度控件）——
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        w, h = FAULT_CTRL_BTN_W, FAULT_CTRL_BTN_H
+        lock = button_fixed_size_qss(w, h)
+
+        def _fix_btn(btn: QPushButton, base_style: str):
+            btn.setStyleSheet(base_style + lock)
+            btn.setFixedSize(w, h)
+            btn.setMinimumSize(w, h)
+            btn.setMaximumSize(w, h)
+            btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
         self.start_test_btn = QPushButton("开始故障测试")
-        self.start_test_btn.setStyleSheet(BTN_PRIMARY)
         self.start_test_btn.setEnabled(False)
-        layout.addWidget(self.start_test_btn)
+        _fix_btn(self.start_test_btn, BTN_PRIMARY)
+        btn_row.addWidget(self.start_test_btn)
 
-        # 停止测试按钮
         self.stop_test_btn = QPushButton("停止故障测试")
-        self.stop_test_btn.setStyleSheet(BTN_WARNING)
         self.stop_test_btn.setEnabled(False)
-        layout.addWidget(self.stop_test_btn)
+        _fix_btn(self.stop_test_btn, BTN_WARNING)
+        btn_row.addWidget(self.stop_test_btn)
 
-        # 单步测试按钮
         self.step_test_btn = QPushButton("单步测试")
         self.step_test_btn.setEnabled(False)
-        layout.addWidget(self.step_test_btn)
+        _fix_btn(self.step_test_btn, BTN_PRIMARY)
+        btn_row.addWidget(self.step_test_btn)
 
-        layout.addStretch()
+        self.verify_cfg_btn = QPushButton("验证配置")
+        self.verify_cfg_btn.setToolTip(
+            "合并配置：①CAN 信号回读协议（ID/位定义/DBC） ②故障期望值与额外回读"
+        )
+        _fix_btn(self.verify_cfg_btn, BTN_PRIMARY)
+        self.verify_cfg_btn.clicked.connect(self._open_verify_config)
+        btn_row.addWidget(self.verify_cfg_btn)
 
-        # 进度条
+        btn_row.addStretch(1)
+        outer.addLayout(btn_row)
+
+        # —— 进度条：与阈值测试一致，通栏、可横向扩展 ——
         self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(1)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFormat("0%")
+        self.progress_bar.setMinimumHeight(22)
+        self.progress_bar.setMaximumHeight(28)
+        self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.progress_bar.setStyleSheet(
+            f"""
+            QProgressBar {{
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                text-align: center;
+                font-size: 12px;
+                background-color: {COLORS['bg_panel']};
+            }}
+            QProgressBar::chunk {{
+                background-color: {COLORS['accent']};
+                border-radius: 3px;
+            }}
+            """
+        )
+        outer.addWidget(self.progress_bar)
 
-        # 进度标签
-        self.progress_label = QLabel("就绪")
-        layout.addWidget(self.progress_label)
+        # —— 状态信息横向排布：徽章 + 进度说明 + 统计，占满进度条下方一行 ——
+        info_row = QHBoxLayout()
+        info_row.setSpacing(12)
 
-        group.setLayout(layout)
+        self.state_badge = QLabel("就绪")
+        self.state_badge.setFixedWidth(88)
+        self.state_badge.setFixedHeight(24)
+        self.state_badge.setAlignment(Qt.AlignCenter)
+        self.state_badge.setStyleSheet(
+            f"background-color: {COLORS['border']}; color: {COLORS['text']}; "
+            f"border-radius: 3px; padding: 2px 6px; font-weight: bold; font-size: 12px;"
+        )
+        info_row.addWidget(self.state_badge)
+
+        self.progress_label = QLabel("状态=就绪 | 进度: 0/0 | —")
+        self.progress_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        self.progress_label.setWordWrap(False)
+        info_row.addWidget(self.progress_label, 1)
+
+        self.stat_label = QLabel("通过: 0  失败: 0  跳过: 0")
+        self.stat_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        self.stat_label.setWordWrap(False)
+        info_row.addWidget(self.stat_label)
+
+        outer.addLayout(info_row)
+
+        group.setLayout(outer)
+        # 控制区不设定过大的最小宽度，避免挤占左侧故障列表
+        group.setMinimumWidth(0)
+        group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         return group
 
     def create_detail_group(self) -> QGroupBox:
@@ -253,6 +360,12 @@ class FaultTestPanel(QWidget):
             "故障名", "检查类型", "检查域", "期望值", "实际值", "状态", "备注"
         ])
         self.detail_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.detail_table.setStyleSheet(
+            table_qss()
+            + "\nQTableWidget { font-size: 12px; }"
+            + "\nQTableWidget::item { padding: 6px 8px; }"
+        )
+        LeftAlignDelegate.attach(self.detail_table, [0, 1, 6], self.detail_table)
         detail_layout.addWidget(self.detail_table)
         detail_group.setLayout(detail_layout)
         splitter.addWidget(detail_group)
@@ -282,6 +395,37 @@ class FaultTestPanel(QWidget):
 
         # 测试范围选择
         self.fault_range_combo.currentTextChanged.connect(self.on_test_range_changed)
+
+    def _open_verify_config(self):
+        """打开合并的验证配置窗口（回读协议 + 故障期望值）"""
+        from bms_alarm_test.ui.verify_config_dialog import VerifyConfigDialog
+        dlg = VerifyConfigDialog(self, fault_mapping=self.fault_mapping)
+        dlg.exec_()
+        try:
+            self.refresh_fault_list()
+        except Exception:
+            pass
+        self.log_message("验证配置已更新（回读协议/故障期望值）", "INFO")
+
+    def _open_readback_config(self):
+        """兼容旧入口：仅打开信号回读协议页"""
+        from bms_alarm_test.ui.verify_config_dialog import VerifyConfigDialog
+        dlg = VerifyConfigDialog(self, fault_mapping=self.fault_mapping)
+        dlg.tabs.setCurrentIndex(0)
+        dlg.exec_()
+        self.log_message("回读协议配置已更新", "INFO")
+
+    def _open_fault_expect_config(self):
+        """兼容旧入口：仅打开故障期望值页"""
+        from bms_alarm_test.ui.verify_config_dialog import VerifyConfigDialog
+        dlg = VerifyConfigDialog(self, fault_mapping=self.fault_mapping)
+        dlg.tabs.setCurrentIndex(1)
+        dlg.exec_()
+        try:
+            self.refresh_fault_list()
+        except Exception:
+            pass
+        self.log_message("故障期望值/回读配置已更新", "INFO")
 
     def set_test_logger(self, test_logger):
         """设置测试结果记录器（用于落库）"""
@@ -362,9 +506,9 @@ class FaultTestPanel(QWidget):
             item.setTextAlignment(Qt.AlignCenter)
             self.fault_table.setItem(i, 1, item)
 
-            # 故障名称
+            # 故障名称（文本列左对齐）
             item = QTableWidgetItem(fault.name)
-            item.setTextAlignment(Qt.AlignCenter)
+            item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.fault_table.setItem(i, 2, item)
 
             # 故障等级
@@ -525,6 +669,24 @@ class FaultTestPanel(QWidget):
             self.log_message("警告: 请选择要测试的故障", "WARNING")
             return
 
+        # 开始前填写项目名称（写入测试报告）
+        project_name, ok = QInputDialog.getText(
+            self,
+            "项目名称",
+            "请输入本次测试的项目名称（将写入测试报告）:",
+            QLineEdit.Normal,
+            self._last_project_name or "",
+        )
+        if not ok:
+            self.log_message("已取消：未填写项目名称", "WARNING")
+            return
+        project_name = (project_name or "").strip()
+        if not project_name:
+            QMessageBox.warning(self, "提示", "项目名称不能为空。")
+            return
+        self._last_project_name = project_name
+        self._current_project_name = project_name
+
         # 获取测试参数
         nbcmu_addr = self.nbcmu_spin.value()
         sbcmu_addr = self.sbcmu_spin.value()
@@ -548,7 +710,15 @@ class FaultTestPanel(QWidget):
             self.start_test_btn.setEnabled(False)
             self.stop_test_btn.setEnabled(True)
             self.step_test_btn.setEnabled(False)
+            n = len(selected_codes)
             self.progress_bar.setVisible(True)
+            self.progress_bar.setMinimum(0)
+            self.progress_bar.setMaximum(max(1, n))
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat(f"0%  (0/{n})")
+            self._set_state_badge("准备中")
+            self.stat_label.setText("通过: 0  失败: 0  跳过: 0")
+            self.progress_label.setText(f"状态=准备中 | 进度: 0/{n} | —")
 
             # 清空日志和详情
             self.log_text.clear()
@@ -557,7 +727,7 @@ class FaultTestPanel(QWidget):
             # 发送信号
             self.test_started.emit()
 
-            self.log_message(f"开始测试 {len(selected_codes)} 个故障", "INFO")
+            self.log_message(f"开始测试 {len(selected_codes)} 个故障 | 项目: {project_name}", "INFO")
         else:
             self.log_message("错误: 启动测试失败", "ERROR")
 
@@ -569,6 +739,11 @@ class FaultTestPanel(QWidget):
             self._report_batch_start_time = None
             self.start_test_btn.setEnabled(True)
             self.step_test_btn.setEnabled(True)
+            self.progress_bar.setVisible(True)
+            self._set_state_badge("已停止")
+            self.progress_label.setText(
+                f"状态=已停止 | 进度: {self.progress_bar.value()}/{self.progress_bar.maximum()} | —"
+            )
 
             self.log_message("测试已停止", "INFO")
             self.test_stopped.emit()
@@ -736,15 +911,57 @@ class FaultTestPanel(QWidget):
 
     @pyqtSlot(object)
     def _do_progress_update(self, progress):
-        """进度更新回调"""
-        # 更新进度条
-        self.progress_bar.setMaximum(progress.total_faults)
-        self.progress_bar.setValue(progress.current_fault_index)
+        """进度更新（对齐阈值测试：进度条 + 中文阶段状态）"""
+        total = max(0, int(getattr(progress, "total_faults", 0) or 0))
+        current = int(getattr(progress, "current_fault_index", 0) or 0)
+        if total <= 0:
+            total = 1
+        self.progress_bar.setMaximum(total)
+        self.progress_bar.setValue(min(current, total))
+        if total > 0:
+            pct = int(round(100.0 * min(current, total) / total))
+            self.progress_bar.setFormat(f"{pct}%  ({current}/{total})")
+        else:
+            self.progress_bar.setFormat("0%")
 
-        # 更新进度标签
+        state = getattr(progress, "current_state", None)
+        state_name = _state_cn(state)
+        passed = getattr(progress, "passed_count", 0) or 0
+        failed = getattr(progress, "failed_count", 0) or 0
+        skipped = getattr(progress, "skipped_count", 0) or 0
+        self._set_state_badge(state_name, failed=failed)
+
+        fault = getattr(progress, "current_fault", None)
+        if fault is not None:
+            fname = getattr(fault, "name", "") or ""
+            fcode = getattr(fault, "code", "")
+            fdom = getattr(getattr(fault, "domain", None), "value", "")
+            fault_txt = f"故障{fcode} {fname} ({fdom})".strip()
+        else:
+            fault_txt = "—"
+
+        self.stat_label.setText(f"通过: {passed}  失败: {failed}  跳过: {skipped}")
         self.progress_label.setText(
-            f"进度: {progress.current_fault_index}/{progress.total_faults} "
-            f"(通过: {progress.passed_count}, 失败: {progress.failed_count})"
+            f"状态={state_name} | 进度: {current}/{total} | {fault_txt} "
+            f"| 通过={passed} 失败={failed}"
+        )
+
+    def _set_state_badge(self, state_name: str, failed: int = 0):
+        """阶段徽章配色：运行中蓝、失败红、完成绿、就绪灰"""
+        if state_name in ("失败",) or (failed > 0 and state_name == "已完成"):
+            bg, fg = COLORS.get("error", "#dc2626"), "#ffffff"
+        elif state_name == "已完成":
+            bg, fg = COLORS.get("success", "#059669"), "#ffffff"
+        elif state_name == "已停止":
+            bg, fg = COLORS.get("warning", "#d97706"), "#ffffff"
+        elif state_name == "就绪":
+            bg, fg = COLORS.get("border", "#e5e7eb"), COLORS.get("text", "#111827")
+        else:
+            bg, fg = COLORS.get("accent", "#2563eb"), "#ffffff"
+        self.state_badge.setText(state_name)
+        self.state_badge.setStyleSheet(
+            f"background-color: {bg}; color: {fg}; border-radius: 3px; "
+            f"padding: 4px 6px; font-weight: bold; font-size: 12px;"
         )
 
     @pyqtSlot(object)
@@ -775,11 +992,23 @@ class FaultTestPanel(QWidget):
         self.start_test_btn.setEnabled(True)
         self.stop_test_btn.setEnabled(False)
         self.step_test_btn.setEnabled(True)
-        self.progress_bar.setVisible(False)
+        # 进度条保留显示，便于查看最终进度（与阈值测试一致）
+        self.progress_bar.setVisible(True)
 
         # 计算统计
         passed = sum(1 for r in results if r.overall_status == CheckStatus.PASS)
         failed = len(results) - passed
+
+        total = max(1, self.progress_bar.maximum())
+        if self.progress_bar.value() < total:
+            self.progress_bar.setValue(total)
+        self.progress_bar.setFormat("100%")
+        self._set_state_badge("已完成", failed=failed)
+        self.stat_label.setText(f"通过: {passed}  失败: {failed}  跳过: 0")
+        self.progress_label.setText(
+            f"状态=已完成 | 进度: {self.progress_bar.value()}/{total} "
+            f"| 通过={passed} 失败={failed}"
+        )
 
         if self._test_logger and results and self._report_batch_start_time is not None:
             try:
@@ -787,6 +1016,11 @@ class FaultTestPanel(QWidget):
                     results,
                     test_type="fault",
                     start_time=self._report_batch_start_time,
+                    project_name=getattr(self, "_current_project_name", "") or "",
+                )
+                self.log_message(
+                    f"测试报告已保存 | 项目: {getattr(self, '_current_project_name', '') or '(未填)'}",
+                    "INFO",
                 )
             except Exception as e:
                 self.log_message(f"\u4fdd\u5b58\u6545\u969c\u7801\u6d4b\u8bd5\u62a5\u544a\u5931\u8d25: {e}", "ERROR")
@@ -803,17 +1037,30 @@ class FaultTestPanel(QWidget):
         row = self.detail_table.rowCount()
         self.detail_table.insertRow(row)
 
-        self.detail_table.setItem(row, 0, QTableWidgetItem(result.fault_name or ""))
-        self.detail_table.setItem(row, 1, QTableWidgetItem(check.check_type.value))
+        left = Qt.AlignLeft | Qt.AlignVCenter
+        center = Qt.AlignCenter
+
+        def _set(col, text, align=left, color=None):
+            item = QTableWidgetItem(str(text))
+            item.setTextAlignment(align)
+            if color is not None:
+                item.setForeground(QColor(color))
+            self.detail_table.setItem(row, col, item)
+
+        _set(0, result.fault_name or "")
+        _set(1, check.check_type.value)
         label = "对内" if check.check_type.name.startswith("INNER") else ("对外" if check.check_type.name.startswith("OUTER") else "其他")
-        self.detail_table.setItem(row, 2, QTableWidgetItem(label))
-        self.detail_table.setItem(row, 3, QTableWidgetItem(str(check.expected_value) if check.expected_value is not None else ""))
-        self.detail_table.setItem(row, 4, QTableWidgetItem(str(check.actual_value) if check.actual_value is not None else ""))
+        _set(2, label)
+        _set(3, str(check.expected_value) if check.expected_value is not None else "", center)
+        _set(4, str(check.actual_value) if check.actual_value is not None else "", center)
         status_text = "通过" if check.is_passed() else "失败"
-        status_item = QTableWidgetItem(status_text)
-        status_item.setForeground(QColor(COLORS['success'] if check.is_passed() else COLORS['error']))
-        self.detail_table.setItem(row, 5, status_item)
-        self.detail_table.setItem(row, 6, QTableWidgetItem(check.message or ""))
+        _set(
+            5,
+            status_text,
+            center,
+            COLORS['success'] if check.is_passed() else COLORS['error'],
+        )
+        _set(6, check.message or "")
         self.detail_table.scrollToBottom()
 
     def update_detail_table(self, result: TestResult):
@@ -857,11 +1104,17 @@ class FaultTestPanel(QWidget):
         self.detail_table.setRowCount(0)
 
         # 重置进度
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(1)
         self.progress_bar.setValue(0)
-        self.progress_label.setText("就绪")
+        self.progress_bar.setFormat("0%")
+        self._set_state_badge("就绪")
+        if hasattr(self, "stat_label"):
+            self.stat_label.setText("通过: 0  失败: 0  跳过: 0")
+        self.progress_label.setText("状态=就绪 | 进度: 0/0 | —")
 
         # 重置按钮状态
         self.start_test_btn.setEnabled(True)
         self.stop_test_btn.setEnabled(False)
         self.step_test_btn.setEnabled(True)
-        self.progress_bar.setVisible(False)

@@ -16,6 +16,23 @@ from bms_alarm_test.utils.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
+# CheckStatus.PASSED.value 为中文「通过」，旧代码只匹配英文导致全部误判为失败
+_PASS_STATUS_TOKENS = {"PASS", "PASSED", "通过", "成功", "OK"}
+_PASS_STATUS_NAMES = {"PASS", "PASSED"}
+
+
+def is_passed_status(value) -> bool:
+    """兼容 CheckStatus 枚举 / 中文值 / 英文值。"""
+    if value is True:
+        return True
+    if value is False or value is None:
+        return False
+    name = getattr(value, "name", "")
+    if isinstance(name, str) and name.upper() in _PASS_STATUS_NAMES:
+        return True
+    text = getattr(value, "value", value)
+    return str(text).strip() in _PASS_STATUS_TOKENS
+
 
 class TestLogger:
     """测试日志管理器"""
@@ -27,6 +44,7 @@ class TestLogger:
         # 使用连接池
         self._pool = DatabaseConnectionPool(str(self.db_path), pool_size=5)
         self._init_database()
+        self.repair_batch_statistics()
 
     def _init_database(self):
         """初始化数据库表"""
@@ -78,9 +96,22 @@ class TestLogger:
                         passed_count INTEGER NOT NULL,
                         failed_count INTEGER NOT NULL,
                         duration_sec REAL NOT NULL,
-                        details_json TEXT NOT NULL
+                        details_json TEXT NOT NULL,
+                        project_name TEXT DEFAULT ''
                     )
                 """)
+
+                # 旧库升级：补 project_name 列
+                try:
+                    cursor.execute("PRAGMA table_info(test_runs)")
+                    cols = {row[1] for row in cursor.fetchall()}
+                    if "project_name" not in cols:
+                        cursor.execute(
+                            "ALTER TABLE test_runs ADD COLUMN project_name TEXT DEFAULT ''"
+                        )
+                        logger.info("test_runs 已添加 project_name 字段")
+                except Exception as mig_err:
+                    logger.warning(f"检查/升级 project_name 失败: {mig_err}")
 
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON test_results (timestamp)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_fault_code ON test_results (fault_code)")
@@ -98,7 +129,8 @@ class TestLogger:
 
     def log_test_batch(self, results: List[TestResult], test_type: str,
                        start_time: Optional[float] = None,
-                       end_time: Optional[float] = None) -> Optional[int]:
+                       end_time: Optional[float] = None,
+                       project_name: str = "") -> Optional[int]:
         """Persist one report row for a completed fault/threshold test batch."""
         if not results:
             return None
@@ -111,11 +143,15 @@ class TestLogger:
             return value.timestamp()
 
         def result_status(result):
-            value = getattr(result.overall_status, "value", result.overall_status)
-            return "PASS" if value in ("PASS", "PASSED", "??") else "FAIL"
+            return "PASS" if is_passed_status(result.overall_status) else "FAIL"
 
         try:
             detail_payload = [result.to_dict() for result in results]
+            project_name = (project_name or "").strip()
+            # 批次级项目名写入每条明细，导出/详情也能看到
+            for item in detail_payload:
+                if isinstance(item, dict):
+                    item["project_name"] = project_name
             statuses = [result_status(result) for result in results]
             passed_count = sum(status == "PASS" for status in statuses)
             total_count = len(results)
@@ -140,18 +176,72 @@ class TestLogger:
                 cursor.execute("""
                     INSERT INTO test_runs (
                         start_timestamp, end_timestamp, test_type, status,
-                        total_count, passed_count, failed_count, duration_sec, details_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        total_count, passed_count, failed_count, duration_sec,
+                        details_json, project_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     start_timestamp, end_timestamp, test_type,
                     "PASS" if failed_count == 0 else "FAIL",
-                    total_count, passed_count, failed_count, duration_sec, details_json
+                    total_count, passed_count, failed_count, duration_sec,
+                    details_json, project_name,
                 ))
                 conn.commit()
                 return cursor.lastrowid
         except Exception as e:
-            logger.error(f"??????????: {e}", exc_info=True)
+            logger.error(f"记录测试批次失败: {e}", exc_info=True)
             return None
+
+    def repair_batch_statistics(self) -> int:
+        """按 details_json 重算历史批次的通过/失败统计，修正误判数据。"""
+        fixed = 0
+        try:
+            with self._pool.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, details_json, status,
+                           total_count, passed_count, failed_count
+                    FROM test_runs
+                """)
+                rows = cursor.fetchall()
+                for run_id, details_json, status, total, passed, failed in rows:
+                    if not details_json:
+                        continue
+                    try:
+                        details = json.loads(details_json)
+                    except Exception:
+                        continue
+                    if not isinstance(details, list) or not details:
+                        continue
+                    passed_count = sum(
+                        1 for item in details
+                        if isinstance(item, dict) and is_passed_status(item.get("overall_status"))
+                    )
+                    total_count = len(details)
+                    failed_count = total_count - passed_count
+                    new_status = "PASS" if failed_count == 0 else "FAIL"
+                    if (
+                        passed == passed_count
+                        and failed == failed_count
+                        and total == total_count
+                        and status == new_status
+                    ):
+                        continue
+                    cursor.execute(
+                        """
+                        UPDATE test_runs
+                        SET passed_count = ?, failed_count = ?, total_count = ?, status = ?
+                        WHERE id = ?
+                        """,
+                        (passed_count, failed_count, total_count, new_status, run_id),
+                    )
+                    fixed += 1
+                conn.commit()
+            if fixed:
+                logger.info(f"已修正 {fixed} 条历史测试报告统计")
+            return fixed
+        except Exception as e:
+            logger.error(f"修正历史报告统计失败: {e}", exc_info=True)
+            return 0
 
     def get_test_batches(self, limit: int = 1000, offset: int = 0) -> List[Dict[str, Any]]:
         """Return report summaries, newest first."""
@@ -160,18 +250,20 @@ class TestLogger:
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT id, start_timestamp, end_timestamp, test_type, status,
-                           total_count, passed_count, failed_count, duration_sec
+                           total_count, passed_count, failed_count, duration_sec,
+                           COALESCE(project_name, '') AS project_name
                     FROM test_runs
                     ORDER BY start_timestamp DESC
                     LIMIT ? OFFSET ?
                 """, (limit, offset))
                 columns = [
                     "id", "start_timestamp", "end_timestamp", "test_type", "status",
-                    "total_count", "passed_count", "failed_count", "duration_sec"
+                    "total_count", "passed_count", "failed_count", "duration_sec",
+                    "project_name",
                 ]
                 return [dict(zip(columns, row)) for row in cursor.fetchall()]
         except Exception as e:
-            logger.error(f"??????????: {e}", exc_info=True)
+            logger.error(f"获取测试批次列表失败: {e}", exc_info=True)
             return []
 
     def get_test_batch(self, run_id: int) -> Optional[Dict[str, Any]]:
@@ -181,7 +273,8 @@ class TestLogger:
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT id, start_timestamp, end_timestamp, test_type, status,
-                           total_count, passed_count, failed_count, duration_sec, details_json
+                           total_count, passed_count, failed_count, duration_sec,
+                           details_json, COALESCE(project_name, '') AS project_name
                     FROM test_runs WHERE id = ?
                 """, (run_id,))
                 row = cursor.fetchone()
@@ -198,9 +291,10 @@ class TestLogger:
                     "failed_count": row[7],
                     "duration_sec": row[8],
                     "details": json.loads(row[9]) if row[9] else [],
+                    "project_name": row[10] if len(row) > 10 else "",
                 }
         except Exception as e:
-            logger.error(f"????????????: {e}", exc_info=True)
+            logger.error(f"获取测试批次详情失败: {e}", exc_info=True)
             return None
 
     def clear_report_batches(self) -> int:
@@ -265,11 +359,7 @@ class TestLogger:
                 ]) if outer_checks else None
 
                 # 归一化状态：中文显示值 → 英文查询值（PASS/FAIL）
-                status_value = result.overall_status.value
-                if status_value == "通过":
-                    status_value = "PASS"
-                elif status_value in ("失败", "错误", "超时"):
-                    status_value = "FAIL"
+                status_value = "PASS" if is_passed_status(result.overall_status) else "FAIL"
 
                 # 插入测试结果
                 cursor.execute("""
