@@ -172,6 +172,13 @@ class ThresholdTestEngine:
         if not self.can_manager or not self.can_manager.is_connected():
             logger.error("CAN 未连接，无法单步测试")
             return None
+        # 复位上次「停止」遗留的标志（只有 start_test 会复位），
+        # 否则等级循环会直接跳过、验证也会被 is_stop_requested 秒断
+        self.stop_requested = False
+        try:
+            self.can_manager.clear_stop()
+        except Exception:
+            pass
         entries = self._resolve_level_entries([pid_code], target_address, domain)
         if not entries:
             logger.error(f"PID 解析失败: {pid_code}")

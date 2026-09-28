@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGr
 from typing import Optional
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont, QColor
+import threading
 import time
 
 from shared.style import COLORS, FONTS
@@ -22,6 +23,7 @@ from bms_alarm_test.ui.panel_style import (
     button_fixed_size_qss,
     FAULT_CTRL_BTN_W,
     FAULT_CTRL_BTN_H,
+    WrapLabel,
 )
 from bms_alarm_test.config.fault_mapping import FaultMapping, FaultDomain, Fault
 from bms_alarm_test.engine.fault_engine import FaultTestEngine
@@ -37,6 +39,7 @@ TEST_STATE_CN = {
     "completed": "已完成",
     "failed": "失败",
     "stopped": "已停止",
+    "cleaning_progress": "清除所有故障中",
 }
 
 
@@ -60,6 +63,9 @@ class FaultTestPanel(QWidget):
     _sig_result = pyqtSignal(object)
     _sig_progress = pyqtSignal(object)
     _sig_complete = pyqtSignal(list)
+    # 单步后台线程 → GUI 线程：执行完成 / 线程安全日志
+    _sig_step_done = pyqtSignal(object)
+    _sig_log = pyqtSignal(str, str)
 
     def __init__(self, fault_mapping: FaultMapping, parent=None):
         super().__init__(parent)
@@ -68,6 +74,9 @@ class FaultTestPanel(QWidget):
         self.fault_engine: FaultTestEngine = None
         self._step_fault_codes = []
         self._step_index = -1
+        # 后台线程 → GUI：日志与单步收尾（log_message 操作 QTextEdit，非线程安全）
+        self._sig_log.connect(self.log_message)
+        self._sig_step_done.connect(self._on_step_done)
         self._test_logger = None
         self._report_batch_start_time = None
         self._last_project_name = ""
@@ -230,6 +239,9 @@ class FaultTestPanel(QWidget):
         """测试控制：按钮一行 + 通栏进度条 + 状态文字（对齐阈值测试，不挤占左侧列表）"""
         from PyQt5.QtWidgets import QSizePolicy
 
+        # 记录上次徽章样式，避免重复 setStyleSheet 触发重绘/抖动
+        self._badge_style_cache = None
+
         group = QGroupBox("测试控制")
         outer = QVBoxLayout()
         outer.setSpacing(6)
@@ -306,8 +318,7 @@ class FaultTestPanel(QWidget):
         info_row.setSpacing(12)
 
         self.state_badge = QLabel("就绪")
-        self.state_badge.setFixedWidth(88)
-        self.state_badge.setFixedHeight(24)
+        self.state_badge.setFixedSize(88, 24)  # 基准尺寸；长状态（如“清除所有故障中”）在 _set_state_badge 里按文字加宽防截断
         self.state_badge.setAlignment(Qt.AlignCenter)
         self.state_badge.setStyleSheet(
             f"background-color: {COLORS['border']}; color: {COLORS['text']}; "
@@ -315,14 +326,18 @@ class FaultTestPanel(QWidget):
         )
         info_row.addWidget(self.state_badge)
 
-        self.progress_label = QLabel("状态=就绪 | 进度: 0/0 | —")
+        # WrapLabel：文本超宽时换行显示全文（不吞字）；水平方向文本不参与布局宽度计算，防止进度刷新时整行抖动
+        self.progress_label = WrapLabel("状态=就绪 | 进度: 0/0 | —")
         self.progress_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
-        self.progress_label.setWordWrap(False)
+        self.progress_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         info_row.addWidget(self.progress_label, 1)
 
         self.stat_label = QLabel("通过: 0  失败: 0  跳过: 0")
         self.stat_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
         self.stat_label.setWordWrap(False)
+        # 固定宽度：统计数字增长/缩短时不再改变布局
+        self.stat_label.setMinimumWidth(self.stat_label.fontMetrics().horizontalAdvance("通过: 000  失败: 000  跳过: 000") + 8)
+        self.stat_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         info_row.addWidget(self.stat_label)
 
         outer.addLayout(info_row)
@@ -395,6 +410,23 @@ class FaultTestPanel(QWidget):
 
         # 测试范围选择
         self.fault_range_combo.currentTextChanged.connect(self.on_test_range_changed)
+
+    def show_clearing_state(self, clearing: bool):
+        """一键清除所有故障时显示/恢复清除进度状态（由顶部栏调用）"""
+        if clearing:
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setMinimum(0)
+            self.progress_bar.setMaximum(1)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat("0%  (0/96)")
+            self._set_state_badge("清除所有故障中")
+            self.progress_label.setText("状态=清除所有故障中 | 进度: 0/96 | —")
+            self.log_message("一键清除所有故障：开始发送清除指令...", "INFO")
+        else:
+            self._set_state_badge("就绪")
+            self.progress_label.setText(
+                f"状态=就绪 | 进度: {self.progress_bar.value()}/{self.progress_bar.maximum()} | —"
+            )
 
     def _open_verify_config(self):
         """打开合并的验证配置窗口（回读协议 + 故障期望值）"""
@@ -810,12 +842,11 @@ class FaultTestPanel(QWidget):
             self.log_message("警告: 请选择一个故障进行单步测试", "WARNING")
             return
 
-        # 如果选择列表变了，重置步进状态
+        # 如果选择列表变了，重置步进状态（全清统一由下方 _step_index == -1 分支执行一次，
+        # 避免新列表首次点击时连续全清两遍）
         if selected_codes != self._step_fault_codes:
             self._step_fault_codes = selected_codes
             self._step_index = -1
-            # 切了新列表时，全清所有故障再开始
-            self._clear_all_for_step()
 
         # 获取测试参数
         nbcmu_addr = self.nbcmu_spin.value()
@@ -830,74 +861,148 @@ class FaultTestPanel(QWidget):
         # 同步是否读取对外报文选项
         self.fault_engine.read_outer_messages = self.read_outer_check.isChecked()
 
+        # —— 以下簿记瞬时完成；清除/注入/验证等慢操作全部移交后台线程 ——
+        clear_op = None          # "all" | ("fault", code)
+        fault_code = None
+        step_domain = None
+        final_phase = False
+
         if self._step_index == -1:
             # 第一次：全清所有故障，然后注入第1个
-            self._clear_all_for_step()
+            clear_op = "all"
             self._step_index = 0
-            first = self._step_fault_codes[0]
-            if ":" in first:
-                fault_code = int(first.split(":")[0])
-            else:
-                fault_code = int(first)
-            self.log_message(f"[单步] 全清完成，开始测试故障 {fault_code} ({self._step_index + 1}/{total})", "INFO")
+            fault_code, step_domain = self._parse_step_fault(self._step_fault_codes[0])
         elif self._step_index < total - 1:
             # 中间：清除上一步的故障，然后注入下一个
-            prev = self._step_fault_codes[self._step_index]
-            prev_code = int(prev.split(":")[0]) if ":" in prev else int(prev)
-            self._clear_step_fault(prev_code)
+            prev_code, _ = self._parse_step_fault(self._step_fault_codes[self._step_index])
+            clear_op = ("fault", prev_code)
             self._step_index += 1
-            curr = self._step_fault_codes[self._step_index]
-            fault_code = int(curr.split(":")[0]) if ":" in curr else int(curr)
-            self.log_message(f"[单步] 清除故障{prev_code}完成，开始测试故障 {fault_code} ({self._step_index + 1}/{total})", "INFO")
+            fault_code, step_domain = self._parse_step_fault(self._step_fault_codes[self._step_index])
         else:
-            # 最后一步之后：只清除最后一个故障，重置状态
-            last = self._step_fault_codes[self._step_index]
-            last_code = int(last.split(":")[0]) if ":" in last else int(last)
-            self._clear_step_fault(last_code)
+            # 最后一步之后：后台清除最后一个故障并结束序列
+            final_phase = True
+            last_code, _ = self._parse_step_fault(self._step_fault_codes[self._step_index])
+            clear_op = ("fault", last_code)
             self._step_fault_codes = []
             self._step_index = -1
             self.step_test_btn.setText("单步测试")
-            self.log_message(f"[单步] 清除故障{last_code}完成，单步序列结束", "INFO")
-            return
+        step_no = total if final_phase else self._step_index + 1
 
-        # 更新按钮文字
-        self.step_test_btn.setText(f"单步测试 ({self._step_index + 1}/{total})")
+        # 更新按钮文字 / 禁用（防止慢操作期间重复点击或并发开批量测试）
+        if not final_phase:
+            self.step_test_btn.setText(f"单步测试 ({step_no}/{total})")
         self.step_test_btn.setEnabled(False)
+        self.start_test_btn.setEnabled(False)
 
-        # 同步执行单步测试（不清除当前故障）
-        # 提取 domain（支持 "code:domain" 格式）
-        step_domain = None
-        # 获取当前故障码和域信息
-        current_fault_str = self._step_fault_codes[self._step_index]
-        
-        # 解析故障码和域
-        if ":" in current_fault_str:
-            code_part, domain_str = current_fault_str.split(":", 1)
-            fault_code = int(code_part)
+        # 全清 / 清上一个故障 / 注入→等待→验证→清除（每步走完整流程）——
+        # 这些慢操作（几十秒）必须放后台线程：原先同步跑在 GUI 主线程，
+        # 会把界面卡死（进度条冻结、鼠标沙漏），已由 stall 诊断栈证实。
+        self._spawn_step_worker(clear_op, fault_code, step_domain, target_addresses,
+                                total, step_no, final_phase)
+
+    @staticmethod
+    def _parse_step_fault(fault_str):
+        """解析 "code" 或 "code:domain" → (fault_code, FaultDomain | None)"""
+        if ":" in fault_str:
+            code_part, domain_str = fault_str.split(":", 1)
+            domain = None
             try:
-                step_domain = FaultDomain(domain_str.upper())
+                domain = FaultDomain(domain_str.upper())
             except ValueError:
-                pass
-        else:
-            fault_code = int(current_fault_str)
-        result = self.fault_engine.step_test_single(
-            fault_code=fault_code,
-            target_addresses=target_addresses,
-            domain=step_domain,
-            clear_previous=False,
-            auto_clear_after=False
-        )
+                domain = None
+            return int(code_part), domain
+        return int(fault_str), None
 
-        if result:
+    def _spawn_step_worker(self, clear_op, fault_code, step_domain, target_addresses,
+                           total, step_no, final_phase):
+        """后台执行单步的慢操作；完成后经 _sig_step_done 回到 GUI 线程收尾"""
+
+        def _run():
+            payload = {
+                "fault_code": fault_code, "result": None, "error": None,
+                "total": total, "step_no": step_no, "final": final_phase,
+                "clear_code": clear_op[1] if isinstance(clear_op, tuple) else None,
+            }
+            try:
+                if clear_op == "all":
+                    self._clear_all_for_step()
+                    if fault_code is not None:
+                        self._sig_log.emit(
+                            f"[单步] 全清完成，开始测试故障 {fault_code} ({step_no}/{total})", "INFO")
+                elif isinstance(clear_op, tuple):
+                    self._clear_step_fault(clear_op[0])
+                    if fault_code is not None:
+                        self._sig_log.emit(
+                            f"[单步] 清除故障{clear_op[0]}完成，开始测试故障 {fault_code} ({step_no}/{total})", "INFO")
+                if fault_code is not None:
+                    payload["result"] = self.fault_engine.step_test_single(
+                        fault_code=fault_code,
+                        target_addresses=target_addresses,
+                        domain=step_domain,
+                        clear_previous=False,
+                        auto_clear_after=True  # 验证后清除故障，单步也走完整流程
+                    )
+            except Exception as e:
+                payload["error"] = str(e)
+            self._sig_step_done.emit(payload)
+
+        threading.Thread(target=_run, name="FaultStepWorker", daemon=True).start()
+
+    @pyqtSlot(object)
+    def _on_step_done(self, payload):
+        """单步后台执行完成：回 GUI 线程记录日志、更新状态徽章/统计/按钮"""
+        total = payload.get("total") or 0
+        step_no = payload.get("step_no") or 0
+
+        if payload.get("final"):
+            # 序列结束：复位状态徽章/统计/状态行（进度回调停在“验证中”，不会自动复位）
+            # 注意此时 _step_index 已重置为 -1，进度位置直接传 total
+            self.log_message(
+                f"[单步] 清除故障{payload.get('clear_code')}完成，单步序列结束", "INFO")
+            self._update_step_status("已完成", total, total)
+        elif payload.get("error"):
+            self.log_message(f"错误: 单步测试异常: {payload['error']}", "ERROR")
+            self._update_step_status("失败", step_no, total)
+        elif payload.get("result"):
+            result = payload["result"]
             self._do_test_result(result)
-            self.log_message(f"故障{fault_code}单步测试完成: {result.overall_status.value}", "INFO")
-            self.step_test_btn.setEnabled(True)
+            self.log_message(
+                f"故障{payload.get('fault_code')}单步测试完成: {result.overall_status.value}", "INFO")
+            self._update_step_status("已完成", step_no, total)
         else:
-            self.log_message(f"错误: 单步测试故障{fault_code}失败", "ERROR")
-            self.step_test_btn.setEnabled(True)
+            self.log_message(f"错误: 单步测试故障{payload.get('fault_code')}失败", "ERROR")
+            self._update_step_status("失败", step_no, total)
+
+        self.step_test_btn.setEnabled(True)
+        self.start_test_btn.setEnabled(True)
+
+    def _update_step_status(self, state_name: str, step_no: int, total: int):
+        """单步测试结束时同步状态徽章/统计/状态行/进度条
+
+        单步是同步流程，不走批量的 _do_test_complete，进度回调最后停在“验证中”；
+        统计从会话累积的 test_results 计算（与批量口径一致）。
+        """
+        results = self.test_results
+        passed = sum(1 for r in results if getattr(r, "is_passed", None) and r.is_passed())
+        failed = len(results) - passed
+        self._set_state_badge(state_name, failed=failed)
+        self.stat_label.setText(f"通过: {passed}  失败: {failed}  跳过: 0")
+        if total > 0 and step_no > 0:
+            self.progress_bar.setMaximum(total)
+            self.progress_bar.setValue(min(step_no, total))
+            pct = int(round(100.0 * min(step_no, total) / total))
+            self.progress_bar.setFormat(f"{pct}%  ({min(step_no, total)}/{total})")
+            progress_txt = f"{step_no}/{total}"
+        else:
+            progress_txt = "0/0"
+        self.progress_label.setText(
+            f"状态={state_name} | 进度: {progress_txt} | 通过={passed} 失败={failed}"
+        )
 
     def _clear_all_for_step(self):
         """单步模式前：全清所有故障"""
+        # 遗留的停止标志（上次点过「停止」）会让全清立即中断，必须先复位
+        self.fault_engine.clear_stop_request()
         self.fault_engine.verifier.clear_signal_cache()
         for domain in self.fault_engine.target_addresses:
             self.fault_engine.clear_all_faults(domain)
@@ -912,6 +1017,23 @@ class FaultTestPanel(QWidget):
     @pyqtSlot(object)
     def _do_progress_update(self, progress):
         """进度更新（对齐阈值测试：进度条 + 中文阶段状态）"""
+        state = getattr(progress, "current_state", None)
+        state_name = _state_cn(state)
+
+        # 清除所有故障中：进度条显示清除码进度（当前码/总码）
+        if state_name == "清除所有故障中":
+            clear_cur = int(getattr(progress, "clear_current", 0) or 0)
+            clear_total = max(1, int(getattr(progress, "clear_total", 0) or 0))
+            pct = int(round(100.0 * clear_cur / clear_total))
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setMinimum(0)
+            self.progress_bar.setMaximum(clear_total)
+            self.progress_bar.setValue(clear_cur)
+            self.progress_bar.setFormat(f"{pct}%  ({clear_cur}/{clear_total})")
+            self._set_state_badge(state_name)
+            self.progress_label.setText(f"状态=清除所有故障中 | 进度: {clear_cur}/{clear_total} | —")
+            return
+
         total = max(0, int(getattr(progress, "total_faults", 0) or 0))
         current = int(getattr(progress, "current_fault_index", 0) or 0)
         if total <= 0:
@@ -959,10 +1081,18 @@ class FaultTestPanel(QWidget):
         else:
             bg, fg = COLORS.get("accent", "#2563eb"), "#ffffff"
         self.state_badge.setText(state_name)
-        self.state_badge.setStyleSheet(
+        # 长状态超出 88px 会被截断（吞字）：按文字实际宽度加宽；仅状态切换时变化一次，进度刷新不抖动
+        badge_w = max(88, self.state_badge.fontMetrics().horizontalAdvance(state_name) + 20)  # 文字 + 左右 padding 12 + 余量
+        if self.state_badge.width() != badge_w:
+            self.state_badge.setFixedWidth(badge_w)
+        style = (
             f"background-color: {bg}; color: {fg}; border-radius: 3px; "
             f"padding: 4px 6px; font-weight: bold; font-size: 12px;"
         )
+        # 样式未变化时不重复 setStyleSheet，避免每次进度刷新都触发布局/重绘（抖动）
+        if style != self._badge_style_cache:
+            self.state_badge.setStyleSheet(style)
+            self._badge_style_cache = style
 
     @pyqtSlot(object)
     def _do_test_result(self, result: TestResult):

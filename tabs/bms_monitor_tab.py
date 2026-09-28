@@ -466,22 +466,21 @@ class BmsMonitorTab(QWidget):
             estop_row.addStretch()
             ctrl_layout.addLayout(estop_row)
 
+            ctrl_row = QHBoxLayout()
+            ctrl_row.setSpacing(8)
             self.send_ctrl_btn = QPushButton("发送控制指令")
             self.send_ctrl_btn.setEnabled(False)
             self.send_ctrl_btn.clicked.connect(self._send_control)
-            ctrl_layout.addWidget(self.send_ctrl_btn)
+            ctrl_row.addWidget(self.send_ctrl_btn)
 
-            # 心跳开关
-            hb_row = QHBoxLayout()
-            hb_row.setSpacing(6)
             self.heartbeat_btn = QPushButton("▶ 启动心跳")
             self.heartbeat_btn.setMinimumHeight(30)
             self.heartbeat_btn.setEnabled(False)
             self.heartbeat_btn.setCheckable(True)
             self.heartbeat_btn.clicked.connect(self._toggle_heartbeat)
-            hb_row.addWidget(self.heartbeat_btn)
-            hb_row.addStretch()
-            ctrl_layout.addLayout(hb_row)
+            ctrl_row.addWidget(self.heartbeat_btn)
+            ctrl_row.addStretch()
+            ctrl_layout.addLayout(ctrl_row)
 
             layout.addWidget(ctrl_group)
 

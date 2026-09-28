@@ -2,8 +2,43 @@
 报警测试面板共享工具
 """
 
+from PyQt5.QtWidgets import QLabel, QSizePolicy
+
 from shared.style import COLORS
 from shared.style import combo_arrow_url, spin_up_arrow_url, spin_down_arrow_url
+
+class WrapLabel(QLabel):
+    """状态行标签：文本超宽时换行显示全文，不再静默截断（吞字）。
+
+    Qt5 的 QHBoxLayout/QGridLayout 的 sizeHint 不会按 heightForWidth 计算换行
+    高度（固定约两行），窄宽度下换行文字仍会被竖向裁剪。这里在文本或宽度
+    变化时同步设置最小高度，强制布局给足行高。
+    水平方向保持 QSizePolicy.Ignored：文本长短变化不参与布局宽度计算，
+    避免进度刷新时整行左右抖动。
+    """
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self.setWordWrap(True)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+
+    def setText(self, text: str):
+        super().setText(text)
+        self._sync_min_height()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._sync_min_height()
+
+    def _sync_min_height(self):
+        w = self.width()
+        if w <= 0:  # 首次布局前宽度未知，等 resizeEvent 再同步
+            return
+        need = self.heightForWidth(w)
+        if need > 0 and need != self.minimumHeight():
+            self.setMinimumHeight(need)
+
 
 def button_fixed_size_qss(width: int, height: int) -> str:
     """强制按钮等宽等高（写入样式表，避免被 padding/字体撑开）"""

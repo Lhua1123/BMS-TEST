@@ -201,6 +201,9 @@ class BmsAlarmTestTab(QWidget):
         self.rx_count_label = QLabel("RX: 0")
         for lbl in (self.tx_count_label, self.rx_count_label):
             lbl.setStyleSheet(f"color: {COLORS['text_dim']}; font-family: {FONTS['mono'][0]};")
+            # 固定宽度：TX/RX 数字位数增长时不推挤顶栏布局
+            lbl.setMinimumWidth(lbl.fontMetrics().horizontalAdvance("TX: 99999999") + 8)
+            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             bar.addWidget(lbl)
 
         # TX/RX 定时刷新
@@ -448,7 +451,7 @@ class BmsAlarmTestTab(QWidget):
         logger.info("CAN 已断开")
 
     def _on_clear_all_clicked(self):
-        """一键清除所有故障"""
+        """一键清除所有故障（后台线程执行，进度展示在故障测试面板）"""
         logger.info("[一键清除] 按钮被点击")
         if not self._can_manager or not self._can_manager.is_connected():
             logger.info("[一键清除] CAN未连接，退出")
@@ -464,27 +467,61 @@ class BmsAlarmTestTab(QWidget):
             logger.info("[一键清除] 用户取消")
             return
 
+        if getattr(self, "_clear_all_worker", None) and self._clear_all_worker.isRunning():
+            logger.warning("[一键清除] 已有清除任务在执行")
+            return
+
         self.btn_clear_all.setEnabled(False)
         self.btn_clear_all.setText("清除中...")
-        QApplication.processEvents()
 
-        try:
-            if self.fault_panel.fault_engine:
-                addr = self.fault_panel.nbcmu_spin.value()
-                logger.info(f"[一键清除] 目标地址=0x{addr:X}")
-                ok = self.fault_panel.fault_engine.clear_all_faults(domain=addr)
-                logger.info(f"[一键清除] 结果: {ok}")
-                msg = "所有故障已清除" if ok else "部分故障清除失败，请查看日志"
-                QMessageBox.information(self, "完成", msg)
-            else:
-                logger.warning("[一键清除] fault_engine 为 None")
-                QMessageBox.warning(self, "错误", "故障引擎未初始化")
-        except Exception as e:
-            logger.error(f"[一键清除] 异常: {e}")
-            QMessageBox.critical(self, "错误", f"清除故障异常: {e}")
-        finally:
+        # 切到故障测试面板并展示清除进度（状态徽章 + 进度条）
+        # （引擎的 on_progress_update 已由 set_fault_engine 接到面板信号，无需额外转接）
+        self._switch_page("fault", 0)
+        self.fault_panel.show_clearing_state(True)
+
+        from PyQt5.QtCore import QThread, pyqtSignal as _pyqtSignal
+
+        class _ClearAllWorker(QThread):
+            finished = _pyqtSignal(bool, str)
+
+            def __init__(self, engine, addr, parent=None):
+                super().__init__(parent)
+                self.engine = engine
+                self.addr = addr
+
+            def run(self):
+                try:
+                    # 遗留的停止标志（上次点过「停止」）会让全清立即中断，必须先复位
+                    self.engine.clear_stop_request()
+                    ok = self.engine.clear_all_faults(self.addr)
+                    self.finished.emit(bool(ok), "" if ok else "部分故障清除失败，请查看日志")
+                except Exception as e:
+                    self.finished.emit(False, f"清除故障异常: {e}")
+
+        # 域处理：clear_all_faults 接受 int 地址（按 NBCMU 域处理，与原行为一致）
+        engine = self.fault_panel.fault_engine
+        if engine is None:
             self.btn_clear_all.setEnabled(True)
             self.btn_clear_all.setText("一键清除所有故障")
+            self.fault_panel.show_clearing_state(False)
+            QMessageBox.warning(self, "错误", "故障引擎未初始化")
+            return
+
+        self._clear_all_worker = _ClearAllWorker(engine, self.fault_panel.nbcmu_spin.value())
+        self._clear_all_worker.finished.connect(self._on_clear_all_finished)
+        self._clear_all_worker.start()
+
+    def _on_clear_all_finished(self, ok: bool, err_msg: str):
+        """一键清除完成回调"""
+        self.btn_clear_all.setEnabled(True)
+        self.btn_clear_all.setText("一键清除所有故障")
+        self.fault_panel.show_clearing_state(False)
+        if ok:
+            logger.info("[一键清除] 完成")
+            QMessageBox.information(self, "完成", "所有故障已清除")
+        else:
+            logger.error(f"[一键清除] 失败: {err_msg}")
+            QMessageBox.warning(self, "提示", err_msg or "部分故障清除失败，请查看日志")
 
     def _on_config_clicked(self):
         """打开CAN配置对话框"""

@@ -38,6 +38,8 @@ class TestState(Enum):
     CLEARING = "clearing"
     COMPLETED = "completed"
     FAILED = "failed"
+    # 独立的「清除所有故障中」状态：用于一键清除/测试前全清的进度展示
+    CLEANING_PROGRESS = "cleaning_progress"
 
 
 @dataclass
@@ -52,6 +54,9 @@ class TestProgress:
     passed_count: int = 0
     failed_count: int = 0
     skipped_count: int = 0
+    # 清除进度（清除所有故障时使用）：当前故障码 / 总故障码
+    clear_current: int = 0
+    clear_total: int = 0
 
 
 class FaultTestEngine:
@@ -173,6 +178,10 @@ class FaultTestEngine:
             logger.warning("测试引擎已在运行中")
             return None
 
+        # 复位上次「停止」遗留的标志（只有 start_test 会复位），
+        # 否则下方验证会因 is_stop_requested 直接返回 None，全部检查项秒失败
+        self.clear_stop_request()
+
         # 更新目标地址
         self.target_addresses = {
             FaultDomain.NBCMU: target_addresses.get(FaultDomain.NBCMU, TestConstants.DEFAULT_BMS_ADDRESS),
@@ -222,6 +231,23 @@ class FaultTestEngine:
         except CANError:
             pass
         logger.info("测试停止请求已发送")
+
+    def clear_stop_request(self) -> None:
+        """
+        清除上次「停止」遗留的停止标志
+        start_test() 会复位这些标志，但单步测试、一键清除等同步路径不经过它。
+        标志残留时：全清被立即中断，验证 _wait_for_signal 直接返回 None（所有检查项秒失败），
+        而注入发送不受影响，表现为「故障能触发但结果显示失败」。
+        """
+        stale = self.stop_requested
+        try:
+            stale = stale or self.can_manager.is_stop_requested()
+            self.can_manager.clear_stop()
+        except Exception:
+            pass
+        self.stop_requested = False
+        if stale:
+            logger.info("[stop] 已清除上次遗留的停止请求（单步/清除路径不经过 start_test 复位）")
 
     def wait_for_completion(self, timeout_sec: float = 300.0) -> bool:
         """
@@ -598,6 +624,16 @@ class FaultTestEngine:
 
         logger.debug(f"测试状态更新: {state.value}")
 
+    def _report_clear_progress(self, current_code: int, total: int) -> None:
+        """报告清除所有故障的发送进度（在后台线程中调用，UI 侧经信号调度）"""
+        self.progress.current_state = TestState.CLEANING_PROGRESS
+        self.progress.clear_current = current_code
+        self.progress.clear_total = total
+        self.progress.elapsed_time = time.time() - self.progress.start_time
+
+        if self.on_progress_update:
+            self.on_progress_update(self.progress)
+
     def set_callbacks(self,
                      on_progress_update: Optional[Callable[[TestProgress], None]] = None,
                      on_test_result: Optional[Callable[[TestResult], None]] = None,
@@ -708,11 +744,18 @@ class FaultTestEngine:
             else:
                 clear_codes = range(1, 97)
 
-            for code in clear_codes:
+            total_codes = len(clear_codes)
+            for idx, code in enumerate(clear_codes, start=1):
                 if self.stop_requested:
                     logger.info("[clear_all_faults] 收到停止请求，中断清除")
                     self._clear_aborted = True
                     return False
+
+                # 清除进度回调：UI 侧展示「清除所有故障中」状态与进度条
+                try:
+                    self._report_clear_progress(idx, total_codes)
+                except Exception:
+                    pass
 
                 data = bytearray(8)
                 data[0] = addr
@@ -741,11 +784,11 @@ class FaultTestEngine:
                     if round_idx == 0:
                         time.sleep(TimingConstants.FAULT_CLEAR_REPEAT_INTERVAL_MS / 1000.0)
 
-                # 每个故障码之间间隔 20ms
-                time.sleep(0.02)
+                # 每个故障码之间间隔
+                time.sleep(TimingConstants.FAULT_CLEAR_CODE_INTERVAL_MS / 1000.0)
 
                 if code % 10 == 0 or domain_str == "SBCMU":
-                    logger.info(f"[clear_all_faults] 进度: {code}/96 (成功={success_count}, 失败={fail_count})")
+                    logger.info(f"[clear_all_faults] 进度: {code}/{total_codes} (成功={success_count}, 失败={fail_count})")
 
                 if consecutive_fail >= max_consecutive_fail:
                     self._clear_aborted = True

@@ -17,5 +17,10 @@ if not defined PYTHON (
 )
 
 echo Using Python: %PYTHON%
+echo Starting BMS test tool. Initial startup takes 1-3 seconds, please wait...
+echo (Progress lines with timestamps below. DO NOT press Ctrl+C while it is starting.)
+echo.
 "%PYTHON%" main.py
+echo.
+echo [EXITED] exit code: %errorlevel%
 pause

@@ -62,10 +62,11 @@ class TimingConstants:
     FAULT_INJECTION_REPEAT_COUNT = 2  # 每遍发送次数
     FAULT_INJECTION_TOTAL_ROUNDS = 2  # 总遍数
 
-    # 故障清除时序
-    FAULT_CLEAR_FRAME_INTERVAL_MS = 50  # 清除帧间隔
-    FAULT_CLEAR_REPEAT_INTERVAL_MS = 200  # 清除两遍间隔
+    # 故障清除时序（温和组合：两域101码约15s，原50/200/20约32s）
+    FAULT_CLEAR_FRAME_INTERVAL_MS = 20  # 清除帧间隔
+    FAULT_CLEAR_REPEAT_INTERVAL_MS = 100  # 清除两遍间隔
     FAULT_CLEAR_REPEAT_COUNT = 2  # 清除每遍发送次数
+    FAULT_CLEAR_CODE_INTERVAL_MS = 10  # 清除码间间隔
 
     # 等待时间
     DEFAULT_INJECTION_DELAY_SEC = 1.5  # 注入后等待
