@@ -1,4 +1,4 @@
-"""
+﻿"""
 BMS测试工具整合版
 统一界面，各功能页独立：某页出错只显示该页的错误占位，不影响其它页。
 
@@ -485,6 +485,8 @@ class MainWindow(QMainWindow):
         save_dark_mode(dark)
         self._refresh_theme_button()
         self._sync_titlebar(dark)
+        # 样式刷新后主动同步重绘整个窗口，否则要等下一次交互才会画出新配色
+        self.repaint()
 
     def _sync_titlebar(self, dark: bool = None):
         # 系统标题栏跟随明暗（Win10 只能切明暗，不能指定颜色）

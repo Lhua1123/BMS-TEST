@@ -25,6 +25,7 @@ _RDW_INVALIDATE = 0x0001
 _RDW_FRAME = 0x0400
 _RDW_UPDATENOW = 0x0100
 _RDW_ALLCHILDREN = 0x0080
+_WM_NCACTIVATE = 0x0086
 
 
 def _hex_to_colorref(hex_color: str) -> int:
@@ -74,5 +75,9 @@ def apply_titlebar(widget, dark: bool, caption_hex: str = None, text_hex: str = 
                             _SWP_NOACTIVATE | _SWP_FRAMECHANGED)
         user32.RedrawWindow(hwnd, None, None,
                             _RDW_FRAME | _RDW_INVALIDATE | _RDW_UPDATENOW | _RDW_ALLCHILDREN)
+        # 仅 SetWindowPos/RedrawWindow 不足以让 DWM 重新绘制标题栏（Win10 上要等窗口状态变化才刷新）。
+        # 模拟一次激活状态切换（WM_NCACTIVATE 先 False 再恢复），强制标题栏立即按新明暗重绘。
+        user32.SendMessageW(hwnd, _WM_NCACTIVATE, 0, 0)
+        user32.SendMessageW(hwnd, _WM_NCACTIVATE, 1 if user32.GetForegroundWindow() == hwnd else 0, 0)
     except Exception:
         pass
