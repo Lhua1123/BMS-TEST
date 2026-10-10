@@ -751,14 +751,14 @@ def _build_app_sheet() -> str:
 
 
 def load_dark_mode() -> bool:
-    """读取已保存的主题偏好；文件不存在或损坏时按浅色处理"""
+    """读取已保存的主题偏好；文件不存在或损坏时默认深色"""
     try:
         from shared.utils import get_protocol_config_path
         path = os.path.join(os.path.dirname(get_protocol_config_path()), _THEME_FILE_NAME)
         with open(path, 'r', encoding='utf-8') as f:
-            return bool(json.load(f).get('dark_mode', False))
+            return bool(json.load(f).get('dark_mode', True))
     except Exception:
-        return False
+        return True
 
 
 def save_dark_mode(dark: bool) -> None:
