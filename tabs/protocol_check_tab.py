@@ -33,8 +33,8 @@ from PyQt5.QtWidgets import (
     QToolButton,
 )
 
-from shared.style import COLORS, FONTS
-from bms_alarm_test.ui.panel_style import COMPACT_QSS, BTN_PRIMARY, BTN_DANGER, BTN_SUCCESS, BTN_NEUTRAL
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
+from bms_alarm_test.ui.panel_style import btn_primary, btn_danger, btn_success, btn_neutral
 from protocol_check.models import CanFrame, CheckResult, MessageTemplate, SignalTemplate, TemplateBook
 from protocol_check.excel_template import (
     load_template_excel,
@@ -71,7 +71,8 @@ _FONT_MONO_BOLD = QFont(_FONT_MONO_FAMILY, _PT_BODY, QFont.Bold)
 _FONT_SMALL = QFont(_FONT_FAMILY, _PT_SMALL)
 
 # 字号只写 pt，避免 px/pt 混用导致忽大忽小
-_TAB_QSS = f"""
+def _tab_qss() -> str:
+    return f"""
 ProtocolCheckTab {{
     background: {COLORS['bg_dark']};
     font-family: '{_FONT_FAMILY}', 'Segoe UI', sans-serif;
@@ -155,7 +156,7 @@ QTableWidget {{
     border-radius: 3px;
     background: {COLORS['bg_panel']};
     alternate-background-color: {COLORS['row_even']};
-    selection-background-color: #dbeafe;
+    selection-background-color: {COLORS['selection']};
     selection-color: {COLORS['text']};
 }}
 QTableWidget::item {{
@@ -195,11 +196,37 @@ QScrollArea > QWidget > QWidget {{
 """
 
 
-def _btn(text: str, style: str = BTN_NEUTRAL, height: int = 30) -> QPushButton:
+# 核对结果行的等级（error / warn）存在第一列的这个角色里，切换主题时用来重新上色
+_LEVEL_ROLE = Qt.UserRole + 37
+
+
+def _paint_level(item, ci: int, level):
+    """按等级给单元格上色（颜色取当前主题，浅色时与原先写死的值一致）"""
+    if level == "error":
+        item.setBackground(QColor(COLORS['row_err_bg']))
+        if ci in (0, 6):
+            item.setForeground(QColor(COLORS['row_err_fg']))
+    elif level == "warn":
+        item.setBackground(QColor(COLORS['row_warn_bg']))
+        if ci in (0, 6):
+            item.setForeground(QColor(COLORS['row_warn_fg']))
+
+
+def _repaint_levels(table: QTableWidget):
+    """主题切换后，把已显示的核对结果行按新颜色重画一遍"""
+    for r in range(table.rowCount()):
+        for c in range(table.columnCount()):
+            item = table.item(r, c)
+            if item is not None:
+                _paint_level(item, c, item.data(_LEVEL_ROLE))
+
+
+def _btn(text: str, style=btn_neutral, height: int = 30) -> QPushButton:
+    """style 是返回样式串的函数（如 btn_primary），切换主题时会重新生成"""
     b = QPushButton(text)
     b.setCursor(Qt.PointingHandCursor)
     b.setFont(_FONT_BODY)
-    b.setStyleSheet(style + f"font-family: '{_FONT_FAMILY}'; font-size: {_PT_BODY}pt;")
+    themed_qss(b, lambda: style() + f"font-family: '{_FONT_FAMILY}'; font-size: {_PT_BODY}pt;")
     b.setFixedHeight(height)
     b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     return b
@@ -222,10 +249,10 @@ def _make_item(text: str, align=Qt.AlignCenter, mono: bool = False, bold: bool =
 def _section_title(text: str) -> QLabel:
     lab = QLabel(text)
     lab.setFont(_FONT_BODY_BOLD)
-    lab.setStyleSheet(
+    themed_qss(lab, lambda: (
         f"color: {COLORS['accent']}; background: transparent; padding: 2px 0;"
         f"font-family: '{_FONT_FAMILY}'; font-size: {_PT_BODY}pt; font-weight: bold;"
-    )
+    ))
     return lab
 
 
@@ -329,9 +356,14 @@ class _LoadLogThread(QThread):
 class ProtocolCheckTab(QWidget):
     """协议核对大 Tab：模板编辑器 + 离线/实时核对"""
 
+    def _on_theme_changed(self):
+        if hasattr(self, 'tbl_right'):
+            _repaint_levels(self.tbl_right)
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(_TAB_QSS)
+        themed_qss(self, _tab_qss)
+        on_theme_changed(self._on_theme_changed)
         self.setFont(_FONT_BODY)
         self._template: Optional[TemplateBook] = None
         self._template_path: str = ""
@@ -392,9 +424,9 @@ class ProtocolCheckTab(QWidget):
 
         row1 = QHBoxLayout()
         row1.setSpacing(6)
-        btn_dbc = _btn("导入 DBC", BTN_PRIMARY)
+        btn_dbc = _btn("导入 DBC", btn_primary)
         btn_dbc.clicked.connect(self._on_import_dbc)
-        btn_xlsx = _btn("导入 Excel", BTN_NEUTRAL)
+        btn_xlsx = _btn("导入 Excel", btn_neutral)
         btn_xlsx.clicked.connect(self._on_load_template_excel)
         row1.addWidget(btn_dbc)
         row1.addWidget(btn_xlsx)
@@ -409,9 +441,9 @@ class ProtocolCheckTab(QWidget):
 
         row2 = QHBoxLayout()
         row2.setSpacing(6)
-        btn_save = _btn("保存 Excel", BTN_SUCCESS)
+        btn_save = _btn("保存 Excel", btn_success)
         btn_save.clicked.connect(self._on_save_excel)
-        btn_apply = _btn("应用到核对", BTN_PRIMARY)
+        btn_apply = _btn("应用到核对", btn_primary)
         btn_apply.clicked.connect(self._on_apply_editor)
         row2.addWidget(btn_save)
         row2.addWidget(btn_apply)
@@ -438,7 +470,7 @@ class ProtocolCheckTab(QWidget):
         offline = QGroupBox("离线报文")
         ol = QVBoxLayout(offline)
         ol.setSpacing(6)
-        btn_import_log = _btn("导入 asc / blf / txt", BTN_PRIMARY)
+        btn_import_log = _btn("导入 asc / blf / txt", btn_primary)
         btn_import_log.clicked.connect(self._on_import_log)
         ol.addWidget(btn_import_log)
         self.edt_log = QLineEdit()
@@ -468,12 +500,12 @@ class ProtocolCheckTab(QWidget):
 
         row3 = QHBoxLayout()
         row3.setSpacing(4)
-        self.btn_live_start = _btn("开始采集", BTN_SUCCESS)
+        self.btn_live_start = _btn("开始采集", btn_success)
         self.btn_live_start.clicked.connect(self._on_live_start)
-        self.btn_live_stop = _btn("停止", BTN_DANGER)
+        self.btn_live_stop = _btn("停止", btn_danger)
         self.btn_live_stop.setEnabled(False)
         self.btn_live_stop.clicked.connect(self._on_live_stop)
-        self.btn_live_clear = _btn("清空", BTN_NEUTRAL)
+        self.btn_live_clear = _btn("清空", btn_neutral)
         self.btn_live_clear.clicked.connect(self._on_live_clear)
         row3.addWidget(self.btn_live_start)
         row3.addWidget(self.btn_live_stop)
@@ -494,9 +526,9 @@ class ProtocolCheckTab(QWidget):
         cl.addWidget(self.chk_use_live)
         row4 = QHBoxLayout()
         row4.setSpacing(4)
-        self.btn_verify = _btn("开始核对", BTN_PRIMARY, height=36)
+        self.btn_verify = _btn("开始核对", btn_primary, height=36)
         self.btn_verify.clicked.connect(self._on_verify)
-        btn_clear = _btn("清空结果", BTN_NEUTRAL, height=36)
+        btn_clear = _btn("清空结果", btn_neutral, height=36)
         btn_clear.setMaximumWidth(88)
         btn_clear.clicked.connect(self._on_clear_result)
         row4.addWidget(self.btn_verify, 1)
@@ -521,11 +553,11 @@ class ProtocolCheckTab(QWidget):
         # 工具条
         tools = QHBoxLayout()
         tools.setSpacing(6)
-        btn_add_msg = _btn("添加报文", BTN_NEUTRAL)
+        btn_add_msg = _btn("添加报文", btn_neutral)
         btn_add_msg.clicked.connect(self._on_add_message)
-        btn_del_msg = _btn("删除报文", BTN_NEUTRAL)
+        btn_del_msg = _btn("删除报文", btn_neutral)
         btn_del_msg.clicked.connect(self._on_del_message)
-        btn_from_log = _btn("按实报补齐ID", BTN_NEUTRAL)
+        btn_from_log = _btn("按实报补齐ID", btn_neutral)
         btn_from_log.setToolTip("把离线日志里出现、但模板没有的 ID 加进来（默认必须出现=否）")
         btn_from_log.clicked.connect(self._on_add_ids_from_log)
         tools.addWidget(btn_add_msg)
@@ -618,9 +650,9 @@ class ProtocolCheckTab(QWidget):
         # 第3行窄条：备注 + 按钮
         form.addWidget(QLabel("备注"), 2, 0)
         form.addWidget(self.edt_sig_note, 2, 1, 1, 3)
-        btn_sig_add = _btn("添加信号", BTN_SUCCESS)
+        btn_sig_add = _btn("添加信号", btn_success)
         btn_sig_add.clicked.connect(self._on_add_signal)
-        btn_del_sig = _btn("删除信号", BTN_NEUTRAL)
+        btn_del_sig = _btn("删除信号", btn_neutral)
         btn_del_sig.clicked.connect(self._on_del_signal)
         form.addWidget(btn_sig_add, 2, 5, 1, 2)
         form.addWidget(btn_del_sig, 2, 7)
@@ -689,10 +721,10 @@ class ProtocolCheckTab(QWidget):
         top = QHBoxLayout()
         self.lbl_stats = QLabel("尚未核对")
         self.lbl_stats.setFont(_FONT_BODY_BOLD)
-        self.lbl_stats.setStyleSheet(
+        themed_qss(self.lbl_stats, lambda: (
             f"color: {COLORS['text']}; background: transparent; border: none;"
             f"font-family: '{_FONT_FAMILY}'; font-size: {_PT_BODY}pt; font-weight: bold;"
-        )
+        ))
         top.addWidget(self.lbl_stats)
         top.addStretch(1)
         bl.addLayout(top)
@@ -1311,13 +1343,7 @@ class ProtocolCheckTab(QWidget):
         for ri, (level, row) in enumerate(rows):
             for ci, val in enumerate(row):
                 item = _make_item(val, aligns[ci], mono=monos[ci])
-                if level == "error":
-                    item.setBackground(QColor("#fee2e2"))
-                    if ci in (0, 6):
-                        item.setForeground(QColor("#b91c1c"))
-                elif level == "warn":
-                    item.setBackground(QColor("#fef3c7"))
-                    if ci in (0, 6):
-                        item.setForeground(QColor("#b45309"))
+                item.setData(_LEVEL_ROLE, level)
+                _paint_level(item, ci, level)
                 self.tbl_right.setItem(ri, ci, item)
         self.tbl_right.setSortingEnabled(True)

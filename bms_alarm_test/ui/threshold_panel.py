@@ -17,11 +17,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor
 
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 from bms_alarm_test.ui.panel_style import (
     compact_qss, table_qss, LeftAlignDelegate,
-    BTN_PRIMARY, BTN_WARNING, BTN_SUCCESS, BTN_DANGER, BTN_NEUTRAL,
-    WrapLabel,
+    btn_primary, btn_warning, btn_success, btn_danger, btn_neutral,
 )
 from bms_alarm_test.config.pid_table import PIDTable, PIDConfig
 from bms_alarm_test.models.test_result import TestResult, CheckStatus
@@ -52,6 +51,32 @@ def _state_cn(state) -> str:
     return TEST_STATE_CN.get(key, str(key))
 
 
+class _ElidedLabel(QLabel):
+    """单行省略 QLabel：QLabel 没有 setTextElideMode，超宽时用 fontMetrics 手动 elide。"""
+    def __init__(self, text: str = "", parent=None):
+        self._full_text = text or ""
+        super().__init__(text, parent)
+        self.setWordWrap(False)
+
+    def setText(self, text: str) -> None:
+        self._full_text = text or ""
+        self._update_elided()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_elided()
+
+    def _update_elided(self) -> None:
+        full = getattr(self, "_full_text", "")
+        width = self.width() - 4
+        if width <= 0:
+            super().setText(full)
+            return
+        elided = self.fontMetrics().elidedText(full, Qt.ElideRight, max(0, width))
+        super().setText(elided)
+        self.setToolTip(full)
+
+
 class ThresholdTestPanel(QWidget):
     """阈值测试面板"""
 
@@ -66,7 +91,8 @@ class ThresholdTestPanel(QWidget):
 
     def __init__(self, pid_table: Optional[PIDTable] = None, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(compact_qss())
+        themed_qss(self, compact_qss)
+        on_theme_changed(self._on_theme_changed)
         self.pid_table = pid_table
         self.threshold_engine = None
         self._test_logger = None
@@ -157,7 +183,7 @@ class ThresholdTestPanel(QWidget):
             ("刷新", self.refresh_pid_list),
         ):
             btn = QPushButton(text)
-            btn.setStyleSheet(BTN_NEUTRAL)
+            themed_qss(btn, btn_neutral)
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(slot)
             bar.addWidget(btn)
@@ -203,16 +229,16 @@ class ThresholdTestPanel(QWidget):
         btns = QHBoxLayout()
         btns.setSpacing(8)
         self.btn_start = QPushButton("开始阈值测试")
-        self.btn_start.setStyleSheet(BTN_PRIMARY)
+        themed_qss(self.btn_start, btn_primary)
         self.btn_start.setCursor(Qt.PointingHandCursor)
         self.btn_start.clicked.connect(self.start_test)
         self.btn_stop = QPushButton("停止")
-        self.btn_stop.setStyleSheet(BTN_DANGER)
+        themed_qss(self.btn_stop, btn_danger)
         self.btn_stop.setCursor(Qt.PointingHandCursor)
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop_test)
         self.btn_step = QPushButton("单步测试")
-        self.btn_step.setStyleSheet(BTN_WARNING)
+        themed_qss(self.btn_step, btn_warning)
         self.btn_step.setCursor(Qt.PointingHandCursor)
         self.btn_step.clicked.connect(self.step_test)
         btns.addWidget(self.btn_start)
@@ -230,7 +256,7 @@ class ThresholdTestPanel(QWidget):
         self.progress_bar.setMinimumHeight(22)
         self.progress_bar.setMaximumHeight(28)
         self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.progress_bar.setStyleSheet(
+        themed_qss(self.progress_bar, lambda: (
             f"""
             QProgressBar {{
                 border: 1px solid {COLORS['border']};
@@ -244,7 +270,7 @@ class ThresholdTestPanel(QWidget):
                 border-radius: 3px;
             }}
             """
-        )
+        ))
         outer.addWidget(self.progress_bar)
 
         # 状态横排：徽章 + 进度说明 + 统计（占满进度条下一行，少占竖向空间）
@@ -253,19 +279,21 @@ class ThresholdTestPanel(QWidget):
         self.state_badge = QLabel("就绪")
         self.state_badge.setFixedSize(88, 24)  # 基准尺寸；长状态在 _set_state_badge 里按文字加宽防截断
         self.state_badge.setAlignment(Qt.AlignCenter)
-        self.state_badge.setStyleSheet(
-            f"background-color: {COLORS['border']}; color: {COLORS['text']}; "
-            f"border-radius: 3px; padding: 2px 6px; font-weight: bold; font-size: 12px;"
-        )
+        self._badge_args = None  # (状态名, 失败数)；None 时即「就绪」样式
+        self.state_badge.setStyleSheet(self._badge_qss())
         info_row.addWidget(self.state_badge)
 
-        # WrapLabel：文本超宽时换行显示全文（不吞字）；水平方向文本不参与布局宽度计算，防止进度刷新时整行抖动
-        self.progress_label = WrapLabel("状态=就绪 | 进度: 0/0 | —")
-        self.progress_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        # 状态信息单行 + 超宽省略号（ElideRight），与故障码测试一致。
+        # 此前用 WrapLabel 换行显示全文，行宽不足时折成两行，让"阈值测试控制"整块
+        # 在测试中途变高、上下跳动。
+        # 注：QLabel 没有 setTextElideMode，用 _ElidedLabel 手动 elide。
+        self.progress_label = _ElidedLabel("状态=就绪 | 进度: 0/0 | —")
+        self.progress_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        themed_qss(self.progress_label, lambda: f"color: {COLORS['text_dim']}; font-size: 12px;")
         info_row.addWidget(self.progress_label, 1)
 
         self.stat_label = QLabel("通过: 0  失败: 0")
-        self.stat_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        themed_qss(self.stat_label, lambda: f"color: {COLORS['text_dim']}; font-size: 12px;")
         # 固定宽度：统计数字增长/缩短时不再改变布局
         self.stat_label.setMinimumWidth(self.stat_label.fontMetrics().horizontalAdvance("通过: 000  失败: 000") + 8)
         self.stat_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -277,30 +305,47 @@ class ThresholdTestPanel(QWidget):
         group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         return group
 
-    def _set_state_badge(self, state_name: str, failed: int = 0):
+    def _badge_qss(self) -> str:
+        """阶段徽章样式（颜色随主题变化）；_badge_args 为 None 时按「就绪」显示"""
+        state_name, failed = self._badge_args or ("就绪", 0)
         if state_name in ("失败",) or (failed > 0 and state_name == "已完成"):
-            bg, fg = COLORS.get("error", "#dc2626"), "#ffffff"
+            bg, fg = COLORS["error"], "#ffffff"
         elif state_name == "已完成":
-            bg, fg = COLORS.get("success", "#059669"), "#ffffff"
+            bg, fg = COLORS["success"], "#ffffff"
         elif state_name == "已停止":
-            bg, fg = COLORS.get("warning", "#d97706"), "#ffffff"
+            bg, fg = COLORS["warning"], "#ffffff"
         elif state_name == "就绪":
-            bg, fg = COLORS.get("border", "#e5e7eb"), COLORS.get("text", "#111827")
+            bg, fg = COLORS["border"], COLORS["text"]
         else:
-            bg, fg = COLORS.get("accent", "#2563eb"), "#ffffff"
+            bg, fg = COLORS["accent"], "#ffffff"
+        return (
+            f"background-color: {bg}; color: {fg}; border-radius: 3px; "
+            f"padding: 2px 6px; font-weight: bold; font-size: 12px;"
+        )
+
+    def _set_state_badge(self, state_name: str, failed: int = 0):
+        self._badge_args = (state_name, failed)
         self.state_badge.setText(state_name)
         # 长状态超出 88px 会被截断（吞字）：按文字实际宽度加宽；仅状态切换时变化一次，进度刷新不抖动
         badge_w = max(88, self.state_badge.fontMetrics().horizontalAdvance(state_name) + 20)  # 文字 + 左右 padding 12 + 余量
         if self.state_badge.width() != badge_w:
             self.state_badge.setFixedWidth(badge_w)
-        style = (
-            f"background-color: {bg}; color: {fg}; border-radius: 3px; "
-            f"padding: 2px 6px; font-weight: bold; font-size: 12px;"
-        )
+        style = self._badge_qss()
         # 样式未变化时不重复 setStyleSheet，避免每次进度刷新都触发布局/重绘（抖动）
         if style != self._badge_style_cache:
             self.state_badge.setStyleSheet(style)
             self._badge_style_cache = style
+
+    def _on_theme_changed(self):
+        """切换主题：徽章、以及复位后写死文字色的待测试行"""
+        style = self._badge_qss()
+        self.state_badge.setStyleSheet(style)
+        self._badge_style_cache = style
+        if hasattr(self, "pid_table_widget"):
+            for row in range(self.pid_table_widget.rowCount()):
+                item = self.pid_table_widget.item(row, 9)
+                if item and item.text() == "待测试":
+                    item.setForeground(QColor(COLORS["text"]))
 
     def create_detail_group(self) -> QGroupBox:
         group = QGroupBox("测试详情")
@@ -319,11 +364,11 @@ class ThresholdTestPanel(QWidget):
         ])
         self.param_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.param_table.verticalHeader().setVisible(False)
-        self.param_table.setStyleSheet(
+        themed_qss(self.param_table, lambda: (
             table_qss()
             + "\nQTableWidget { font-size: 12px; }"
             + "\nQTableWidget::item { padding: 6px 8px; }"
-        )
+        ))
         LeftAlignDelegate.attach(self.param_table, [0, 2, 5], self.param_table)
         splitter.addWidget(self.param_table)
         splitter.setStretchFactor(0, 1)
@@ -507,9 +552,9 @@ class ThresholdTestPanel(QWidget):
             table.setItem(i, 9, status)
 
             btn_set = QPushButton("设置")
-            btn_set.setStyleSheet(BTN_PRIMARY)
+            themed_qss(btn_set, btn_primary)
             btn_clr = QPushButton("清除")
-            btn_clr.setStyleSheet(BTN_NEUTRAL)
+            themed_qss(btn_clr, btn_neutral)
             key = (pid.pid, level)
             btn_set.clicked.connect(lambda _, r=i, k=key: self._operate_fault(r, "set", k[1]))
             btn_clr.clicked.connect(lambda _, r=i, k=key: self._operate_fault(r, "clear", k[1]))

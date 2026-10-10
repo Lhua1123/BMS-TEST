@@ -180,10 +180,11 @@ class ModbusComm:
                 start_addr, quantity = groups[group_index]
                 response = self.read_registers(start_addr, quantity)
                 timestamp = datetime.now()
+                # 把实际读取的地址范围一并回传，避免切换轮询组后用新组映射旧响应
                 if response:
-                    callback(group_index, response, timestamp)
+                    callback(group_index, response, timestamp, start_addr, quantity)
                 else:
-                    callback(group_index, None, timestamp)
+                    callback(group_index, None, timestamp, start_addr, quantity)
                 group_index = (group_index + 1) % len(groups)
                 time.sleep(self.poll_interval)
 
@@ -256,3 +257,10 @@ class ModbusComm:
 
     def clear_log(self):
         self.traffic_log.clear()
+        self.stats = {
+            'frames_sent': 0,
+            'frames_received': 0,
+            'crc_errors': 0,
+            'timeouts': 0,
+            'last_error': None
+        }

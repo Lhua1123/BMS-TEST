@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget,
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QIcon
 
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 
 logger = logging.getLogger(__name__)
 
@@ -27,38 +27,45 @@ class _NavButton(QPushButton):
         painter.drawControl(QStyle.CE_PushButton, option)
 
 
-_BTN_PRIMARY = (
-    f"QPushButton {{ background-color: {COLORS['accent']}; color: white; "
-    f"padding: 6px 18px; border: none; border-radius: 4px; font-weight: bold; }}"
-    f"QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}"
-    f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
-)
-_BTN_DANGER = (
-    f"QPushButton {{ background-color: {COLORS['error']}; color: white; "
-    f"padding: 6px 18px; border: none; border-radius: 4px; font-weight: bold; }}"
-    f"QPushButton:hover {{ background-color: #b91c1c; }}"
-    f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
-)
+# 以下样式都是函数，每次调用读取当前主题颜色（切换主题后由 themed_qss 重新生成）
+def _btn_primary_qss() -> str:
+    return (
+        f"QPushButton {{ background-color: {COLORS['accent']}; color: white; "
+        f"padding: 6px 18px; border: none; border-radius: 4px; font-weight: bold; }}"
+        f"QPushButton:hover {{ background-color: {COLORS['accent_hover']}; }}"
+        f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
+    )
 
-_NAV_BTN_BASE = (
-    f"QPushButton {{"
-    f"background: {COLORS['bg_panel']};"
-    f"color: {COLORS['text']};"
-    f"border: 1px solid {COLORS['border']};"
-    f"border-radius: 4px;"
-    f"padding: 8px 8px 8px 24px;"
-    f"font-weight: bold;"
-    f"text-align: left;"
-    f"}}"
-    f"QPushButton:hover {{ background: {COLORS['bg_hover']}; }}"
-    f"QPushButton:checked {{"
-    f"background: {COLORS['accent']};"
-    f"color: white;"
-    f"border-color: {COLORS['accent']};"
-    f"}}"
-    f"QPushButton:checked:hover {{ background: {COLORS['accent_hover']}; }}"
-    f"QPushButton:disabled {{ background: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
-)
+
+def _btn_danger_qss() -> str:
+    return (
+        f"QPushButton {{ background-color: {COLORS['error']}; color: white; "
+        f"padding: 6px 18px; border: none; border-radius: 4px; font-weight: bold; }}"
+        f"QPushButton:hover {{ background-color: #b91c1c; }}"
+        f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
+    )
+
+
+def _nav_btn_qss() -> str:
+    return (
+        f"QPushButton {{"
+        f"background: {COLORS['bg_panel']};"
+        f"color: {COLORS['text']};"
+        f"border: 1px solid {COLORS['border']};"
+        f"border-radius: 4px;"
+        f"padding: 8px 8px 8px 24px;"
+        f"font-weight: bold;"
+        f"text-align: left;"
+        f"}}"
+        f"QPushButton:hover {{ background: {COLORS['bg_hover']}; }}"
+        f"QPushButton:checked {{"
+        f"background: {COLORS['accent']};"
+        f"color: white;"
+        f"border-color: {COLORS['accent']};"
+        f"}}"
+        f"QPushButton:checked:hover {{ background: {COLORS['accent_hover']}; }}"
+        f"QPushButton:disabled {{ background: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
+    )
 
 
 class BmsAlarmTestTab(QWidget):
@@ -141,21 +148,21 @@ class BmsAlarmTestTab(QWidget):
     def _create_can_control_bar(self) -> QWidget:
         """顶部 CAN 连接控制栏"""
         frame = QFrame()
-        frame.setStyleSheet(
+        themed_qss(frame, lambda: (
             f"QFrame {{ border: 1px solid {COLORS['border']}; border-radius: 6px; "
             f"background: {COLORS['bg_panel']}; }}"
-        )
+        ))
         bar = QHBoxLayout(frame)
         bar.setContentsMargins(12, 8, 12, 8)
         bar.setSpacing(12)
 
         self.btn_connect = QPushButton("连接 CAN")
-        self.btn_connect.setStyleSheet(_BTN_PRIMARY)
+        themed_qss(self.btn_connect, _btn_primary_qss)
         self.btn_connect.setCursor(Qt.PointingHandCursor)
         self.btn_connect.clicked.connect(self._on_connect_clicked)
 
         self.btn_disconnect = QPushButton("断开 CAN")
-        self.btn_disconnect.setStyleSheet(_BTN_DANGER)
+        themed_qss(self.btn_disconnect, _btn_danger_qss)
         self.btn_disconnect.setCursor(Qt.PointingHandCursor)
         self.btn_disconnect.setEnabled(False)
         self.btn_disconnect.clicked.connect(self._on_disconnect_clicked)
@@ -164,35 +171,35 @@ class BmsAlarmTestTab(QWidget):
         bar.addWidget(self.btn_disconnect)
 
         self.btn_config = QPushButton("CAN 配置")
-        self.btn_config.setStyleSheet(
+        themed_qss(self.btn_config, lambda: (
             f"QPushButton {{ background-color: {COLORS['bg_input']}; color: {COLORS['text']}; "
             f"padding: 6px 14px; border: 1px solid {COLORS['border']}; border-radius: 4px; }}"
             f"QPushButton:hover {{ background-color: {COLORS['bg_hover']}; }}"
-        )
+        ))
         self.btn_config.setCursor(Qt.PointingHandCursor)
         self.btn_config.clicked.connect(self._on_config_clicked)
         bar.addWidget(self.btn_config)
 
         self.btn_clear_all = QPushButton("一键清除所有故障")
-        self.btn_clear_all.setStyleSheet(
+        themed_qss(self.btn_clear_all, lambda: (
             f"QPushButton {{ background-color: {COLORS['warning']}; color: white; "
             f"padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; }}"
             f"QPushButton:hover {{ background-color: #d97706; }}"
             f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
-        )
+        ))
         self.btn_clear_all.setCursor(Qt.PointingHandCursor)
         self.btn_clear_all.clicked.connect(self._on_clear_all_clicked)
         bar.addWidget(self.btn_clear_all)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
-        sep.setStyleSheet(f"color: {COLORS['border']};")
+        themed_qss(sep, lambda: f"color: {COLORS['border']};")
         bar.addWidget(sep)
 
         self.can_status_label = QLabel("CAN: 未连接")
-        self.can_status_label.setStyleSheet(
-            f"color: {COLORS['error']}; font-weight: bold; font-size: 13px;"
-        )
+        # 状态文字颜色用「颜色名」记录（error / warning / success），切换主题时按当前色表重画
+        self._can_status_key = 'error'
+        themed_qss(self.can_status_label, self._can_status_qss)
         bar.addWidget(self.can_status_label)
 
         bar.addStretch()
@@ -200,7 +207,7 @@ class BmsAlarmTestTab(QWidget):
         self.tx_count_label = QLabel("TX: 0")
         self.rx_count_label = QLabel("RX: 0")
         for lbl in (self.tx_count_label, self.rx_count_label):
-            lbl.setStyleSheet(f"color: {COLORS['text_dim']}; font-family: {FONTS['mono'][0]};")
+            themed_qss(lbl, lambda: f"color: {COLORS['text_dim']}; font-family: {FONTS['mono'][0]};")
             # 固定宽度：TX/RX 数字位数增长时不推挤顶栏布局
             lbl.setMinimumWidth(lbl.fontMetrics().horizontalAdvance("TX: 99999999") + 8)
             lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -213,13 +220,21 @@ class BmsAlarmTestTab(QWidget):
 
         return frame
 
+    def _can_status_qss(self) -> str:
+        return f"color: {COLORS[self._can_status_key]}; font-weight: bold; font-size: 13px;"
+
+    def _set_can_status_color(self, key: str):
+        """改变 CAN 状态文字颜色：key 为 COLORS 里的颜色名"""
+        self._can_status_key = key
+        self.can_status_label.setStyleSheet(self._can_status_qss())
+
     def _create_nav(self) -> QFrame:
         """左侧导航区"""
         frame = QFrame()
-        frame.setStyleSheet(
+        themed_qss(frame, lambda: (
             f"QFrame {{ border: 1px solid {COLORS['border']}; border-radius: 6px; "
             f"background: {COLORS['bg_panel']}; }}"
-        )
+        ))
         nav = QVBoxLayout(frame)
         nav.setContentsMargins(8, 8, 8, 8)
         nav.setSpacing(6)
@@ -233,7 +248,7 @@ class BmsAlarmTestTab(QWidget):
         for idx, (name, key) in enumerate(pages):
             btn = _NavButton(name)
             btn.setCheckable(True)
-            btn.setStyleSheet(_NAV_BTN_BASE)
+            themed_qss(btn, _nav_btn_qss)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setMinimumHeight(44)
             if idx == 0:
@@ -310,7 +325,7 @@ class BmsAlarmTestTab(QWidget):
             import traceback
             traceback.print_exc()
             error_label = QLabel(f"加载失败: {e}\n请检查依赖是否安装（python-can, cantools等）")
-            error_label.setStyleSheet(f"color: {COLORS['error']}; padding: 20px;")
+            themed_qss(error_label, lambda: f"color: {COLORS['error']}; padding: 20px;")
             self.stack.addWidget(error_label)
 
     # ------------------------------------------------------------------
@@ -353,9 +368,7 @@ class BmsAlarmTestTab(QWidget):
             return
         self.btn_connect.setEnabled(False)
         self.can_status_label.setText("CAN: 连接中...")
-        self.can_status_label.setStyleSheet(
-            f"color: {COLORS['warning']}; font-weight: bold; font-size: 13px;"
-        )
+        self._set_can_status_color('warning')
         from PyQt5.QtCore import QThread, pyqtSignal
 
         class _ConnectWorker(QThread):
@@ -380,9 +393,7 @@ class BmsAlarmTestTab(QWidget):
         """CAN 连接完成回调"""
         if not ok:
             self.can_status_label.setText("CAN: 连接失败")
-            self.can_status_label.setStyleSheet(
-                f"color: {COLORS['error']}; font-weight: bold; font-size: 13px;"
-            )
+            self._set_can_status_color('error')
             self.btn_connect.setEnabled(True)
             self.btn_disconnect.setEnabled(False)
             if err_msg:
@@ -407,16 +418,12 @@ class BmsAlarmTestTab(QWidget):
                 err = status.last_error if status and status.last_error else "未知错误"
                 err_msgs.append(f"CH{ch}: {err}")
             self.can_status_label.setText(f"CAN: 连接失败 — {'; '.join(err_msgs)}")
-            self.can_status_label.setStyleSheet(
-                f"color: {COLORS['error']}; font-weight: bold; font-size: 13px;"
-            )
+            self._set_can_status_color('error')
             logger.error(f"CAN连接失败: {'; '.join(err_msgs)}")
         else:
             ch_str = ",".join(f"CH{ch}" for ch in real_channels)
             self.can_status_label.setText(f"CAN: 已连接 ({ch_str})")
-            self.can_status_label.setStyleSheet(
-                f"color: {COLORS['success']}; font-weight: bold; font-size: 13px;"
-            )
+            self._set_can_status_color('success')
             if failed_channels:
                 for ch in failed_channels:
                     status = self._can_manager.get_status(ch)
@@ -443,9 +450,7 @@ class BmsAlarmTestTab(QWidget):
         if self._can_manager:
             self._can_manager.disconnect()
         self.can_status_label.setText("CAN: 未连接")
-        self.can_status_label.setStyleSheet(
-            f"color: {COLORS['error']}; font-weight: bold; font-size: 13px;"
-        )
+        self._set_can_status_color('error')
         self.btn_connect.setEnabled(True)
         self.btn_disconnect.setEnabled(False)
         logger.info("CAN 已断开")
@@ -624,7 +629,7 @@ class BmsAlarmTestTab(QWidget):
 
         btn_row = QHBoxLayout()
         btn_ok = QPushButton("确定")
-        btn_ok.setStyleSheet(_BTN_PRIMARY)
+        themed_qss(btn_ok, _btn_primary_qss)
         btn_ok.clicked.connect(apply_config)
         btn_cancel = QPushButton("取消")
         btn_cancel.clicked.connect(dlg.reject)

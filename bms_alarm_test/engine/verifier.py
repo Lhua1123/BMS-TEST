@@ -5,13 +5,17 @@
 """
 
 import logging
+import re
 import time
 from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass
 from enum import Enum
 
 from bms_alarm_test.config.fault_mapping import Fault, FaultMapping, FaultDomain
-from bms_alarm_test.models.test_result import TestResult, Check, CheckType, CheckStatus
+from bms_alarm_test.models.test_result import (
+    TestResult, Check, CheckType, CheckStatus,
+    READBACK_SCOPE_INNER, READBACK_SCOPE_OUTER,
+)
 from bms_alarm_test.can.can_listener import CANListener, CANChannel
 from bms_alarm_test.can.can_manager import CANManager
 from bms_alarm_test.config.constants import (
@@ -23,6 +27,31 @@ from bms_alarm_test.config.constants import (
 from bms_alarm_test.utils.exceptions import ValidationError, CANError
 
 logger = logging.getLogger(__name__)
+
+# 「读到的值稳定不符」时的提前退出窗口——按验证超时窗口的比例表达，不写死秒数。
+#
+# 【为什么短窗口是错的（已踩坑）】
+#   本 BMS 故障注入后并不是立刻上报报警值：实测「故障20」要 ~7s 才置位生效
+#   （见 bms_alarm_test/config/constants.py:75
+#     DEFAULT_VERIFICATION_TIMEOUT_SEC = 10.0  # ...实测故障20需约7s才生效）。
+#   本常量早先写死 3.0s，叠加 1.5s 的 DEFAULT_INJECTION_DELAY_SEC，
+#   实际只给 BMS 约 4.5s（3.0+1.5）就判死，于是任何置位慢于 ~4.5s 的好故障
+#   都会被误报为「测试失败」——2026-09-29 19:06 现场日志就是该场景。
+#   3.0s 这个数的根因：把两种互不相干的延迟搞混了——
+#     · 故障→故障「切换过渡期」约 1s（与是否该提前退出无关）；
+#     · 故障「置位生效」延迟最大 ~7s（这才是决定成败的那个）。
+#   拿切换过渡期去卡置位延迟，必然抢在 BMS 前面判死。
+#
+# 【现在这个容忍窗口相对什么】
+#   MISMATCH_STABLE_TOLERANCE_RATIO = 「稳定不符」窗口占本次验证超时窗口
+#   （self.config.timeout_sec）的比例。含义：只有当某个错误值在整个超时窗口里
+#   连续 80% 的时间都没变过，才认定 BMS 真的稳定回了「稳定错误值」
+#   （而不是「还没上报完」），此时提前结束等待并回传真实值，
+#   避免空等满超时、也避免被误报成读超时
+#   （读超时会触发重新注入复验，而重发故障对「期望值配错」毫无帮助）。
+#   超时 10s → 窗口 8s，晚于实测的 ~7s 置位延迟，绝不会抢在 BMS 前面判死；
+#   以后有人把验证超时调大，窗口按比例自动跟着放大，无需再改这里。
+MISMATCH_STABLE_TOLERANCE_RATIO = 0.8
 
 
 class VerificationError(Exception):
@@ -167,6 +196,12 @@ class BMSVerifier:
                         check.fail(f"期望值={expected}, 实际值={match_value}", actual_value=match_value)
                 else:
                     check.fail(f"期望值={expected}, 实际值=None", actual_value=None)
+                    # 回读超时：记录实际等待的通道与角色，只有所用角色为对内时才可能触发重新注入
+                    check.timed_out = True
+                    check.timed_out_channel = channel
+                    check.timed_out_scope = (
+                        READBACK_SCOPE_INNER if role == "inner" else READBACK_SCOPE_OUTER
+                    )
             except Exception as e:
                 check.error(f"额外回读异常: {e}")
             checks.append(check)
@@ -335,8 +370,9 @@ class BMSVerifier:
             # DBC 主读固定用默认具体信号名（NBCMU/SBCMU{idx}_SysFailSta）；
             # 回读配置里的通用 signal_name（如 BMS_SysFailSta）只作 _wait_for_signal 内的
             # CAN ID 兜底解码，不参与 DBC 名查询，否则缓存 key 对不上会永远读到 None
+            channel = self._get_inner_channel()
             value = self._wait_for_signal(
-                self._get_inner_channel(), default_message, default_signal,
+                channel, default_message, default_signal,
                 fault.sys_fail_sta_expected, self.config.timeout_sec,
                 readback_role="inner_sys_fail_sta", readback_idx=idx,
             )
@@ -349,6 +385,9 @@ class BMSVerifier:
                     check.fail(f"期望值={fault.sys_fail_sta_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.sys_fail_sta_expected}, 实际值=None", actual_value=None)
+                check.timed_out = True  # 对内回读超时：可触发重新注入复验
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_INNER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -374,8 +413,9 @@ class BMSVerifier:
                 signal_name = f"SBCMU{idx}_ErrTab"
                 message_name = f"SBCMU{idx}_WarningInfo"
 
+            channel = self._get_inner_channel()
             value = self._wait_for_signal(
-                self._get_inner_channel(), message_name, signal_name,
+                channel, message_name, signal_name,
                 fault.err_tab_expected, self.config.timeout_sec
             )
 
@@ -387,6 +427,9 @@ class BMSVerifier:
                     check.fail(f"期望值={fault.err_tab_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.err_tab_expected}, 实际值=None", actual_value=None)
+                check.timed_out = True  # 对内回读超时：可触发重新注入复验
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_INNER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -395,8 +438,15 @@ class BMSVerifier:
 
     def _check_inner_specific(self, fault: Fault, target_address: int, domain: str) -> Check:
         """检查内部specific信号"""
+        idx = self._get_dbc_index(target_address, domain)
+        # fault_mapping 里 inner_signal 固定写死 NBCMU01_/SBCMU01_ 前缀，
+        # 按目标地址的簇序号 idx 替换（簇02 → NBCMU02_*），否则会去读簇01的信号
+        inner_signal = fault.inner_signal
+        if inner_signal:
+            inner_signal = re.sub(r"^(NBCMU|SBCMU)01_", rf"\g<1>{idx}_", inner_signal)
+
         check = Check(
-            name=f"内部specific验证: {fault.inner_signal}",
+            name=f"内部specific验证: {inner_signal}",
             check_type=CheckType.INNER_SPECIFIC,
             expected_value=fault.inner_expected,
             description=f"验证{fault.name}的内部specific信号"
@@ -404,9 +454,6 @@ class BMSVerifier:
         check.start()
 
         try:
-            idx = self._get_dbc_index(target_address, domain)
-            inner_signal = fault.inner_signal
-
             # SBCMU域：inner_signal 本来就是 SBCMU01_* 格式，直接查 DBC
             # DBC 中 SBCMU 信号在 SBCMU01_WarningInfo，不需要替换前缀
 
@@ -428,19 +475,23 @@ class BMSVerifier:
                 else:
                     message_name = f"NBCMU{idx}_WarningInfo2"
 
+            channel = self._get_inner_channel()
             value = self._wait_for_signal(
-                self._get_inner_channel(), message_name, inner_signal or "",
+                channel, message_name, inner_signal or "",
                 fault.inner_expected, self.config.timeout_sec
             )
 
             if value is not None:
                 match_value = value.value if hasattr(value, 'value') else value
                 if match_value == fault.inner_expected:
-                    check.pass_check(f"{fault.inner_signal}={match_value}", actual_value=match_value)
+                    check.pass_check(f"{inner_signal}={match_value}", actual_value=match_value)
                 else:
                     check.fail(f"期望值={fault.inner_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.inner_expected}, 实际值=None", actual_value=None)
+                check.timed_out = True  # 对内回读超时：可触发重新注入复验
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_INNER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -458,8 +509,9 @@ class BMSVerifier:
         check.start()
 
         try:
+            channel = self._get_outer_channel()
             value = self._wait_for_signal(
-                self._get_outer_channel(), "BMS_Msg01", "BMS_SysFailSta",
+                channel, "BMS_Msg01", "BMS_SysFailSta",
                 fault.sys_fail_sta_expected, self.config.timeout_sec
             )
 
@@ -471,6 +523,12 @@ class BMSVerifier:
                     check.fail(f"期望值={fault.sys_fail_sta_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.sys_fail_sta_expected}, 实际值=None", actual_value=None)
+                # 对外通道超时：对外线未接/台架上对外通道一帧不发时这是必然结果，
+                # 属于接线/台架条件，不是对内故障帧丢了，重发故障救不回来，
+                # 所以标记为 outer、不得触发重新注入复验（否则每个故障都白跑两轮）。
+                check.timed_out = True
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_OUTER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -498,8 +556,9 @@ class BMSVerifier:
                 check.fail(f"外DBC中未找到信号所在报文: {signal_name}")
                 return check
 
+            channel = self._get_outer_channel()
             value = self._wait_for_signal(
-                self._get_outer_channel(), message_name, signal_name,
+                channel, message_name, signal_name,
                 fault.outer_expected, self.config.timeout_sec
             )
 
@@ -511,6 +570,11 @@ class BMSVerifier:
                     check.fail(f"期望值={fault.outer_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.outer_expected}, 实际值=None", actual_value=None)
+                # 对外通道超时是接线/台架条件（对外线不通则一帧都收不到），
+                # 重新注入对内故障报文无法改变它，标记为 outer 不触发重新注入复验。
+                check.timed_out = True
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_OUTER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -540,8 +604,9 @@ class BMSVerifier:
             idx = self._get_dbc_index(target_address, domain)
             signal_name = f"BMS_NBCMU{idx}_Warning"
 
+            channel = self._get_outer_channel()
             value = self._wait_for_signal(
-                self._get_outer_channel(), "BMS_Msg15", signal_name,
+                channel, "BMS_Msg15", signal_name,
                 None, self.config.timeout_sec
             )
 
@@ -553,6 +618,11 @@ class BMSVerifier:
                     check.fail(f"期望值={fault.outer_warning_expected}, 实际值={match_value}", actual_value=match_value)
             else:
                 check.fail(f"期望值={fault.outer_warning_expected}, 实际值=None", actual_value=None)
+                # 同对外 SysFailSta：对外通道静默属于接线/台架条件，
+                # 重发对内故障报文无济于事，标记为 outer 不触发重新注入复验。
+                check.timed_out = True
+                check.timed_out_channel = channel
+                check.timed_out_scope = READBACK_SCOPE_OUTER
 
         except Exception as e:
             check.error(f"验证异常: {e}")
@@ -575,6 +645,21 @@ class BMSVerifier:
         except Exception:
             return ""
 
+    def _mismatch_tolerance_sec(self, timeout: float) -> float:
+        """
+        计算本次等待里「值稳定不符」的提前退出容忍窗口（秒）。
+
+        以配置的验证超时窗口 self.config.timeout_sec 为基准乘以
+        MISMATCH_STABLE_TOLERANCE_RATIO，而不是写死一个秒数：
+        写得死会在「超时调大/置位更慢」时再次抢在 BMS 前面判死（见常量注释）。
+        另外用本次实际传入的 timeout 封顶，保证窗口不会超过整个等待窗口本身
+        （本次等待比配置还短时，提前退出直接不触发，只会更保守、不会误杀）。
+        """
+        base = self.config.timeout_sec
+        if base <= 0:
+            base = timeout
+        return min(base, timeout) * MISMATCH_STABLE_TOLERANCE_RATIO
+
     def _wait_for_signal(self, channel: int, message_name: Optional[str],
                          signal_name: str, expected_value: Any,
                          timeout: float,
@@ -585,7 +670,13 @@ class BMSVerifier:
         优先 DBC 名解码；失败时按「CAN 回读协议配置」用 CAN ID+位定义原始解码。
         """
         start_time = time.time()
+        # 提前退出容忍窗口：跟随配置的验证超时按比例缩放（见常量注释）
+        mismatch_tolerance_sec = self._mismatch_tolerance_sec(timeout)
         poll_count = 0
+        # 最近一次读到的非 None 值，以及它最后一次「发生变化」的时刻。
+        # 超时后回传 last_value，使「读超时」与「读到了错误的值」能被调用方区分开。
+        last_value = None
+        value_changed_at = start_time
         while time.time() - start_time < timeout:
             if self.can_manager.is_stop_requested():
                 logger.debug(f"[verifier] 停止请求，退出等待: {signal_name}")
@@ -629,12 +720,26 @@ class BMSVerifier:
                     if frame_desc:
                         logger.info(f"[回读报文] CH{channel} {message_name}.{signal_name}={value} {frame_desc}")
                 if value is not None:
+                    # 值发生变化就刷新容忍窗口起点：持续抖动的值永远不会触发提前退出
+                    if value != last_value:
+                        last_value = value
+                        value_changed_at = time.time()
                     if expected_value is None or self._match_signal_value(signal_name, value, expected_value):
                         logger.info(f"[verifier] 信号匹配成功: {signal_name}={value} "
                                     f"(期望={expected_value}, 轮询{poll_count}次)")
                         frame_desc = self._get_latest_frame_desc(channel)
                         if frame_desc:
                             logger.info(f"[回读报文] CH{channel} {message_name}.{signal_name}={value} {frame_desc}")
+                        return value
+                    # 有期望值但不匹配，且该值持续不变已超过过渡期容忍窗口：
+                    # 判定为 BMS 稳定回了错误值，立即回传真实值（而不是空等到超时）
+                    stable_sec = time.time() - value_changed_at
+                    if stable_sec >= mismatch_tolerance_sec:
+                        logger.warning(
+                            f"[verifier] 值持续{stable_sec:.1f}s不变且与期望不符，提前返回实际值: "
+                            f"{signal_name}={value} (期望={expected_value}, 轮询{poll_count}次, "
+                            f"容忍窗口={mismatch_tolerance_sec:.1f}s)"
+                        )
                         return value
             except Exception as e:
                 logger.debug(f"读取信号异常: {e}")
@@ -643,4 +748,9 @@ class BMSVerifier:
 
         logger.warning(f"[verifier] 超时: {signal_name} (msg={message_name} ch={channel}) "
                        f"期望={expected_value}, 轮询{poll_count}次")
+        if last_value is not None:
+            # 读到了值只是始终不匹配：回传最后值，让调用方报出真实实际值而不是「实际值=None」
+            logger.warning(f"[verifier] 超时但曾读到有效值，回传最后值: "
+                           f"{signal_name}={last_value} (期望={expected_value})")
+            return last_value
         return None

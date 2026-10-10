@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from shared.style import COLORS
 from bms_alarm_test.config.fault_mapping import FaultMapping
 from bms_alarm_test.ui.can_readback_config_dialog import CanReadbackConfigDialog
 from bms_alarm_test.ui.fault_verify_config_dialog import FaultVerifyConfigDialog
@@ -32,11 +33,13 @@ UNIFY_TABLE_PT = 13
 UNIFY_ROW_H = 36
 CELL_PAD_X = 20  # 左右留白，避免“贴边吞字”
 
-UNIFY_TABLE_QSS = f"""
+def unify_table_qss() -> str:
+    """两个页签统一的表格/页签样式（网格线颜色随主题变化）"""
+    return f"""
 QTableWidget {{
     font-family: 'Microsoft YaHei';
     font-size: {UNIFY_TABLE_PT}pt;
-    gridline-color: #ccc;
+    gridline-color: {COLORS['grid_line']};
 }}
 QTableWidget::item {{
     padding: 4px 6px;
@@ -58,7 +61,7 @@ QLabel {{
     font-size: {UNIFY_UI_PT}pt;
 }}
 QTabWidget::pane {{
-    border: 1px solid #ccc;
+    border: 1px solid {COLORS['grid_line']};
 }}
 QTabWidget::tab-bar {{
     alignment: left;
@@ -139,7 +142,7 @@ def _unify_table(table: QTableWidget):
     table.horizontalHeader().setFont(header_font)
     table.verticalHeader().setDefaultSectionSize(UNIFY_ROW_H)
     old = table.styleSheet() or ""
-    table.setStyleSheet(UNIFY_TABLE_QSS + old)
+    table.setStyleSheet(unify_table_qss() + old)
     for r in range(table.rowCount()):
         for c in range(table.columnCount()):
             it = table.item(r, c)
@@ -165,7 +168,7 @@ class VerifyConfigDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
-        self.setStyleSheet(UNIFY_TABLE_QSS)
+        self.setStyleSheet(unify_table_qss())
 
         hint = QLabel(
             "左侧页签切换：① 信号怎么读（CAN ID/位/系数，可 DBC 导入）；"

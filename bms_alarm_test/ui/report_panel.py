@@ -25,16 +25,16 @@ from PyQt5.QtWidgets import (
 from bms_alarm_test.logger.report_exporter import ReportExporter
 from bms_alarm_test.logger.test_logger import TestLogger, is_passed_status
 from bms_alarm_test.ui.panel_style import (
-    BTN_DANGER,
-    BTN_NEUTRAL,
-    BTN_PRIMARY,
-    BTN_SUCCESS,
+    btn_danger,
+    btn_neutral,
+    btn_primary,
+    btn_success,
     LeftAlignDelegate,
     button_fixed_size_qss,
     compact_qss,
     table_qss,
 )
-from shared.style import COLORS
+from shared.style import COLORS, themed_qss
 
 PASS_LABELS = {"PASS", "PASSED", "通过", "成功", "OK"}
 # 「查看详情」按钮 + 行高：行高必须大于按钮高度，否则底部会被裁切
@@ -42,6 +42,26 @@ DETAIL_BTN_W = 88
 DETAIL_BTN_H = 26
 DETAIL_COL_MIN_W = 120
 REPORT_ROW_H = 48
+
+
+def _label_color_qss(label, base: str):
+    """标签文字色随主题变化。颜色名（COLORS 的 key，如 'success'）放在 holder 里，
+    切换主题时按当前色表重画；闭包里不放控件本身，避免注册表长期持有控件。"""
+    holder = {"key": None}
+
+    def factory() -> str:
+        key = holder["key"]
+        return f"color: {COLORS[key] if key else COLORS['text']}; {base}"
+
+    themed_qss(label, factory)
+    label._color_holder = (holder, factory)
+
+
+def _set_label_color(label, key):
+    """设置标签颜色：key 为 COLORS 的颜色名，None 表示普通文字色"""
+    holder, factory = label._color_holder
+    holder["key"] = key
+    label.setStyleSheet(factory())
 
 
 class ReportPanel(QWidget):
@@ -52,7 +72,7 @@ class ReportPanel(QWidget):
 
     def __init__(self, test_logger: TestLogger = None, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(compact_qss())
+        themed_qss(self, compact_qss)
         self.test_logger = test_logger
         self.report_exporter = ReportExporter()
         self.reports = []
@@ -73,11 +93,11 @@ class ReportPanel(QWidget):
         control_layout.setSpacing(8)
 
         self.refresh_btn = QPushButton("刷新报告")
-        self.refresh_btn.setStyleSheet(BTN_PRIMARY + button_fixed_size_qss(96, 30))
+        themed_qss(self.refresh_btn, lambda: btn_primary() + button_fixed_size_qss(96, 30))
         self.batch_export_btn = QPushButton("批量导出")
-        self.batch_export_btn.setStyleSheet(BTN_SUCCESS + button_fixed_size_qss(96, 30))
+        themed_qss(self.batch_export_btn, lambda: btn_success() + button_fixed_size_qss(96, 30))
         self.clear_btn = QPushButton("清空报告")
-        self.clear_btn.setStyleSheet(BTN_DANGER + button_fixed_size_qss(96, 30))
+        themed_qss(self.clear_btn, lambda: btn_danger() + button_fixed_size_qss(96, 30))
         control_layout.addWidget(self.refresh_btn)
         control_layout.addWidget(self.batch_export_btn)
         control_layout.addWidget(self.clear_btn)
@@ -107,7 +127,7 @@ class ReportPanel(QWidget):
         control_layout.addWidget(self.summary_rate)
 
         self.status_label = QLabel("就绪")
-        self.status_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 0 4px;")
+        themed_qss(self.status_label, lambda: f"color: {COLORS['text_dim']}; padding: 0 4px;")
         control_layout.addWidget(self.status_label)
         root.addWidget(control_group, 0)
 
@@ -136,14 +156,14 @@ class ReportPanel(QWidget):
         LeftAlignDelegate.attach(self.report_table, [0], self.report_table)
         self._report_column_weights = [1.7, 2.0, 1.15, 0.85, 0.9, 0.75, 0.75, 0.95, 0.85, 1.2]
         self._report_column_min_widths = [120, 155, 100, 70, 75, 60, 60, 80, 70, DETAIL_COL_MIN_W]
-        self.report_table.setStyleSheet(
+        themed_qss(self.report_table, lambda: (
             table_qss()
-            + "\nQTableWidget { font-size: 12px; background-color: #ffffff; }"
+            + f"\nQTableWidget {{ font-size: 12px; background-color: {COLORS['bg_panel']}; }}"
             + "\nQTableWidget::item { padding: 8px 6px; }"
             + "\nQHeaderView::section { font-size: 12px; padding: 8px 6px; }"
             # 项目名称表头左对齐，与内容同一左缘
             + "\nQHeaderView::section:first { text-align: left; padding-left: 10px; }"
-        )
+        ))
         self.report_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.report_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.report_table.setAlternatingRowColors(True)
@@ -163,31 +183,29 @@ class ReportPanel(QWidget):
         QTimer.singleShot(0, self._resize_report_columns)
 
         hint = QLabel("提示：双击行或点击「查看详情」可打开完整报告明细")
-        hint.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px; padding: 0 2px;")
+        themed_qss(hint, lambda: f"color: {COLORS['text_dim']}; font-size: 11px; padding: 0 2px;")
         root.addWidget(hint, 0)
 
     @staticmethod
     def _make_filter_label(text: str) -> QLabel:
         label = QLabel(text)
-        label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px; padding: 0 2px;")
+        themed_qss(label, lambda: f"color: {COLORS['text_dim']}; font-size: 12px; padding: 0 2px;")
         return label
 
     def _make_stat_label(self, title: str, value: str):
         frame = QFrame()
-        frame.setStyleSheet(
+        themed_qss(frame, lambda: (
             f"QFrame {{ background: {COLORS['bg_panel']}; border: 1px solid {COLORS['border']}; "
             f"border-radius: 4px; padding: 2px 8px; }}"
-        )
+        ))
         layout = QHBoxLayout(frame)
         layout.setContentsMargins(8, 2, 8, 2)
         layout.setSpacing(6)
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px; border: none;")
+        themed_qss(title_label, lambda: f"color: {COLORS['text_dim']}; font-size: 11px; border: none;")
         value_label = QLabel(value)
         value_label.setObjectName(f"stat_{title}")
-        value_label.setStyleSheet(
-            f"color: {COLORS['text']}; font-size: 13px; font-weight: bold; border: none;"
-        )
+        _label_color_qss(value_label, "font-size: 13px; font-weight: bold; border: none;")
         layout.addWidget(title_label)
         layout.addWidget(value_label)
         frame._value_label = value_label
@@ -195,10 +213,10 @@ class ReportPanel(QWidget):
 
     @staticmethod
     def _set_stat(frame: QFrame, value: str, color: str = None):
+        """color 为 COLORS 的颜色名（如 'success'），None 为普通文字色"""
         label = frame._value_label
         label.setText(value)
-        base = f"font-size: 13px; font-weight: bold; border: none;"
-        label.setStyleSheet(f"color: {color or COLORS['text']}; {base}")
+        _set_label_color(label, color)
 
     def setup_connections(self):
         self.refresh_btn.clicked.connect(self.refresh_report)
@@ -305,12 +323,12 @@ class ReportPanel(QWidget):
         btn.setFixedSize(DETAIL_BTN_W, DETAIL_BTN_H)
         btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         btn.setFocusPolicy(Qt.NoFocus)
-        btn.setStyleSheet(
+        themed_qss(btn, lambda: (
             f"""
             QPushButton#reportDetailBtn {{
-                background-color: #eff6ff;
-                color: #2563eb;
-                border: 1px solid #93c5fd;
+                background-color: {COLORS['tint_bg']};
+                color: {COLORS['tint_fg']};
+                border: 1px solid {COLORS['tint_border']};
                 border-radius: 4px;
                 font-size: 12px;
                 font-weight: bold;
@@ -320,9 +338,9 @@ class ReportPanel(QWidget):
                 margin: 0px;
             }}
             QPushButton#reportDetailBtn:hover {{
-                background-color: #2563eb;
+                background-color: {COLORS['accent']};
                 color: #ffffff;
-                border-color: #2563eb;
+                border-color: {COLORS['accent']};
             }}
             QPushButton#reportDetailBtn:pressed {{
                 background-color: #1d4ed8;
@@ -330,7 +348,7 @@ class ReportPanel(QWidget):
                 border-color: #1d4ed8;
             }}
             """
-        )
+        ))
         btn.setCursor(Qt.PointingHandCursor)
         btn.clicked.connect(lambda checked=False, rid=run_id: on_click(rid))
 
@@ -435,9 +453,9 @@ class ReportPanel(QWidget):
         sum_passed = sum(r.get("passed_count") or 0 for r in reports)
         rate = sum_passed / sum_total * 100 if sum_total else 0.0
         self._set_stat(self.summary_total, str(total_reports))
-        self._set_stat(self.summary_pass, str(pass_reports), COLORS["success"])
-        self._set_stat(self.summary_fail, str(fail_reports), COLORS["error"] if fail_reports else COLORS["text_dim"])
-        self._set_stat(self.summary_rate, f"{rate:.1f}%", COLORS["success"] if rate >= 100 else COLORS["warning"])
+        self._set_stat(self.summary_pass, str(pass_reports), "success")
+        self._set_stat(self.summary_fail, str(fail_reports), "error" if fail_reports else "text_dim")
+        self._set_stat(self.summary_rate, f"{rate:.1f}%", "success" if rate >= 100 else "warning")
         self.status_label.setText(f"共 {total_reports} 条测试报告")
 
     def refresh_report(self):
@@ -613,9 +631,9 @@ class ReportPanel(QWidget):
 
         buttons = QHBoxLayout()
         export_btn = QPushButton("导出此报告")
-        export_btn.setStyleSheet(BTN_SUCCESS + button_fixed_size_qss(110, 30))
+        export_btn.setStyleSheet(btn_success() + button_fixed_size_qss(110, 30))
         close_btn = QPushButton("关闭")
-        close_btn.setStyleSheet(BTN_NEUTRAL + button_fixed_size_qss(88, 30))
+        close_btn.setStyleSheet(btn_neutral() + button_fixed_size_qss(88, 30))
         buttons.addStretch(1)
         buttons.addWidget(export_btn)
         buttons.addWidget(close_btn)

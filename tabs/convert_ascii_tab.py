@@ -31,7 +31,7 @@ class _ComboToolTipFilter(QObject):
         return False
 
 from convert_ascii.core.converter import ASCIIConverter
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss
 
 
 class ConvertAsciiTab(QWidget):
@@ -80,7 +80,7 @@ class ConvertAsciiTab(QWidget):
             "支持格式：41 42 43, 0x41 0x42, 01000001, Hello, 65 66 67"
         )
         self.txt_input.setAcceptRichText(False)
-        self.txt_input.setStyleSheet(f"""
+        themed_qss(self.txt_input, lambda: f"""
             QTextEdit {{
                 background-color: {COLORS['bg_panel']};
                 color: {COLORS['text']};
@@ -145,7 +145,7 @@ class ConvertAsciiTab(QWidget):
             value = QLineEdit()
             value.setReadOnly(True)
             value.setMinimumHeight(52)
-            value.setStyleSheet(f"""
+            themed_qss(value, lambda: f"""
                 QLineEdit {{
                     background-color: {COLORS['bg_input']};
                     color: {COLORS['text']};

@@ -12,18 +12,17 @@ from PyQt5.QtGui import QFont, QColor
 import threading
 import time
 
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 from bms_alarm_test.ui.panel_style import (
     table_qss,
     compact_qss,
     LeftAlignDelegate,
-    BTN_PRIMARY,
-    BTN_WARNING,
-    BTN_NEUTRAL,
+    btn_primary,
+    btn_warning,
+    btn_neutral,
     button_fixed_size_qss,
     FAULT_CTRL_BTN_W,
     FAULT_CTRL_BTN_H,
-    WrapLabel,
 )
 from bms_alarm_test.config.fault_mapping import FaultMapping, FaultDomain, Fault
 from bms_alarm_test.engine.fault_engine import FaultTestEngine
@@ -51,6 +50,32 @@ def _state_cn(state) -> str:
     return TEST_STATE_CN.get(key, str(key))
 
 
+class _ElidedLabel(QLabel):
+    """单行省略 QLabel：QLabel 没有 setTextElideMode，超宽时用 fontMetrics 手动 elide。"""
+    def __init__(self, text: str = "", parent=None):
+        self._full_text = text or ""
+        super().__init__(text, parent)
+        self.setWordWrap(False)
+
+    def setText(self, text: str) -> None:
+        self._full_text = text or ""
+        self._update_elided()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_elided()
+
+    def _update_elided(self) -> None:
+        full = getattr(self, "_full_text", "")
+        width = self.width() - 4
+        if width <= 0:
+            super().setText(full)
+            return
+        elided = self.fontMetrics().elidedText(full, Qt.ElideRight, max(0, width))
+        super().setText(elided)
+        self.setToolTip(full)
+
+
 class FaultTestPanel(QWidget):
     """故障码测试面板"""
 
@@ -69,7 +94,8 @@ class FaultTestPanel(QWidget):
 
     def __init__(self, fault_mapping: FaultMapping, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(compact_qss())
+        themed_qss(self, compact_qss)
+        on_theme_changed(self._on_theme_changed)
         self.fault_mapping = fault_mapping
         self.fault_engine: FaultTestEngine = None
         self._step_fault_codes = []
@@ -217,12 +243,12 @@ class FaultTestPanel(QWidget):
         # 先保证故障列表在常见宽度下能完整显示，不出现横向滚动
         self._fault_column_weights = [0.7, 0.85, 2.2, 1.0, 1.05, 1.1, 1.1]
         self._fault_column_min_widths = [48, 56, 140, 64, 78, 88, 88]
-        self.fault_table.setStyleSheet(
+        themed_qss(self.fault_table, lambda: (
             table_qss()
             + "\nQTableWidget { font-size: 12px; }"
             + "\nQTableWidget::item { padding: 6px 8px; }"
             + "\nQHeaderView::section { font-size: 12px; padding: 7px 8px; }"
-        )
+        ))
         self.fault_table.setSelectionBehavior(QTableWidget.SelectRows)
         # 纯展示/选择列表，禁止双击或按键进入编辑
         self.fault_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -252,8 +278,9 @@ class FaultTestPanel(QWidget):
         w, h = FAULT_CTRL_BTN_W, FAULT_CTRL_BTN_H
         lock = button_fixed_size_qss(w, h)
 
-        def _fix_btn(btn: QPushButton, base_style: str):
-            btn.setStyleSheet(base_style + lock)
+        def _fix_btn(btn: QPushButton, base_style):
+            # base_style 是返回样式串的函数（如 btn_primary），切换主题时重新生成
+            themed_qss(btn, lambda: base_style() + lock)
             btn.setFixedSize(w, h)
             btn.setMinimumSize(w, h)
             btn.setMaximumSize(w, h)
@@ -261,24 +288,24 @@ class FaultTestPanel(QWidget):
 
         self.start_test_btn = QPushButton("开始故障测试")
         self.start_test_btn.setEnabled(False)
-        _fix_btn(self.start_test_btn, BTN_PRIMARY)
+        _fix_btn(self.start_test_btn, btn_primary)
         btn_row.addWidget(self.start_test_btn)
 
         self.stop_test_btn = QPushButton("停止故障测试")
         self.stop_test_btn.setEnabled(False)
-        _fix_btn(self.stop_test_btn, BTN_WARNING)
+        _fix_btn(self.stop_test_btn, btn_warning)
         btn_row.addWidget(self.stop_test_btn)
 
         self.step_test_btn = QPushButton("单步测试")
         self.step_test_btn.setEnabled(False)
-        _fix_btn(self.step_test_btn, BTN_PRIMARY)
+        _fix_btn(self.step_test_btn, btn_primary)
         btn_row.addWidget(self.step_test_btn)
 
         self.verify_cfg_btn = QPushButton("验证配置")
         self.verify_cfg_btn.setToolTip(
             "合并配置：①CAN 信号回读协议（ID/位定义/DBC） ②故障期望值与额外回读"
         )
-        _fix_btn(self.verify_cfg_btn, BTN_PRIMARY)
+        _fix_btn(self.verify_cfg_btn, btn_primary)
         self.verify_cfg_btn.clicked.connect(self._open_verify_config)
         btn_row.addWidget(self.verify_cfg_btn)
 
@@ -296,7 +323,7 @@ class FaultTestPanel(QWidget):
         self.progress_bar.setMinimumHeight(22)
         self.progress_bar.setMaximumHeight(28)
         self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.progress_bar.setStyleSheet(
+        themed_qss(self.progress_bar, lambda: (
             f"""
             QProgressBar {{
                 border: 1px solid {COLORS['border']};
@@ -310,7 +337,7 @@ class FaultTestPanel(QWidget):
                 border-radius: 3px;
             }}
             """
-        )
+        ))
         outer.addWidget(self.progress_bar)
 
         # —— 状态信息横向排布：徽章 + 进度说明 + 统计，占满进度条下方一行 ——
@@ -320,20 +347,22 @@ class FaultTestPanel(QWidget):
         self.state_badge = QLabel("就绪")
         self.state_badge.setFixedSize(88, 24)  # 基准尺寸；长状态（如“清除所有故障中”）在 _set_state_badge 里按文字加宽防截断
         self.state_badge.setAlignment(Qt.AlignCenter)
-        self.state_badge.setStyleSheet(
-            f"background-color: {COLORS['border']}; color: {COLORS['text']}; "
-            f"border-radius: 3px; padding: 2px 6px; font-weight: bold; font-size: 12px;"
-        )
+        self._badge_args = None  # (状态名, 失败数)，首次 _set_state_badge 前为 None
+        self.state_badge.setStyleSheet(self._badge_qss())
         info_row.addWidget(self.state_badge)
 
-        # WrapLabel：文本超宽时换行显示全文（不吞字）；水平方向文本不参与布局宽度计算，防止进度刷新时整行抖动
-        self.progress_label = WrapLabel("状态=就绪 | 进度: 0/0 | —")
-        self.progress_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        # 状态信息：单行 + 超宽省略号（ElideRight）。此前用 WrapLabel 换行显示全文，
+        # 一旦行宽不足（窗口/面板偏窄、或文字变长）就折成两行，让"测试控制"整块在
+        # 测试中途变高、上下跳动。改为固定单行，超宽时末尾显示"…"，不再撑高布局。
+        # 注：QLabel 没有 setTextElideMode，用 _ElidedLabel 手动 elide。
+        self.progress_label = _ElidedLabel("状态=就绪 | 进度: 0/0 | —")
+        self.progress_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        themed_qss(self.progress_label, lambda: f"color: {COLORS['text_dim']}; font-size: 12px;")
         self.progress_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         info_row.addWidget(self.progress_label, 1)
 
         self.stat_label = QLabel("通过: 0  失败: 0  跳过: 0")
-        self.stat_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 12px;")
+        themed_qss(self.stat_label, lambda: f"color: {COLORS['text_dim']}; font-size: 12px;")
         self.stat_label.setWordWrap(False)
         # 固定宽度：统计数字增长/缩短时不再改变布局
         self.stat_label.setMinimumWidth(self.stat_label.fontMetrics().horizontalAdvance("通过: 000  失败: 000  跳过: 000") + 8)
@@ -375,11 +404,11 @@ class FaultTestPanel(QWidget):
             "故障名", "检查类型", "检查域", "期望值", "实际值", "状态", "备注"
         ])
         self.detail_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.detail_table.setStyleSheet(
+        themed_qss(self.detail_table, lambda: (
             table_qss()
             + "\nQTableWidget { font-size: 12px; }"
             + "\nQTableWidget::item { padding: 6px 8px; }"
-        )
+        ))
         LeftAlignDelegate.attach(self.detail_table, [0, 1, 6], self.detail_table)
         detail_layout.addWidget(self.detail_table)
         detail_group.setLayout(detail_layout)
@@ -556,14 +585,14 @@ class FaultTestPanel(QWidget):
 
             # 设置故障按钮
             inject_btn = QPushButton("设置故障")
-            inject_btn.setStyleSheet(BTN_PRIMARY)
+            themed_qss(inject_btn, btn_primary)
             inject_btn.setMinimumHeight(32)
             inject_btn.clicked.connect(lambda checked, f=fault: self._on_inject_single(f))
             self.fault_table.setCellWidget(i, 5, inject_btn)
 
             # 清除故障按钮
             clear_btn = QPushButton("清除故障")
-            clear_btn.setStyleSheet(BTN_WARNING)
+            themed_qss(clear_btn, btn_warning)
             clear_btn.setMinimumHeight(32)
             clear_btn.clicked.connect(lambda checked, f=fault: self._on_clear_single(f))
             self.fault_table.setCellWidget(i, 6, clear_btn)
@@ -856,6 +885,16 @@ class FaultTestPanel(QWidget):
             FaultDomain.SBCMU: sbcmu_addr,
         }
 
+        # 必须在 _spawn_step_worker（→ _clear_all_for_step）之前把地址下发到引擎：
+        # 单步的前置全清按 fault_engine.target_addresses 发清码帧，而地址原本只在
+        # 之后的 step_test_single() 里才被赋值，于是全清用的是引擎默认值 0x01
+        # （有效节点地址是 0xA1..0xA5 / 0xB1..0xB5），帧发给了不存在的节点，
+        # 旧故障清不掉，每次单步都从脏状态开始。
+        self.fault_engine.target_addresses = {
+            FaultDomain.NBCMU: nbcmu_addr,
+            FaultDomain.SBCMU: sbcmu_addr,
+        }
+
         total = len(self._step_fault_codes)
 
         # 同步是否读取对外报文选项
@@ -1051,6 +1090,14 @@ class FaultTestPanel(QWidget):
         passed = getattr(progress, "passed_count", 0) or 0
         failed = getattr(progress, "failed_count", 0) or 0
         skipped = getattr(progress, "skipped_count", 0) or 0
+
+        # 收尾状态（COMPLETED/FAILED）且引擎记录了中止原因 → 已在 _do_test_complete
+        # 之前到达终态的最后一帧：先按「中断/已停止」渲染，绝不出现「已完成 / 通过 0 失败 0」
+        unrun_kind, unrun_reason = self._unrun_reason()
+        if unrun_kind and state_name in ("已完成", "失败"):
+            self._render_unrun_state(unrun_kind, unrun_reason, min(current, total), total)
+            return
+
         self._set_state_badge(state_name, failed=failed)
 
         fault = getattr(progress, "current_fault", None)
@@ -1068,31 +1115,79 @@ class FaultTestPanel(QWidget):
             f"| 通过={passed} 失败={failed}"
         )
 
-    def _set_state_badge(self, state_name: str, failed: int = 0):
-        """阶段徽章配色：运行中蓝、失败红、完成绿、就绪灰"""
-        if state_name in ("失败",) or (failed > 0 and state_name == "已完成"):
-            bg, fg = COLORS.get("error", "#dc2626"), "#ffffff"
+    def _unrun_reason(self):
+        """
+        取取引擎记录的「本次运行未测任何故障码」的中止说明。
+        返回 (kind, reason)：kind = "stop"（用户停止）/ "abort"（失败中断）/ ""（无）
+        引擎只在准备阶段失败或收到停止请求时填充这两个字段，
+        空结果列表本身无法区分「全部通过」和「一条都没测」。
+        """
+        eng = getattr(self, "fault_engine", None)
+        if eng is None:
+            return "", ""
+        stop_reason = (getattr(eng, "stop_reason", "") or "").strip()
+        if stop_reason:
+            return "stop", stop_reason
+        abort_reason = (getattr(eng, "abort_reason", "") or "").strip()
+        if abort_reason:
+            return "abort", abort_reason
+        return "", ""
+
+    def _render_unrun_state(self, kind: str, reason: str, current: int, total: int,
+                            stat_text: Optional[str] = None):
+        """
+        「一个故障码都没测/未跑完」的展示：徽章为「中断」或「已停止」，
+        绝不显示成「已完成」；进度条保持真实进度，不补 100%。
+        """
+        state_name = "已停止" if kind == "stop" else "中断"
+        if stat_text is None:
+            stat_text = "已停止（未完成）" if kind == "stop" else "未测试任何故障码"
+        self._set_state_badge(state_name)
+        self.stat_label.setText(stat_text)
+        self.progress_label.setText(f"状态={state_name} | 进度: {current}/{total} | {reason}")
+
+    def _badge_qss(self) -> str:
+        """阶段徽章样式：运行中蓝、失败红、完成绿、停止橙、就绪灰（颜色随主题变化）"""
+        if self._badge_args is None:
+            return (
+                f"background-color: {COLORS['border']}; color: {COLORS['text']}; "
+                f"border-radius: 3px; padding: 2px 6px; font-weight: bold; font-size: 12px;"
+            )
+        state_name, failed = self._badge_args
+        if state_name in ("失败", "中断") or (failed > 0 and state_name == "已完成"):
+            bg, fg = COLORS["error"], "#ffffff"
         elif state_name == "已完成":
-            bg, fg = COLORS.get("success", "#059669"), "#ffffff"
+            bg, fg = COLORS["success"], "#ffffff"
         elif state_name == "已停止":
-            bg, fg = COLORS.get("warning", "#d97706"), "#ffffff"
+            bg, fg = COLORS["warning"], "#ffffff"
         elif state_name == "就绪":
-            bg, fg = COLORS.get("border", "#e5e7eb"), COLORS.get("text", "#111827")
+            bg, fg = COLORS["border"], COLORS["text"]
         else:
-            bg, fg = COLORS.get("accent", "#2563eb"), "#ffffff"
+            bg, fg = COLORS["accent"], "#ffffff"
+        return (
+            f"background-color: {bg}; color: {fg}; border-radius: 3px; "
+            f"padding: 4px 6px; font-weight: bold; font-size: 12px;"
+        )
+
+    def _set_state_badge(self, state_name: str, failed: int = 0):
+        """阶段徽章：文字 + 配色（配色见 _badge_qss）"""
+        self._badge_args = (state_name, failed)
         self.state_badge.setText(state_name)
         # 长状态超出 88px 会被截断（吞字）：按文字实际宽度加宽；仅状态切换时变化一次，进度刷新不抖动
         badge_w = max(88, self.state_badge.fontMetrics().horizontalAdvance(state_name) + 20)  # 文字 + 左右 padding 12 + 余量
         if self.state_badge.width() != badge_w:
             self.state_badge.setFixedWidth(badge_w)
-        style = (
-            f"background-color: {bg}; color: {fg}; border-radius: 3px; "
-            f"padding: 4px 6px; font-weight: bold; font-size: 12px;"
-        )
+        style = self._badge_qss()
         # 样式未变化时不重复 setStyleSheet，避免每次进度刷新都触发布局/重绘（抖动）
         if style != self._badge_style_cache:
             self.state_badge.setStyleSheet(style)
             self._badge_style_cache = style
+
+    def _on_theme_changed(self):
+        """切换主题：徽章、以及需要重画的表格/日志颜色"""
+        style = self._badge_qss()
+        self.state_badge.setStyleSheet(style)
+        self._badge_style_cache = style
 
     @pyqtSlot(object)
     def _do_test_result(self, result: TestResult):
@@ -1125,16 +1220,40 @@ class FaultTestPanel(QWidget):
         # 进度条保留显示，便于查看最终进度（与阈值测试一致）
         self.progress_bar.setVisible(True)
 
-        # 计算统计
+        # 计算统计（失败只算 FAIL，跳过单列，不再把「跳过」误计成失败）
         passed = sum(1 for r in results if r.overall_status == CheckStatus.PASS)
-        failed = len(results) - passed
+        failed = sum(1 for r in results if r.overall_status == CheckStatus.FAIL)
+        skipped = len(results) - passed - failed
 
         total = max(1, self.progress_bar.maximum())
+        current = min(self.progress_bar.value(), total)
+
+        # CAN 发送异常中断 / 用户停止：空结果列表不代表测试成功，
+        # 不补进度条、不写「已完成 / 通过 0 失败 0」，直接把原因摆到界面和日志里
+        unrun_kind, unrun_reason = self._unrun_reason()
+        if unrun_kind:
+            if unrun_kind == "stop":
+                self._render_unrun_state(
+                    unrun_kind, unrun_reason, current, total,
+                    stat_text=(f"通过: {passed}  失败: {failed}  跳过: {skipped}" if results else None),
+                )
+                self.log_message(
+                    f"测试已停止（未完成）: 已测={len(results)}, 通过={passed}, 失败={failed}。"
+                    f"原因: {unrun_reason}",
+                    "WARNING",
+                )
+            else:
+                self._render_unrun_state(unrun_kind, unrun_reason, current, total)
+                self.log_message(f"测试中断，未测试任何故障码。原因: {unrun_reason}", "ERROR")
+            self._report_batch_start_time = None
+            self.test_completed.emit(results)
+            return
+
         if self.progress_bar.value() < total:
             self.progress_bar.setValue(total)
         self.progress_bar.setFormat("100%")
         self._set_state_badge("已完成", failed=failed)
-        self.stat_label.setText(f"通过: {passed}  失败: {failed}  跳过: 0")
+        self.stat_label.setText(f"通过: {passed}  失败: {failed}  跳过: {skipped}")
         self.progress_label.setText(
             f"状态=已完成 | 进度: {self.progress_bar.value()}/{total} "
             f"| 通过={passed} 失败={failed}"
@@ -1204,6 +1323,8 @@ class FaultTestPanel(QWidget):
 
         timestamp = datetime.now().strftime("%H:%M:%S")
         log_msg = f"[{timestamp}] [{level}] {message}"
+        # 多行提示（如 CAN 发送失败的排查步骤）走 HTML 追加，需显式换行，否则会被折叠成一行
+        log_msg = log_msg.replace("\n", "<br/>")
 
         colors = {
             "INFO": COLORS['text'],
@@ -1213,7 +1334,11 @@ class FaultTestPanel(QWidget):
         }
 
         color = colors.get(level, COLORS['text'])
-        self.log_text.append(f'<font color="{color}">{log_msg}</font>')
+        # 普通信息与默认文字同色：不写死颜色，切换主题后旧日志仍看得清
+        if color == COLORS['text']:
+            self.log_text.append(log_msg)
+        else:
+            self.log_text.append(f'<font color="{color}">{log_msg}</font>')
 
         # 限制日志行数
         max_lines = 1000

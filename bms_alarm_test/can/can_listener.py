@@ -119,6 +119,13 @@ class CANListener:
         self._monitored_message_ids: Dict[CANChannel, Set[int]] = {}
         self._init_monitored_ids()
 
+        # 最近一次清缓存的时刻（time.time()，与 _recent_messages 里帧的 ts 同一时钟）：
+        # 故障注入前会先 clear_signal_cache()，回读兜底解码据此判断某帧是不是「本次注入之后」的帧
+        self._cache_cleared_at: Dict[CANChannel, float] = {
+            CANChannel.CH1: 0.0,
+            CANChannel.CH2: 0.0,
+        }
+
     def _init_monitored_ids(self) -> None:
         """按角色初始化各通道监控报文ID集合"""
         try:
@@ -203,8 +210,12 @@ class CANListener:
 
         self._listener_threads.clear()
         self._message_queues.clear()
+        # 停止时缓冲一并清空：清空后缓冲里只剩「停止之后」才可能写入的帧，
+        # 故同步推进清缓存时刻，避免回读兜底把停止前的残留帧当当前值
+        now = time.time()
         for ch in self._recent_messages:
             self._recent_messages[ch].clear()
+            self._cache_cleared_at[ch] = now
         logger.info("CAN监听器已停止")
 
     def set_stop(self) -> None:
@@ -467,13 +478,27 @@ class CANListener:
             return channel_cache.get(message_name, {}).copy()
 
     def clear_cache(self, channel: Optional[CANChannel] = None) -> None:
-        """清除信号缓存"""
+        """清除信号缓存
+
+        同时清空「最近报文环形缓冲」：该缓冲原本只在 stop() 时清空，
+        而 CANManager.read_signal_via_readback 兜底解码正是从这里取帧。
+        故障测试每次注入前调用本方法，若不清缓冲，兜底解码会拿到
+        上一次故障注入前/期间的残留帧，把旧值当成本次故障的当前值。
+        """
         with self._lock:
-            if channel:
-                self._signal_cache[channel].clear()
-            else:
-                for ch in self._signal_cache:
-                    self._signal_cache[ch].clear()
+            targets = [channel] if channel else list(self._signal_cache.keys())
+            now = time.time()
+            for ch in targets:
+                self._signal_cache[ch].clear()
+                # 兜底解码按时间戳过滤「清缓存之前」的帧（同一 time.time() 时钟）
+                self._cache_cleared_at[ch] = now
+                recent = self._recent_messages.get(ch)
+                if recent is not None:
+                    recent.clear()
+
+    def get_cache_cleared_at(self, channel: CANChannel) -> float:
+        """获取指定通道最近一次清缓存时刻（0.0 = 从未清过）"""
+        return self._cache_cleared_at.get(channel, 0.0)
 
     def is_running(self) -> bool:
         """检查是否在运行"""

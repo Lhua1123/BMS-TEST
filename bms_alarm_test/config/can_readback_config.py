@@ -30,6 +30,28 @@ def _hex_to_int(v: Any, default: int = 0) -> int:
         return default
 
 
+def _expand_addr_template(cid: str, idx: Optional[Union[int, str]]) -> str:
+    """展开 can_id 模板中的地址尾缀占位符 {addr}。
+
+    {addr} = 目标地址低字节的十六进制大写（NBCMU 基址 0xA0 + 簇序号）：
+    簇01 → "A1"、簇02 → "A2"，即 0x18B1FF{addr} → 0x18B1FFA1 / 0x18B1FFA2。
+    idx 为空/非法/越界（簇序号超出 1~15 地址尾缀范围）时不做替换，
+    保持改动前固定值 0x18B1FFA1 的行为（越界时宁可读不到也不读错簇）。
+
+    注意：can_id 不能写成 0x18B1FFA{idx} —— idx 是 "01"/"02" 这种两位字符串，
+    展开后是 0x18B1FFA01，不等于 0x18B1FFA1，会让原本正常的簇01兜底失效。
+    """
+    if not isinstance(cid, str) or "{addr}" not in cid:
+        return cid
+    try:
+        n = 1 if idx is None else int(str(idx))
+    except (TypeError, ValueError):
+        return cid
+    if not 1 <= n <= 15:
+        return cid
+    return cid.replace("{addr}", f"{0xA0 + n:02X}")
+
+
 def default_config() -> Dict[str, Any]:
     """默认回读协议（与当前程序内既有约定一致，可再改）"""
     return {
@@ -66,15 +88,20 @@ def default_config() -> Dict[str, Any]:
             "outer_warning": "OuterWarning",
         },
         # 信号定义：可增删改；name 支持 {idx} 占位（簇序号）
+        # 对内 SysFailSta/ErrTab 的 can_id 用 {addr} 占位（目标地址低字节，簇01→A1、簇02→A2），
+        # 否则写死 0x18B1FFA1 只对 A1 簇有效，簇02兜底会读到簇01的报文
         "signals": {
             "SysFailSta": {
                 "signal_name": "BMS_SysFailSta",
                 "message_name": "",
-                "can_id": "0x18B1FFA1",
+                # 权威来源 Ship_Two_5Cu12Pack_Matrix_Full_V1.91_20251207.dbc：
+                #   BO_ NBCMU0N_WarningInfo1 (DBC 0x98B1FFAx → 硬件 0x18B1FFAx) 内
+                #   SG_ NBCMU0N_SysFailSta : 9|2@0+  即 byte1 bit1..bit0（2bit）
+                "can_id": "0x18B1FF{addr}",
                 "is_extended": True,
                 "byte_order": "big_endian",
-                "start_bit": 7,
-                "length": 8,
+                "start_bit": 9,
+                "length": 2,
                 "factor": 1.0,
                 "offset": 0.0,
                 "channel_role": "inner",
@@ -84,10 +111,13 @@ def default_config() -> Dict[str, Any]:
             "ErrTab": {
                 "signal_name": "BMS_ErrTab",
                 "message_name": "",
-                "can_id": "0x18B1FFA1",
+                # ErrTab 在 WarningInfo2 里（不是 WarningInfo1），故 CAN ID 必须是 WarningInfo2 的：
+                #   BO_ NBCMU0N_WarningInfo2 (DBC 0x98BBFFAx → 硬件 0x18BBFFAx) 内
+                #   SG_ NBCMU0N_ErrTab : 7|8@0+  即 byte0 全部 8bit
+                "can_id": "0x18BBFF{addr}",
                 "is_extended": True,
                 "byte_order": "big_endian",
-                "start_bit": 23,
+                "start_bit": 7,
                 "length": 8,
                 "factor": 1.0,
                 "offset": 0.0,
@@ -98,11 +128,20 @@ def default_config() -> Dict[str, Any]:
             "OuterSysFailSta": {
                 "signal_name": "BMS_SysFailSta",
                 "message_name": "BMS_Msg01",
+                # TODO: 该 ID 疑为占位/固定值，未按簇地址变化，待核对外 DBC 后再改，勿猜改
+                # 已核对外 DBC（两份都核对，未改 ID，理由见下）：
+                #   对外通讯信号清单_..._CAN_V1.61(1128).dbc: BO_ BMS_Msg01 = 0x98A3F1A5 → 0x18A3F1A5
+                #   对外通讯信号清单_..._CAN_V1.71(0806).dbc: BO_ BMS01_Msg01 = 0x98A3F1A1 → 0x18A3F1A1
+                # 两份外 DBC 的尾缀不一致（A5 vs A1），而 settings.json 指向的是 V1.61，
+                # 代码侧 verifier._get_outer_message_id() / CANConstants.CH1_MONITORED_BASE_IDS
+                # 又统一用 0x18A3F100|簇地址 的基址形式，三者对不上。
+                # 属于「无法唯一确定」的情况，故保持原值不猜改，需要先统一外 DBC 选型。
+                # 位定义两份外 DBC 一致：SG_ BMS_SysFailSta : 21|2@0+（byte2 bit5..bit4，2bit）
                 "can_id": "0x18A3F100",
                 "is_extended": True,
                 "byte_order": "big_endian",
-                "start_bit": 7,
-                "length": 8,
+                "start_bit": 21,
+                "length": 2,
                 "factor": 1.0,
                 "offset": 0.0,
                 "channel_role": "outer",
@@ -112,16 +151,25 @@ def default_config() -> Dict[str, Any]:
             "OuterWarning": {
                 "signal_name": "BMS_NBCMU{idx}_Warning",
                 "message_name": "BMS_Msg15",
+                # TODO: 该 ID 疑为占位/固定值，未按簇地址变化，待核对外 DBC 后再改，勿猜改
+                # 同 OuterSysFailSta：外 DBC 尾缀 V1.61=A5 / V1.71=A1，代码侧基址 0x18B2F100，
+                # 三者对不上，保持原值不猜改。
+                # 位定义：外 DBC BMS_Msg15 里
+                #   SG_ BMS_NBCMU01_Warning : 1|2   SG_ BMS_NBCMU02_Warning : 3|2
+                #   SG_ BMS_NBCMU03_Warning : 5|2   SG_ BMS_NBCMU04_Warning : 7|2
+                # 起始位随簇序号变化（start_bit = 2*{idx} - 1），而本配置格式每条只能写一个
+                # 固定 start_bit，无法对所有簇同时成立；这里只对簇01（idx 为空时的默认值）正确，
+                # 其余簇需各自建条目或从 DBC 导入，勿以为一条配置通吃。
                 "can_id": "0x18B2F100",
                 "is_extended": True,
                 "byte_order": "big_endian",
-                "start_bit": 7,
-                "length": 8,
+                "start_bit": 1,
+                "length": 2,
                 "factor": 1.0,
                 "offset": 0.0,
                 "channel_role": "outer",
                 "source": "default",
-                "comment": "对外Warning汇总，{idx}=簇序号",
+                "comment": "对外Warning汇总，{idx}=簇序号（start_bit 需按 2*{idx}-1 调整）",
             },
         },
         # Excel/故障表 specific 信号名 → 覆盖定义（可为空，空则仍走 DBC 名解码）
@@ -310,8 +358,11 @@ class CanReadbackConfig:
 
     def parse_can_id(self, spec: Dict[str, Any], idx: Optional[Union[int, str]] = None) -> int:
         cid = spec.get("can_id", 0)
-        if isinstance(cid, str) and idx is not None:
-            cid = cid.replace("{idx}", str(idx))
+        if isinstance(cid, str):
+            # {addr}：地址尾缀占位（idx 为空时按簇01展开，与改动前固定值一致）
+            cid = _expand_addr_template(cid, idx)
+            if idx is not None:
+                cid = cid.replace("{idx}", str(idx))
         return _hex_to_int(cid)
 
     # ---------- DBC 导入 ----------

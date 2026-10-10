@@ -14,6 +14,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
 from shared.utils import infer_datatype, get_protocol_config_path
+from shared.style import COLORS
 
 
 class ProtocolConfigDialog(QDialog):
@@ -183,7 +184,7 @@ class ProtocolConfigDialog(QDialog):
                 item = QTableWidgetItem(str(eff_val).strip())
                 if read_only:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                    item.setForeground(QColor('#64748b'))
+                    item.setForeground(QColor(COLORS['text_dim']))
                 else:
                     item.setFlags(item.flags() | Qt.ItemIsEditable)
 
@@ -195,7 +196,7 @@ class ProtocolConfigDialog(QDialog):
 
                 if field != 'signal_name' and field != 'datatype':
                     if self._is_modified(sig_name, field):
-                        item.setBackground(QColor('#dbeafe'))
+                        item.setBackground(QColor(COLORS['selection']))
 
                 self.table.setItem(row_idx, col_idx, item)
         self.table.blockSignals(False)

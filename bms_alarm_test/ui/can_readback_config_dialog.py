@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 
 from PyQt5.QtCore import QEvent, QRect, QSize, Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QFontMetrics
+from shared.style import COLORS
 from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -61,10 +62,10 @@ class LeftAlignTableDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         painter.save()
         if option.state & QStyle.State_Selected:
-            painter.fillRect(option.rect, QColor("#3b82f6"))
+            painter.fillRect(option.rect, QColor(COLORS["accent_hover"]))
             painter.setPen(QColor("#ffffff"))
         else:
-            painter.setPen(QColor("#1f2937"))
+            painter.setPen(QColor(COLORS["list_text"]))
         painter.setFont(option.font)
         text = index.data(Qt.DisplayRole)
         text = "" if text is None else str(text)

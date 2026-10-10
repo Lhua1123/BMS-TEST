@@ -72,7 +72,7 @@ class TimingConstants:
     DEFAULT_INJECTION_DELAY_SEC = 1.5  # 注入后等待
     DEFAULT_CLEAR_DELAY_SEC = 0.3  # 清除后等待
     DEFAULT_CLEAR_CONFIRM_TIMEOUT_SEC = 5.0  # 清除确认超时
-    DEFAULT_VERIFICATION_TIMEOUT_SEC = 5.0  # 验证超时
+    DEFAULT_VERIFICATION_TIMEOUT_SEC = 10.0  # 验证超时（注入后首帧可能延迟：5s/8s 均出现过误报 实际值=None；实测故障20需约7s才生效）
 
     # 阈值测试时序
     BASELINE_READ_TIME_SEC = 2.0  # 基线读取时间

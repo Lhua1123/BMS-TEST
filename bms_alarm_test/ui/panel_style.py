@@ -7,38 +7,6 @@ from PyQt5.QtWidgets import QLabel, QSizePolicy
 from shared.style import COLORS
 from shared.style import combo_arrow_url, spin_up_arrow_url, spin_down_arrow_url
 
-class WrapLabel(QLabel):
-    """状态行标签：文本超宽时换行显示全文，不再静默截断（吞字）。
-
-    Qt5 的 QHBoxLayout/QGridLayout 的 sizeHint 不会按 heightForWidth 计算换行
-    高度（固定约两行），窄宽度下换行文字仍会被竖向裁剪。这里在文本或宽度
-    变化时同步设置最小高度，强制布局给足行高。
-    水平方向保持 QSizePolicy.Ignored：文本长短变化不参与布局宽度计算，
-    避免进度刷新时整行左右抖动。
-    """
-
-    def __init__(self, text: str = "", parent=None):
-        super().__init__(text, parent)
-        self.setWordWrap(True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-
-    def setText(self, text: str):
-        super().setText(text)
-        self._sync_min_height()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._sync_min_height()
-
-    def _sync_min_height(self):
-        w = self.width()
-        if w <= 0:  # 首次布局前宽度未知，等 resizeEvent 再同步
-            return
-        need = self.heightForWidth(w)
-        if need > 0 and need != self.minimumHeight():
-            self.setMinimumHeight(need)
-
 
 def button_fixed_size_qss(width: int, height: int) -> str:
     """强制按钮等宽等高（写入样式表，避免被 padding/字体撑开）"""
@@ -53,30 +21,46 @@ def button_fixed_size_qss(width: int, height: int) -> str:
 FAULT_CTRL_BTN_W = 132
 FAULT_CTRL_BTN_H = 34
 
-BTN_PRIMARY = (
-    f"background-color: {COLORS['accent']}; color: white; "
-    f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
-)
-BTN_WARNING = (
-    f"background-color: {COLORS['warning']}; color: white; "
-    f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
-)
-BTN_SUCCESS = (
-    f"background-color: {COLORS['success']}; color: white; "
-    f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
-)
-BTN_DANGER = (
-    f"background-color: {COLORS['error']}; color: white; "
-    f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
-)
-BTN_NEUTRAL = (
-    f"background-color: {COLORS['bg_input']}; color: {COLORS['text']}; "
-    f"padding: 3px 10px; border-radius: 3px; font-size: 12px; border: 1px solid {COLORS['border']}; "
-    f"text-align: left;"
-)
+# 按钮样式：都是函数，每次调用读取当前主题颜色（切换主题后重新生成）
+def btn_primary() -> str:
+    return (
+        f"background-color: {COLORS['accent']}; color: white; "
+        f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
+    )
 
-# 紧凑面板 QSS（应用于 QWidget）
-COMPACT_QSS = f"""
+
+def btn_warning() -> str:
+    return (
+        f"background-color: {COLORS['warning']}; color: white; "
+        f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
+    )
+
+
+def btn_success() -> str:
+    return (
+        f"background-color: {COLORS['success']}; color: white; "
+        f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
+    )
+
+
+def btn_danger() -> str:
+    return (
+        f"background-color: {COLORS['error']}; color: white; "
+        f"padding: 3px 10px; border-radius: 3px; font-size: 12px;"
+    )
+
+
+def btn_neutral() -> str:
+    return (
+        f"background-color: {COLORS['bg_input']}; color: {COLORS['text']}; "
+        f"padding: 3px 10px; border-radius: 3px; font-size: 12px; border: 1px solid {COLORS['border']}; "
+        f"text-align: left;"
+    )
+
+
+def compact_qss_template() -> str:
+    """紧凑面板 QSS 模板（应用于 QWidget）。占位符由 compact_qss() 替换。"""
+    return f"""
 QGroupBox {{
     font-size: 12px;
     font-weight: bold;
@@ -173,10 +157,10 @@ QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
 def compact_qss() -> str:
     """面板用 QSS：替换 SpinBox 箭头资源占位符。
 
-    COMPACT_QSS 直接 setStyleSheet 时占位符不会被全局 apply_style 替换，
+    compact_qss_template 直接 setStyleSheet 时占位符不会被全局 apply_style 替换，
     会导致上下箭头空白。必须经本函数解析后再应用。
     """
-    sheet = COMPACT_QSS
+    sheet = compact_qss_template()
     try:
         up = spin_up_arrow_url()
         down = spin_down_arrow_url()
@@ -215,10 +199,10 @@ class LeftAlignDelegate:
                 def paint(self, painter, option, index):
                     painter.save()
                     if option.state & QStyle.State_Selected:
-                        painter.fillRect(option.rect, QColor("#dbeafe"))
-                        painter.setPen(QColor("#1a202c"))
+                        painter.fillRect(option.rect, QColor(COLORS["selection"]))
+                        painter.setPen(QColor(COLORS["text"]))
                     else:
-                        painter.setPen(QColor("#1a202c"))
+                        painter.setPen(QColor(COLORS["text"]))
                     painter.setFont(option.font)
                     text = index.data(Qt.DisplayRole)
                     text = "" if text is None else str(text)

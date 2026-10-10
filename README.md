@@ -109,6 +109,24 @@ BMS测试-整合版/
 
 ## 架构设计
 
+### 启动流程（页面预建，主界面后出）
+
+启动阶段**先把所有功能页建完，再显示主界面**，因此进入主界面后任意页签都是现成页面，切换无需等待：
+
+1. `main()` 初始化 `QApplication`、应用样式、清理过期日志
+2. 显示 `StartupSplash` 启动进度窗（无边框、置顶、无按钮），显示"准备到第几页"
+3. `MainWindow` 构造期间同步建完 `TAB_SPECS` 中全部页面（QWidget 只能在 GUI 线程创建，故串行）
+4. 全部页面就绪后才 `showMaximized()` 显示主界面，随后关闭进度窗
+5. 主界面显示后做一次**离屏预热**：把非当前页各画一帧，付掉首次 layout+paint 开销（约 100ms/页）
+6. 进入事件循环
+
+关键约束：
+
+- 页签**没有**"未就绪禁止点击"的门槛——显示出来的那一刻就已经全部就绪
+- 某页构建失败只让该页显示错误占位（含「重新加载本页」重试），其它页不受影响
+- 预热用 `grab()` 离屏绘制，**全程不改变 currentIndex**，用户看不到任何自动翻页
+- 启动进度窗是必需的：建页是几秒钟的纯 GUI 线程工作，若无可见反馈会被误判成"点了没反应"而强杀
+
 ### Tab 隔离原则
 
 每个标签页都是**完全独立**的 `QWidget` 子类：
@@ -122,11 +140,19 @@ BMS测试-整合版/
 
 1. 在 `tabs/` 下创建新文件，如 `tabs/my_feature_tab.py`
 2. 实现继承 `QWidget` 的类，在 `__init__` 中完成所有 UI 和业务初始化
-3. 在 `main.py` 中导入并添加：
+3. 在 `main.py` 中加一个工厂函数并登记到 `TAB_SPECS`：
    ```python
-   from tabs.my_feature_tab import MyFeatureTab
-   self.tab_widget.addTab(MyFeatureTab(), "我的功能")
+   def _make_tab_my_feature():
+       from tabs.my_feature_tab import MyFeatureTab
+       return MyFeatureTab()
+
+   TAB_SPECS = [
+       # ...
+       ("my_feature", "我的功能", _make_tab_my_feature),
+   ]
    ```
+   导入写在工厂函数内部，页签栏由 `MainWindow` 按 `TAB_SPECS` 统一排定；
+   新页会在启动阶段被一并建好，无需改动其它 Tab。
 4. **不需要修改任何现有 Tab 的代码**
 
 ### 开发约束

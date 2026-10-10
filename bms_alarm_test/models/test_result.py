@@ -7,6 +7,10 @@ from typing import List, Dict, Any, Optional
 from enum import Enum
 from datetime import datetime
 
+# 回读超时所属的通道角色（Check.timed_out_scope 的取值）
+READBACK_SCOPE_INNER = "inner"  # 对内通道：注入故障报文 + 读对内信号
+READBACK_SCOPE_OUTER = "outer"  # 对外通道：只读 BMS 对外响应
+
 
 class CheckType(Enum):
     """检查类型"""
@@ -62,6 +66,15 @@ class Check:
     
     def __post_init__(self):
         """后初始化处理"""
+        # 回读超时标记：True 表示信号在超时时间内始终未达到期望值。
+        # 刻意独立于 status（超时仍是 FAILED），否则批量统计只认 PASS/FAIL，
+        # 会把真实失败悄悄归入「跳过」。仅用于判断是否值得重新注入复验。
+        self.timed_out: bool = False
+        # 超时发生在哪个通道上（_wait_for_signal 实际传入的通道号，1/2）。
+        # 对内/对外的角色可由界面互换（对内=CH2、对外=CH1 也常见），不能靠通道号
+        # 反推角色，所以同时用 timed_out_scope 记录角色标签。
+        self.timed_out_channel: Optional[int] = None
+        self.timed_out_scope: Optional[str] = None  # "inner" / "outer" / None(未知)
         if self.tolerance is not None and self.tolerance < 0:
             raise ValueError("容差必须为非负数")
     
@@ -248,6 +261,29 @@ class TestResult:
     def get_total_count(self) -> int:
         """获取总检查数量"""
         return len(self.checks)
+    
+    def has_readback_timeout(self) -> bool:
+        """本轮验证是否存在回读超时（区别于值不匹配），不区分通道"""
+        return any(getattr(c, "timed_out", False) for c in self.checks)
+
+    def has_inner_readback_timeout(self) -> bool:
+        """
+        本轮验证是否存在「对内通道」回读超时 —— 重新注入复验的唯一触发条件。
+
+        对外通道回读超时不算：对外线没接/台架上对外通道一帧不发时，对外检查必然
+        全部超时，但那是接线条件，重新注入对内故障报文根本改变不了任何东西，
+        只会让每个故障都多跑一轮验证、多发一遍故障帧。
+        旧 Check 若带 timed_out 但没有通道信息，按对内处理（保持原有行为）。
+        """
+        for c in self.checks:
+            if not getattr(c, "timed_out", False):
+                continue
+            scope = getattr(c, "timed_out_scope", None)
+            if scope == READBACK_SCOPE_INNER:
+                return True
+            if scope is None and getattr(c, "timed_out_channel", None) is None:
+                return True  # 老对象无通道信息：沿用「有回读超时就复验」
+        return False
     
     def get_pass_rate(self) -> float:
         """获取通过率"""

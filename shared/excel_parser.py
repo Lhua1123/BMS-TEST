@@ -11,10 +11,10 @@ from shared.utils import infer_datatype
 
 
 # ── 通用枚举（模块级，供 _assign_signal_enum 与导出共用）──
-ALARM_LEVEL_ENUM = {0: "无报警", 1: "一级报警", 2: "二级报警", 3: "三级报警"}
-BINARY_ALARM_ENUM = {0: "正常", 1: "报警"}
+ALARM_LEVEL_ENUM = {0: "正常", 1: "一级报警", 2: "二级报警", 3: "三级报警"}
+BINARY_ALARM_ENUM = {0: "正常", 1: "故障"}
 BINARY_FAULT_ENUM = {0: "正常", 1: "故障"}
-RELAY_FAULT_ENUM = {0: "无报警", 1: "开路", 2: "粘连", 3: "预留"}
+RELAY_FAULT_ENUM = {0: "正常", 1: "开路", 2: "粘连", 3: "预留"}
 RELAY_STATE_ENUM = {0: "断开", 1: "闭合"}
 CHRG_GUN_ENUM = {0: "未插入", 1: "已插入"}
 INSULATION_ENUM = {0: "正/负对地相等", 1: "正对地绝缘电阻小", 2: "负对地绝缘电阻小"}
@@ -62,7 +62,8 @@ def _is_relay_alarm_name(sig_name: str) -> bool:
 
 def _is_alarm_like_name(sig_name: str) -> bool:
     """名称像报警/故障位的信号"""
-    keys = ('告警', '报警', '过放', '过充', '过温', '故障')
+    keys = ('告警', '报警', '过放', '过充', '过温', '故障',
+            '丢失', '失败', '异常', '保护', '急停', '一致性', '通讯')
     return any(k in sig_name for k in keys)
 
 
@@ -78,10 +79,10 @@ def _assign_signal_enum(sig_name: str, description: str, bit_length: int,
                         special_enums: dict):
     """
     统一给信号挂枚举：
-    - 等级类(2-bit)：无报警/一级报警/二级报警/三级报警（忽略不完整的描述枚举）
-    - 二值报警(1-bit)：正常/报警
+    - 等级类(2-bit)：正常/一级报警/二级报警/三级报警（忽略不完整的描述枚举）
+    - 二值报警(1-bit)：正常/故障（无分级统一显示为故障）
     - 二值故障(1-bit)：正常/故障
-    - 接触器故障：无报警/开路/粘连/预留
+    - 接触器/继电器故障：正常/开路/粘连/预留
     - 其它：优先完整描述枚举
     """
     if sig_name in special_enums:

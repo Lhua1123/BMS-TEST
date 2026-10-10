@@ -508,10 +508,33 @@ class CANManager:
             msgs = self.get_recent_messages(channel, 300)
         except Exception:
             return None
+        # 兜底解码只认「最近一次清缓存之后」收到的帧。
+        # 故障测试每次注入前都调用 clear_signal_cache()，若把清缓存之前捕获的帧
+        # 当成当前值，就会读到上一轮故障的残留状态（清缓存本身已清空环形缓冲，
+        # 这里再按监听器记录的时刻过滤一次，作为兜底的第二道保险）。
+        cleared_at = 0.0
+        try:
+            if self._listener:
+                can_channel = CANChannel.CH1 if channel == 1 else CANChannel.CH2
+                cleared_at = float(self._listener.get_cache_cleared_at(can_channel) or 0.0)
+        except Exception:
+            cleared_at = 0.0
         mask = 0x1FFFFFFF
         for m in reversed(msgs):
+            # get_recent_messages() 返回的是 RuntimeCANMessage（ID 字段叫 message_id），
+            # 只有底层 python-can 报文才叫 arbitration_id；两种都认，
+            # 否则这里永远取不到 ID，兜底解码等于从不生效。
             mid = getattr(m, "arbitration_id", None)
             if mid is None:
+                mid = getattr(m, "message_id", None)
+            if mid is None:
+                continue
+            ts = getattr(m, "timestamp", None)
+            if cleared_at > 0.0 and (ts is None or float(ts) < cleared_at):
+                # 清缓存之前收到的帧：一律跳过，不作为当前值
+                logger.debug(
+                    f"回读跳过清缓存前的报文: ID=0x{mid:08X} ts={ts} < cleared_at={cleared_at}"
+                )
                 continue
             if (mid & mask) == (can_id & mask) or mid == can_id:
                 data = getattr(m, "data", b"")
@@ -531,7 +554,11 @@ class CANManager:
         return self._listener.wait_for_signal_change(can_channel, message_name, signal_name, old_value, timeout)
 
     def clear_signal_cache(self, channel: Optional[int] = None) -> None:
-        """清除信号缓存"""
+        """清除信号缓存
+
+        同时清空监听器的「最近报文环形缓冲」并推进清缓存时刻，
+        使 read_signal_via_readback 兜底解码不会再取到清缓存之前的残留帧。
+        """
         if self._listener:
             can_channel = None
             if channel:

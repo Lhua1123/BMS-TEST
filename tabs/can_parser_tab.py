@@ -16,7 +16,7 @@ from PyQt5.QtGui import QFont
 
 from convert_ascii.core.converter import ASCIIConverter
 from convert_ascii.bms.bms_formatter import BMSFormatter
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 
 
 class CanParserTab(QWidget):
@@ -69,7 +69,7 @@ class CanParserTab(QWidget):
         row_id = QHBoxLayout()
         row_id.addWidget(QLabel("CAN ID:"))
         self.txt_can_id = QLineEdit()
-        self.txt_can_id.setStyleSheet(f"""
+        themed_qss(self.txt_can_id, lambda: f"""
             QLineEdit {{
                 background-color: {COLORS['bg_panel']};
                 color: {COLORS['text']};
@@ -89,7 +89,7 @@ class CanParserTab(QWidget):
 
         row_id.addWidget(QLabel("十六进制数据:"))
         self.txt_can_data = QLineEdit()
-        self.txt_can_data.setStyleSheet(f"""
+        themed_qss(self.txt_can_data, lambda: f"""
             QLineEdit {{
                 background-color: {COLORS['bg_panel']};
                 color: {COLORS['text']};
@@ -119,7 +119,7 @@ class CanParserTab(QWidget):
 
         self.txt_parse_result = QTextEdit()
         self.txt_parse_result.setReadOnly(True)
-        self.txt_parse_result.setStyleSheet(f"""
+        themed_qss(self.txt_parse_result, lambda: f"""
             QTextEdit {{
                 background-color: {COLORS['bg_panel']};
                 color: {COLORS['text']};
@@ -142,6 +142,35 @@ class CanParserTab(QWidget):
         self.btn_import_dbc.clicked.connect(self._on_import_dbc)
         self.btn_remove_dbc.clicked.connect(self._on_remove_dbc)
         self.btn_copy_parse.clicked.connect(self._on_copy_parse)
+
+        # 结果区 HTML 里的颜色随主题变化：保存未渲染颜色的原始 HTML，切换时重画
+        self._result_html = None
+        on_theme_changed(self._on_theme_changed)
+
+    # 结果 HTML 里的颜色占位符 -> 当前主题颜色（浅色时与原先写死的值一致）
+    _HTML_TOKENS = {
+        '__HTML_TH__': ('html_th', '#f0f0f0'),
+        '__HTML_BOX__': ('html_box', '#fafafa'),
+        '__HTML_BORDER__': ('html_border', '#ccc'),
+        '__HTML_MUTED__': ('html_muted', '#666'),
+        '__HTML_OK__': ('html_ok', '#0a0'),
+    }
+
+    def _show_result(self, html: str):
+        """显示解析结果（保存未着色的 HTML，便于切换主题后重画）"""
+        self._result_html = html
+        self._render_result()
+
+    def _render_result(self):
+        if self._result_html is None:
+            return
+        html = self._result_html
+        for token, (key, light) in self._HTML_TOKENS.items():
+            html = html.replace(token, COLORS.get(key, light))
+        self.txt_parse_result.setHtml(html)
+
+    def _on_theme_changed(self):
+        self._render_result()
 
     def _update_parse_button(self):
         """只有 CAN ID 和数据都有内容时才启用解析按钮"""
@@ -171,7 +200,7 @@ class CanParserTab(QWidget):
                         html += f"<p>🔢 CAN ID: {dbc_result.get('CAN ID', can_id)}</p>"
                         if dbc_result.get('信号列表'):
                             html += '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">'
-                            html += '<tr style="background-color: #f0f0f0;"><th>信号名</th><th>值</th><th>注释</th></tr>'
+                            html += '<tr style="background-color: __HTML_TH__;"><th>信号名</th><th>值</th><th>注释</th></tr>'
                             for sig in dbc_result['信号列表']:
                                 unit = f" ({sig['单位']})" if sig['单位'] else ""
                                 comment = sig['注释'] if sig['注释'] else ""
@@ -180,7 +209,7 @@ class CanParserTab(QWidget):
                         else:
                             html += "<p>（该消息无信号定义）</p>"
 
-                        self.txt_parse_result.setHtml(html)
+                        self._show_result(html)
                         return
                     else:
                         dbc_tip = dbc_result.get('提示', 'DBC 中未找到该 ID')
@@ -188,11 +217,11 @@ class CanParserTab(QWidget):
                 # 回退到原有解析
                 result = self.bms_formatter.parse_can_id(can_id)
                 if '错误' in result:
-                    self.txt_parse_result.setHtml(f"<p>❌ {result['错误']}</p>")
+                    self._show_result(f"<p>❌ {result['错误']}</p>")
                     return
 
                 html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">'
-                html += '<tr style="background-color: #f0f0f0;"><th>项目</th><th>值</th></tr>'
+                html += '<tr style="background-color: __HTML_TH__;"><th>项目</th><th>值</th></tr>'
                 for key in ['原始值', '十六进制', '十进制', '二进制', '八进制',
                              'ID前缀', 'SA地址', 'PF(PDU格式)', 'PS(PDU特定)',
                              'PGN(参数组)', '优先级', 'DP']:
@@ -206,7 +235,7 @@ class CanParserTab(QWidget):
                     if 'dbc_tip' in locals():
                         html += f"<p>提示: {dbc_tip}</p>"
 
-                self.txt_parse_result.setHtml(html)
+                self._show_result(html)
                 return
 
             # 有数据时执行数据解析（ID 可选）
@@ -237,7 +266,7 @@ class CanParserTab(QWidget):
                         html += '<h4>信号概览</h4>'
                         html += '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size:12pt;">'
                         html += (
-                            '<tr style="background-color: #f0f0f0;">'
+                            '<tr style="background-color: __HTML_TH__;">'
                             '<th>信号名</th><th>值</th><th>单位</th>'
                             '<th>Start</th><th>长度</th><th>字节序</th>'
                             '<th>涉及字节</th><th>原始值</th><th>注释</th></tr>'
@@ -262,7 +291,7 @@ class CanParserTab(QWidget):
 
                         html += '<h4>逐步计算过程</h4>'
                         html += (
-                            '<p style="font-size:11pt;color:#666;">'
+                            '<p style="font-size:11pt;color:__HTML_MUTED__;">'
                             '小端Intel(@1+)：start为LSB，bit号=字节序×8+位内偏移(LSB=0)，从低位向高位拼。'
                             '大端Motorola(@0+)：start为MSB，先换算顺序位号，再MSB优先拼装。'
                             '物理值 = 原始整数 × 系数 + 偏移。</p>'
@@ -270,10 +299,10 @@ class CanParserTab(QWidget):
                         for sig in dbc_result['信号列表']:
                             html += (
                                 f'<div style="margin:10px 0;padding:10px 12px;'
-                                f'border:1px solid #ccc;border-radius:6px;background:#fafafa;'
+                                f'border:1px solid __HTML_BORDER__;border-radius:6px;background:__HTML_BOX__;'
                                 f'font-size:12pt;">'
                                 f'<div style="font-weight:bold;margin-bottom:6px;font-size:12pt;">'
-                                f'{sig["信号名"]} → <span style="color:#0a0;">{sig["值"]}'
+                                f'{sig["信号名"]} → <span style="color:__HTML_OK__;">{sig["值"]}'
                                 f'{(" " + sig["单位"]) if sig.get("单位") else ""}</span></div>'
                             )
                             for step in sig.get('计算步骤', []):
@@ -283,14 +312,14 @@ class CanParserTab(QWidget):
                                 )
                             html += '</div>'
 
-                        self.txt_parse_result.setHtml(html)
+                        self._show_result(html)
                         return
 
                     # DBC 未命中/出错：明确提示后回退原始字节解析
                     fail_tip = dbc_result.get('错误') or dbc_result.get('提示') or 'DBC 中未找到该 CAN ID'
                     result = self.bms_formatter.parse_can_data(can_data)
                     if '错误' in result:
-                        self.txt_parse_result.setHtml(
+                        self._show_result(
                             f"<p>❌ DBC: {fail_tip}</p><p>❌ 原始解析: {result['错误']}</p>"
                         )
                         return
@@ -299,17 +328,17 @@ class CanParserTab(QWidget):
                     html += f"<p>⚠️ {fail_tip}</p>"
                     html += f"<p>CAN ID: {can_id} | 字节数: {result['字节数']} | 数据: <code>{result.get('格式化十六进制', result['原始数据'])}</code></p>"
                     html += '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size:12pt;">'
-                    html += '<tr style="background-color: #f0f0f0;"><th>索引</th><th>十六进制</th><th>十进制</th><th>二进制</th><th>ASCII</th></tr>'
+                    html += '<tr style="background-color: __HTML_TH__;"><th>索引</th><th>十六进制</th><th>十进制</th><th>二进制</th><th>ASCII</th></tr>'
                     for b in result.get('字节详情', []):
                         html += f"<tr><td>{b['索引']}</td><td>{b['十六进制']}</td><td>{b['十进制']}</td><td>{b['二进制']}</td><td>{b['ASCII']}</td></tr>"
                     html += '</table>'
-                    self.txt_parse_result.setHtml(html)
+                    self._show_result(html)
                     return
 
                 # 未加载 DBC 或未填 CAN ID：原有字节解析
                 result = self.bms_formatter.parse_can_data(can_data)
                 if '错误' in result:
-                    self.txt_parse_result.setHtml(f"<p>❌ {result['错误']}</p>")
+                    self._show_result(f"<p>❌ {result['错误']}</p>")
                     return
 
                 html = f"<h3>📦 原始数据: {result.get('格式化十六进制', result['原始数据'])}</h3>"
@@ -320,7 +349,7 @@ class CanParserTab(QWidget):
                     rows += f"<tr><td>{b['索引']}</td><td>{b['十六进制']}</td><td>{b['十进制']}</td><td>{b['二进制']}</td><td>{b['ASCII']}</td></tr>"
 
                 html += '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">'
-                html += '<tr style="background-color: #f0f0f0;"><th>索引</th><th>十六进制</th><th>十进制</th><th>二进制</th><th>ASCII</th></tr>'
+                html += '<tr style="background-color: __HTML_TH__;"><th>索引</th><th>十六进制</th><th>十进制</th><th>二进制</th><th>ASCII</th></tr>'
                 html += rows
                 html += '</table>'
 
@@ -337,10 +366,10 @@ class CanParserTab(QWidget):
                     for line in combo:
                         html += f"<p>{line}</p>"
 
-                self.txt_parse_result.setHtml(html)
+                self._show_result(html)
 
         except Exception as e:
-            self.txt_parse_result.setHtml(f"<p>❌ 解析异常: {str(e)}</p>")
+            self._show_result(f"<p>❌ 解析异常: {str(e)}</p>")
 
     def _on_copy_parse(self):
         text = self.txt_parse_result.toPlainText()
@@ -379,11 +408,11 @@ class CanParserTab(QWidget):
                     )
             else:
                 detail = "\n".join(errors) if errors else "未知错误，请检查文件格式"
-                self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败:</p><p>{detail}</p>")
+                self._show_result(f"<p>❌ 导入DBC失败:</p><p>{detail}</p>")
                 QMessageBox.critical(self, "导入失败", detail)
         except Exception as e:
             detail = str(e)
-            self.txt_parse_result.setHtml(f"<p>❌ 导入DBC失败: {detail}</p>")
+            self._show_result(f"<p>❌ 导入DBC失败: {detail}</p>")
             QMessageBox.critical(self, "导入失败", detail)
 
     def _on_remove_dbc(self):

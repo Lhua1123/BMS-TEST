@@ -23,7 +23,7 @@ from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QModelIndex, QEvent
 from PyQt5.QtGui import QFont, QColor, QFontMetrics
 
 from tabs.protocol_config_dialog import ProtocolConfigDialog
-from shared.style import COLORS, FONTS
+from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 from shared.modbus_comm import ModbusComm
 from shared.modbus_parser import parse_read_response, parse_batch_response
 from shared.constants import (
@@ -35,6 +35,23 @@ from shared.constants import (
 from shared.utils import get_protocol_config_path
 
 logger = logging.getLogger(__name__)
+
+try:  # sip 用于判断 C++ 对象是否已销毁，导入失败时降级为 try/except 守卫
+    from PyQt5 import sip
+except Exception:  # pragma: no cover
+    sip = None
+
+
+def _qobj_is_deleted(obj) -> bool:
+    """判断 Qt 对象的底层 C++ 对象是否已销毁（无法判断时返回 False，由调用方 try/except 兜底）"""
+    if obj is None:
+        return True
+    if sip is None:
+        return False
+    try:
+        return bool(sip.isdeleted(obj))
+    except Exception:
+        return False
 
 
 class _SignalTableColumnFilter(QObject):
@@ -48,12 +65,21 @@ class _SignalTableColumnFilter(QObject):
         table.viewport().installEventFilter(self)
 
     def eventFilter(self, watched, event):
-        if watched is self._table.viewport() and event.type() in (QEvent.Resize, QEvent.Show):
-            if not self._pending:
-                self._pending = True
-                # 合并同帧多次 resize，避免抖动
-                QTimer.singleShot(0, self._do_reflow)
-        return super().eventFilter(watched, event)
+        # 事件回调中绝不允许异常逃逸（逃逸会导致 PyQt qFatal abort 整个进程）
+        try:
+            # 表格/过滤器自身 C++ 对象可能已销毁（removeTab 清理或退出析构顺序）
+            if _qobj_is_deleted(self) or _qobj_is_deleted(self._table):
+                return False
+            if _qobj_is_deleted(watched):
+                return False
+            if watched is self._table.viewport() and event.type() in (QEvent.Resize, QEvent.Show):
+                if not self._pending:
+                    self._pending = True
+                    # 合并同帧多次 resize，避免抖动
+                    QTimer.singleShot(0, self._do_reflow)
+            return super().eventFilter(watched, event)
+        except Exception:
+            return False
 
     def _do_reflow(self):
         self._pending = False
@@ -68,6 +94,29 @@ class SignalEmitter(QObject):
     data_updated = pyqtSignal()
     connection_changed = pyqtSignal(bool)
     error_occurred = pyqtSignal(str)
+
+
+def _signal_table_qss() -> str:
+    """信号表格样式（网格线颜色随主题变化）"""
+    return f"""
+                QTableWidget {{
+                    gridline-color: {COLORS['border']};
+                    padding: 0px;
+                    margin: 0px;
+                    font-size: 10pt;
+                }}
+                QTableWidget::item {{
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    margin: 0px;
+                    font-size: 10pt;
+                }}
+                QTableWidget::item:selected {{
+                    padding-left: 8px;
+                }}
+            """
 
 
 class SignalNameDelegate(QStyledItemDelegate):
@@ -89,6 +138,99 @@ class SignalNameDelegate(QStyledItemDelegate):
             super().paint(painter, option, index)
 
 
+class AlarmColorDelegate(QStyledItemDelegate):
+    """物理值列(第6列)专用：选中态仍保留报警等级色，只覆盖文字色。
+
+    背景保持默认选中蓝底，未选中/非报警文本走父类默认绘制
+    （未选中时的颜色靠 _update_display() 的 setForeground 兜底）。
+    高频 paint，只做 _normalize_alarm_text + _alarm_color 两次轻量判断。
+    """
+
+    def paint(self, painter, option, index):
+        try:
+            raw = index.data(Qt.DisplayRole)
+            # 信号名未知：传空串，不依赖信号名，第6列凡是匹配到等级/故障文本就染色
+            norm = _normalize_alarm_text(raw, "", False)
+            fg = _alarm_color(norm)
+        except Exception:
+            fg = None
+        if fg is None:
+            super().paint(painter, option, index)
+            return
+        if not (option.state & QStyle.State_Selected):
+            # 未选中：沿用 model 的 Foreground（_update_display 已设置），走默认绘制
+            super().paint(painter, option, index)
+            return
+        # 选中 + 报警文本：蓝底上用等级色写字，绕开 QSS 的 color:#fff
+        painter.save()
+        painter.fillRect(option.rect, QColor(COLORS['accent']))
+        painter.setPen(fg)
+        painter.setFont(option.font)
+        text = index.data(Qt.DisplayRole)
+        if text is None:
+            text = ""
+        else:
+            text = str(text)
+        painter.drawText(option.rect, Qt.AlignCenter, text)
+        painter.restore()
+
+
+# ── 报警状态统一显示：正常 / 一级报警(琥珀黄) / 二级报警(橙) / 三级报警·故障(红) ──
+# 兼容老 protocol_config（内含旧枚举文本"无报警"/"报警"），显示时归一化并按等级染色。
+# 报警颜色取自 COLORS（alarm_l1/l2/l3），随浅色/深色主题变化
+
+# 仅报警/故障类信号名才做数字归一化，避免误伤电压/温度等数值信号
+# 注：“与PMS/EMS通讯丢失”这类名不含报警/故障关键字，靠告警分组兜底（见 _ALARM_TAB_NAMES）
+_ALARM_NUMERIC_NAME_KEYS = ('告警', '报警', '过放', '过充', '过温', '故障', '继电器', '接触器',
+                            '丢失', '失败', '异常', '保护', '急停', '一致性', '通讯')
+_ALARM_TAB_NAMES = ('告警', '告警状态', '故障状态', '故障信息')
+
+
+def _normalize_alarm_text(text, signal_name="", is_alarm_tab=False):
+    """归一化报警显示文本（兼容老配置里的旧枚举文本）。
+
+    - "无报警" -> "正常"；单个"报警"(exact) -> "故障"
+    - 数字 0（int 0 或 "0"）且在告警分组或信号名像报警/故障位 -> "正常"；
+      数字非 0 且在告警分组或信号名像报警/故障位 -> "故障"
+    - 非报警类信号的数字原样返回（不动电压/温度等数值）
+    """
+    name = signal_name or ""
+    is_alarm = is_alarm_tab or any(k in name for k in _ALARM_NUMERIC_NAME_KEYS)
+    if isinstance(text, bool):
+        return text
+    if isinstance(text, int):
+        if is_alarm:
+            return "正常" if text == 0 else "故障"
+        return text
+    if isinstance(text, str):
+        s = text.strip()
+        if s == "无报警":
+            return "正常"
+        if s == "报警":
+            return "故障"
+        if s.lstrip("+-").isdigit():
+            if is_alarm:
+                try:
+                    num = int(s)
+                except ValueError:
+                    return s
+                return "正常" if num == 0 else "故障"
+        return s
+    return text
+
+
+def _alarm_color(display_text):
+    """报警文本 -> 前景色；正常/其他 -> None（调用方需显式恢复默认色）"""
+    s = display_text.strip() if isinstance(display_text, str) else str(display_text)
+    if s == "一级报警":
+        return QColor(COLORS['alarm_l1'])
+    if s == "二级报警":
+        return QColor(COLORS['alarm_l2'])
+    if s in ("三级报警", "故障", "开路", "粘连", "报警"):
+        return QColor(COLORS['alarm_l3'])
+    return None
+
+
 class BmsMonitorTab(QWidget):
     """BMS监控Tab - 支持L2/L3"""
 
@@ -104,6 +246,9 @@ class BmsMonitorTab(QWidget):
         self.comm = ModbusComm()
         self.parsed_data = {}
         self.register_values = {}
+        # 本页面（切换后）已真正读到的信号名 / 寄存器地址；未读到的一律显示 "--"
+        self._fresh_names = set()
+        self._fresh_addrs = set()
         self.signal_info = {}
         self.is_polling = False
         self.tab_tables = {}
@@ -345,6 +490,15 @@ class BmsMonitorTab(QWidget):
 
         main_layout.addWidget(splitter)
 
+        # 切换浅色/深色时，重画报警色、寄存器视图等不走样式表的颜色
+        on_theme_changed(self._on_theme_changed)
+
+    def _on_theme_changed(self):
+        if hasattr(self, 'reg_text'):
+            self._update_reg_display()
+        if hasattr(self, 'tab_tables'):
+            self._update_display()
+
     def _create_left_panel(self):
         panel = QWidget()
         layout = QVBoxLayout(panel)
@@ -499,9 +653,9 @@ class BmsMonitorTab(QWidget):
 
         self.status_indicator = QLabel()
         self.status_indicator.setFixedSize(16, 16)
-        self.status_indicator.setStyleSheet(
-            f"background-color: gray; border-radius: 8px;"
-        )
+        # None=尚未有连接状态变化（初始灰点）；True/False=已连接/未连接
+        self._link_state = None
+        themed_qss(self.status_indicator, self._indicator_qss)
         stats_layout.addWidget(self.status_indicator)
 
         clear_btn = QPushButton("清空日志")
@@ -642,28 +796,12 @@ class BmsMonitorTab(QWidget):
             table.setSelectionBehavior(QTableWidget.SelectRows)
             table.setEditTriggers(QTableWidget.NoEditTriggers)
             table.verticalHeader().setVisible(False)
-            table.setStyleSheet(f"""
-                QTableWidget {{
-                    gridline-color: {COLORS['border']};
-                    padding: 0px;
-                    margin: 0px;
-                    font-size: 10pt;
-                }}
-                QTableWidget::item {{
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-                    padding-left: 8px;
-                    padding-right: 8px;
-                    margin: 0px;
-                    font-size: 10pt;
-                }}
-                QTableWidget::item:selected {{
-                    padding-left: 8px;
-                }}
-            """)
+            themed_qss(table, _signal_table_qss)
 
             # 信号名列左对齐，其余列居中
             table.setItemDelegateForColumn(0, SignalNameDelegate(table))
+            # 物理值列(第6列)选中态仍保留报警等级色，不影响其他列
+            table.setItemDelegateForColumn(6, AlarmColorDelegate(table))
             self._setup_signal_table_columns(table, len(columns))
 
             table.setRowCount(len(signals))
@@ -707,7 +845,7 @@ class BmsMonitorTab(QWidget):
 
         self.notebook = QTabWidget()
         self.notebook.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.notebook.setStyleSheet(f"""
+        themed_qss(self.notebook, lambda: f"""
             QTabWidget::pane {{
                 border: 1px solid {COLORS['border']};
             }}
@@ -732,7 +870,7 @@ class BmsMonitorTab(QWidget):
         self.reg_text = QTextEdit()
         self.reg_text.setReadOnly(True)
         self.reg_text.setFont(QFont('Consolas', 10))
-        self.reg_text.setStyleSheet(f"""
+        themed_qss(self.reg_text, lambda: f"""
             QTextEdit {{
                 background-color: {COLORS['bg_panel']};
                 color: {COLORS['text']};
@@ -764,8 +902,8 @@ class BmsMonitorTab(QWidget):
                 if i + j < len(addr_list):
                     addr = addr_list[i + j]
                     reg_4xxxx = addr + MODBUS_HOLDING_REGISTER_BASE
-                    row_html += f'<span style="color:#666666;">{reg_4xxxx:05d}: </span>'
-                    row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
+                    row_html += f'<span style="color:{COLORS["reg_label"]};">{reg_4xxxx:05d}: </span>'
+                    row_html += f'<span style="color:{COLORS["reg_dim"]};">&lt;----&gt;</span>'
                     if j < REGISTERS_PER_ROW - 1 and i + j + 1 < len(addr_list):
                         row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
@@ -781,12 +919,12 @@ class BmsMonitorTab(QWidget):
                     addr = addr_list[i + j]
                     reg_4xxxx = addr + MODBUS_HOLDING_REGISTER_BASE
                     raw_val = self.register_values.get(addr)
-                    row_html += f'<span style="color:#666666;">{reg_4xxxx:05d}: </span>'
+                    row_html += f'<span style="color:{COLORS["reg_label"]};">{reg_4xxxx:05d}: </span>'
                     if raw_val is not None:
                         hex_str = f"{raw_val:04X}"
-                        row_html += f'<span style="color:#000000;">&lt;{hex_str}H&gt;</span>'
+                        row_html += f'<span style="color:{COLORS["reg_value"]};">&lt;{hex_str}H&gt;</span>'
                     else:
-                        row_html += f'<span style="color:#999999;">&lt;----&gt;</span>'
+                        row_html += f'<span style="color:{COLORS["reg_dim"]};">&lt;----&gt;</span>'
                     if j < REGISTERS_PER_ROW - 1 and i + j + 1 < len(addr_list):
                         row_html += "&nbsp;&nbsp;&nbsp;"
             html += row_html + "<br>"
@@ -802,7 +940,9 @@ class BmsMonitorTab(QWidget):
                 info = self.signal_info.get(signal_name, (0, 0, 1, 0, "", "uint16", 16))
                 addr, bit_start, factor, offset, unit, dtype, bit_len = info
 
-                raw_val = self.register_values.get(addr)
+                # 未在本页面读到的数据不显示（避免切换瞬间出现旧值/默认值）
+                fresh = signal_name in self._fresh_names
+                raw_val = self.register_values.get(addr) if addr in self._fresh_addrs else None
                 if raw_val is not None:
                     raw_hex = f"0x{raw_val:04X}" if raw_val > 255 else f"0x{raw_val:02X}"
                     raw_dec = str(raw_val)
@@ -810,7 +950,7 @@ class BmsMonitorTab(QWidget):
                     raw_hex = "--"
                     raw_dec = "--"
 
-                physical = self.parsed_data.get(signal_name, "--")
+                physical = self.parsed_data.get(signal_name, "--") if fresh else "--"
 
                 item2 = table.item(idx, 2)
                 item3 = table.item(idx, 3)
@@ -820,7 +960,18 @@ class BmsMonitorTab(QWidget):
                 if item3:
                     item3.setText(raw_dec)
                 if item6:
-                    item6.setText(str(physical))
+                    # 数值型字段（故障码 8位、组当前故障数量 uint8 等）保留原数字；
+                    # 仅 1~2 位的位域报警/故障标志才归一化为正常/故障
+                    if dtype == "bitfield" and bit_len <= 2:
+                        display = _normalize_alarm_text(physical, signal_name, tab_name in _ALARM_TAB_NAMES)
+                    else:
+                        display = physical
+                    item6.setText(str(display))
+                    fg = _alarm_color(display)
+                    if fg is not None:
+                        item6.setForeground(fg)
+                    else:
+                        item6.setForeground(QColor(COLORS['text']))
 
                 # 强制信号名列保持左对齐
                 item0.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -871,12 +1022,18 @@ class BmsMonitorTab(QWidget):
             if not connected:
                 self.heartbeat_btn.setChecked(False)
                 self.heartbeat_btn.setText("▶ 启动心跳")
-        self.status_indicator.setStyleSheet(
-            f"background-color: {'green' if connected else 'gray'}; border-radius: 10px;"
-        )
+        self._link_state = bool(connected)
+        self.status_indicator.setStyleSheet(self._indicator_qss())
         if not connected:
             self.poll_btn.setText("开始监控")
             self.is_polling = False
+
+    def _indicator_qss(self) -> str:
+        """状态指示灯样式（颜色随主题变化）"""
+        if self._link_state is None:
+            return f"background-color: {COLORS['status_off']}; border-radius: 8px;"
+        color = COLORS['status_on'] if self._link_state else COLORS['status_off']
+        return f"background-color: {color}; border-radius: 10px;"
 
     def _build_poll_ranges(self, addrs) -> list:
         """把地址列表合并成尽量少的连续读区间 [(start, quantity), ...]"""
@@ -916,8 +1073,12 @@ class BmsMonitorTab(QWidget):
         """切换分组标签：更新轮询组，保证当前页数据持续刷新"""
         groups = self._current_tab_poll_groups()
         self.active_poll_groups = groups
+        # 切换后清空"已读取"标记：新页面在真正读到数据前不显示任何值
+        self._fresh_names.clear()
+        self._fresh_addrs.clear()
         if self.is_polling and self.comm.is_connected:
             self.comm.update_poll_groups(groups)
+        self._update_display()
 
     def _toggle_polling(self):
         if self.is_polling:
@@ -926,19 +1087,21 @@ class BmsMonitorTab(QWidget):
             self.is_polling = False
         else:
             self.active_poll_groups = self._current_tab_poll_groups()
+            self._fresh_names.clear()
+            self._fresh_addrs.clear()
             self.comm.start_polling(self.active_poll_groups, self._poll_callback)
             self.poll_btn.setText("停止监控")
             self.is_polling = True
 
-    def _poll_callback(self, group_index, response, timestamp):
+    def _poll_callback(self, group_index, response, timestamp, start_addr=None, quantity=None):
         if response is None:
             return
 
-        groups = self.active_poll_groups or self.poll_groups
-        if not groups:
-            return
-        group_index %= len(groups)
-        start_addr, quantity = groups[group_index]
+        if start_addr is None or quantity is None:
+            groups = self.active_poll_groups or self.poll_groups
+            if not groups:
+                return
+            start_addr, quantity = groups[group_index % len(groups)]
         reg_defs = []
         for group in self.register_groups.values():
             for reg in group:
@@ -951,10 +1114,12 @@ class BmsMonitorTab(QWidget):
                 for i, raw_val in enumerate(parsed['registers']):
                     addr = start_addr + i
                     self.register_values[addr] = raw_val
+                    self._fresh_addrs.add(addr)
 
             decoded = parse_batch_response(response, start_addr, reg_defs)
             if decoded:
                 self.parsed_data.update(decoded)
+                self._fresh_names.update(decoded.keys())
 
         self._need_reg_refresh = True
         self.emitter.data_updated.emit()
