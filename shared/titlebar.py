@@ -16,6 +16,16 @@ _DWMWA_CAPTION_COLOR = 35                # Win11 22000+
 _DWMWA_TEXT_COLOR = 36                   # Win11 22000+
 _DWMWA_COLOR_DEFAULT = 0xFFFFFFFF
 
+_SWP_NOSIZE = 0x0001
+_SWP_NOMOVE = 0x0002
+_SWP_NOZORDER = 0x0004
+_SWP_NOACTIVATE = 0x0010
+_SWP_FRAMECHANGED = 0x0020
+_RDW_INVALIDATE = 0x0001
+_RDW_FRAME = 0x0400
+_RDW_UPDATENOW = 0x0100
+_RDW_ALLCHILDREN = 0x0080
+
 
 def _hex_to_colorref(hex_color: str) -> int:
     """'#rrggbb' -> COLORREF(0x00BBGGRR)"""
@@ -56,5 +66,13 @@ def apply_titlebar(widget, dark: bool, caption_hex: str = None, text_hex: str = 
         txt = ctypes.c_uint(_DWMWA_COLOR_DEFAULT if text_hex is None
                             else _hex_to_colorref(text_hex))
         _set_attr(dwm, hwnd, _DWMWA_TEXT_COLOR, txt)
+
+        # DWM 属性改动后标题栏不会立即重绘，需要强制刷新非客户区，否则要等系统下一次重绘
+        user32 = ctypes.WinDLL('user32')
+        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0,
+                            _SWP_NOMOVE | _SWP_NOSIZE | _SWP_NOZORDER |
+                            _SWP_NOACTIVATE | _SWP_FRAMECHANGED)
+        user32.RedrawWindow(hwnd, None, None,
+                            _RDW_FRAME | _RDW_INVALIDATE | _RDW_UPDATENOW | _RDW_ALLCHILDREN)
     except Exception:
         pass
