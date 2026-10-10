@@ -125,6 +125,7 @@ from PyQt5.QtGui import QFont, QIcon
 from shared.style import (
     apply_style, COLORS, themed_qss, set_dark_mode, save_dark_mode, is_dark_mode,
 )
+from shared.titlebar import apply_titlebar
 from shared.constants import LOG_RETENTION_DAYS, LOG_MAX_SIZE_MB, CLEANUP_INTERVAL_HOURS
 from shared.log_cleanup import run_cleanup
 
@@ -436,6 +437,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCornerWidget(self.theme_btn, Qt.TopRightCorner)
 
         self.resize(1400, 1200)
+        self._sync_titlebar()
 
         self._tab_specs = {key: (title, factory) for key, title, factory in TAB_SPECS}
         self._hosts = {}
@@ -480,6 +482,11 @@ class MainWindow(QMainWindow):
         set_dark_mode(QApplication.instance(), dark)
         save_dark_mode(dark)
         self._refresh_theme_button()
+        self._sync_titlebar()
+
+    def _sync_titlebar(self):
+        # 系统标题栏跟随主题：标题栏颜色与页面背景一致（Win11 生效），按钮明暗随主题
+        apply_titlebar(self, is_dark_mode(), COLORS['bg_dark'], COLORS['text'])
 
     # ------------------------------------------------------------------
     # 建页：启动阶段同步建完
