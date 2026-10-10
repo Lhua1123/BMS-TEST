@@ -479,14 +479,18 @@ class MainWindow(QMainWindow):
 
     def _toggle_theme(self):
         dark = not is_dark_mode()
+        # 先切标题栏再刷新页面：页面刷新较重，标题栏放在后面会明显滞后
+        self._sync_titlebar(dark)
         set_dark_mode(QApplication.instance(), dark)
         save_dark_mode(dark)
         self._refresh_theme_button()
-        self._sync_titlebar()
+        self._sync_titlebar(dark)
 
-    def _sync_titlebar(self):
-        # 系统标题栏跟随主题：标题栏颜色与页面背景一致（Win11 生效），按钮明暗随主题
-        apply_titlebar(self, is_dark_mode(), COLORS['bg_dark'], COLORS['text'])
+    def _sync_titlebar(self, dark: bool = None):
+        # 系统标题栏跟随明暗（Win10 只能切明暗，不能指定颜色）
+        if dark is None:
+            dark = is_dark_mode()
+        apply_titlebar(self, dark)
 
     # ------------------------------------------------------------------
     # 建页：启动阶段同步建完
