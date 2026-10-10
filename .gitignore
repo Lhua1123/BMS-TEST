@@ -16,3 +16,5 @@ logs/
 data/
 repro.py
 *.log
+
+bms_*.png
