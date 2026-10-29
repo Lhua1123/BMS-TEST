@@ -35,6 +35,26 @@ _FIELD_LEVEL = {3: 6, 2: 11, 1: 16}
 # 默认测试偏移系数（相对环境实际值的物理量）
 DEFAULT_OFFSET = 1.0
 
+
+def _copy_check(src: Check) -> Check:
+    """复制检查项结果，供同一 PID 的每个等级结果各自挂一份（环境值/解除为 PID 级动作）"""
+    dst = Check(
+        name=src.name,
+        check_type=src.check_type,
+        description=src.description,
+        expected_value=src.expected_value,
+        actual_value=src.actual_value,
+        tolerance=src.tolerance,
+    )
+    dst.status = src.status
+    dst.message = src.message
+    dst.timestamp = src.timestamp
+    dst.duration = src.duration
+    dst.timed_out = src.timed_out
+    dst.timed_out_channel = src.timed_out_channel
+    dst.timed_out_scope = src.timed_out_scope
+    return dst
+
 # 环境值信号映射关键字 → (报文模板, 信号名, 通道)
 # 报文中 {idx} 为 DBC 簇序号
 
@@ -168,10 +188,10 @@ class ThresholdTestEngine:
                        domain: str = TestConstants.DEFAULT_DOMAIN,
                        test_type: str = "both",
                        offset_value: float = DEFAULT_OFFSET,
-                       alarm_wait_time_sec: float = 5.0) -> Optional[TestResult]:
+                       alarm_wait_time_sec: float = 5.0) -> List[TestResult]:
         if not self.can_manager or not self.can_manager.is_connected():
             logger.error("CAN 未连接，无法单步测试")
-            return None
+            return []
         # 复位上次「停止」遗留的标志（只有 start_test 会复位），
         # 否则等级循环会直接跳过、验证也会被 is_stop_requested 秒断
         self.stop_requested = False
@@ -182,13 +202,15 @@ class ThresholdTestEngine:
         entries = self._resolve_level_entries([pid_code], target_address, domain)
         if not entries:
             logger.error(f"PID 解析失败: {pid_code}")
-            return None
+            return []
 
         old = (self._test_type, self._offset_value, self._alarm_wait_time_sec)
         self._test_type = test_type or "both"
         self._offset_value = offset_value if offset_value and offset_value > 0 else DEFAULT_OFFSET
         self._alarm_wait_time_sec = alarm_wait_time_sec or 5.0
         entries = self._filter_by_test_type(entries)
+        self.progress.total = max(1, len(entries))
+        self.progress.current_index = 0
         try:
             return self._test_pid_levels(entries[0].pid, entries, target_address, domain)
         finally:
@@ -425,11 +447,12 @@ class ThresholdTestEngine:
         return env_value + off
 
     def _calc_release_value(self, pid: PIDConfig, env_value: float) -> float:
+        """解除阈值须与触发同侧：过高类同样取低于实际值，否则清警条件常开、报警锁不住"""
         direction = self._infer_pid_direction(pid)
         off = self._offset_value * 3.0
         if direction == "upper":
-            return env_value + off
-        return env_value - off
+            return env_value - off
+        return env_value + off
 
     def _encode_raw_value(self, pid: PIDConfig, phys_value: float) -> int:
         """物理值 → 报文原始值，与 PIDConfig.get_raw_threshold 同规则"""
@@ -531,7 +554,7 @@ class ThresholdTestEngine:
                 else:
                     logger.error(f"阈值设置报文发送失败({tag}第{i+1}帧): PID=0x{pid.pid:04X}")
                     return False
-                time.sleep(TimingConstants.FAULT_INJECTION_FRAME_INTERVAL_MS / 1000.0)
+                time.sleep(TimingConstants.THRESHOLD_FRAME_INTERVAL_MS / 1000.0)
             return True
 
         try:
@@ -589,15 +612,16 @@ class ThresholdTestEngine:
             f"level={level} env={env_value} test={test_val} release={rel_val} "
             f"raw_trig={raw_trig:#06x} raw_rel={raw_rel:#06x}"
         )
-        ok, check = self._send_hex_as_5frames(pid, list(buf), target_address, mode=0)
+        ok, check = self._send_hex_as_5frames(pid, list(buf), target_address, mode=1)
         check.check_type = CheckType.THRESHOLD_SET
         check.name = f"阈值设置 L{level}"
         check.description = check_meta
         check.expected_value = check_meta
+        check.actual_value = test_val
         return ok, check
 
     def _release_all_thresholds(self, pid: PIDConfig, env_value: Optional[float],
-                                target_address: int) -> Tuple[bool, Check]:
+                                target_address: int, domain: str = "NBCMU") -> Tuple[bool, Check]:
         check = Check(
             name="阈值恢复",
             check_type=CheckType.THRESHOLD_RESTORE,
@@ -608,35 +632,67 @@ class ThresholdTestEngine:
         if not hex17:
             check.fail("缺少 HEX17，无法恢复")
             return False, check
-        if env_value is None:
-            # 退回参数表原始值
-            ok, send_check = self._send_hex_as_5frames(pid, hex17, target_address, mode=0)
-            check.actual_value = send_check.message
-            if ok:
-                check.pass_check("已按参数表原值恢复")
-            else:
-                check.fail(send_check.message or "按原值恢复失败")
-            return ok, check
 
-        buf = bytearray(hex17)
-        rel = self._calc_release_value(pid, env_value)
-        try:
-            raw_rel = self._encode_raw_value(pid, rel)
-        except Exception as e:
-            check.error(str(e))
-            return False, check
-        for lv in pid.get_supported_levels():
-            self._encode_threshold_pair(buf, _FIELD_REL[lv], raw_rel)
-            # 解除测试：把触发值也设为不触发方向
+        restore_value = None
+        if env_value is None:
+            buf = list(hex17)
+            note = "已按参数表原值恢复"
+        else:
+            # 解除：触发/解除两字段写同一个值，且落在不触发侧（过高类高于实际值），
+            # 否则实际值落在两阈值之间，清警条件不成立、告警清不掉
             direction = self._infer_pid_direction(pid)
             safe = env_value + self._offset_value * 3 if direction == "upper" else env_value - self._offset_value * 3
-            self._encode_threshold_pair(buf, _FIELD_TRIG[lv], self._encode_raw_value(pid, safe))
-        ok, send_check = self._send_hex_as_5frames(pid, list(buf), target_address, mode=0)
-        if ok:
-            check.pass_check(f"解除值={rel}")
+            try:
+                raw_safe = self._encode_raw_value(pid, safe)
+            except Exception as e:
+                check.error(str(e))
+                return False, check
+            buf = bytearray(hex17)
+            for lv in pid.get_supported_levels():
+                self._encode_threshold_pair(buf, _FIELD_TRIG[lv], raw_safe)
+                self._encode_threshold_pair(buf, _FIELD_REL[lv], raw_safe)
+            buf = list(buf)
+            restore_value = safe
+            note = f"解除值={safe}"
+
+        ok, send_check = self._send_hex_as_5frames(pid, buf, target_address, mode=1)
+        # pass_check/fail 会覆盖 actual_value，必须显式带上展示值
+        shown = restore_value if restore_value is not None else send_check.message
+        if not ok:
+            check.fail(send_check.message or "解除发送失败", actual_value=shown)
+            return False, check
+
+        # 帧发出去不等于恢复成功：必须回读确认告警真的消失
+        cleared, detail = self._wait_alarm_cleared(pid, target_address, domain)
+        if cleared:
+            check.pass_check(f"{note}，告警已清零{detail}", actual_value=shown)
         else:
-            check.fail(send_check.message or "解除发送失败")
-        return ok, check
+            check.fail(f"{note}，但告警未清零{detail}", actual_value=shown)
+        return cleared, check
+
+    def _wait_alarm_cleared(self, pid: PIDConfig, target_address: int,
+                            domain: str) -> Tuple[bool, str]:
+        """解除后回读对内告警位，确认已回到 Normal(0)"""
+        inner_signal = None
+        for lv in pid.get_supported_levels():
+            fault = self._get_fault_for_level(pid, lv)
+            if fault and getattr(fault, "inner_signal", None):
+                inner_signal = fault.inner_signal
+                break
+        if not inner_signal:
+            return True, "（无对内回读信号，跳过确认）"
+
+        idx = self._get_dbc_idx(target_address, domain)
+        for prefix in ("NBCMU01_", "SBCMU01_"):
+            if inner_signal.startswith(prefix):
+                inner_signal = f"{prefix[:5]}{idx}_" + inner_signal[len(prefix):]
+                break
+
+        wait_t = self._alarm_wait_time_sec or TimingConstants.ALARM_WAIT_TIME_SEC
+        cleared, value = self.verifier.wait_signal_cleared(
+            inner_signal, self._get_inner_channel(), wait_t
+        )
+        return cleared, f"（{inner_signal}={value}）"
 
     # ------------------------------------------------------------------
     # 故障码映射 + 与故障码测试相同的验证
@@ -792,21 +848,17 @@ class ThresholdTestEngine:
                 self.progress.current_state = ThresholdTestState.PREPARING
                 self._update_progress()
 
-                result = self._test_pid_levels(pid, group, addr, domain)
-                all_results.append(result)
+                results = self._test_pid_levels(pid, group, addr, domain)
+                all_results.extend(results)
                 level_done += len(group)
                 self.progress.current_index = level_done
-                if result.overall_status == CheckStatus.PASSED:
-                    self.progress.passed_count += 1
-                elif result.overall_status in (CheckStatus.FAILED, CheckStatus.ERROR, CheckStatus.TIMEOUT):
-                    self.progress.failed_count += 1
-                else:
-                    self.progress.skipped_count += 1
-                if self.on_test_result:
-                    try:
-                        self.on_test_result(result)
-                    except Exception:
-                        pass
+                for result in results:
+                    if result.overall_status == CheckStatus.PASSED:
+                        self.progress.passed_count += 1
+                    elif result.overall_status in (CheckStatus.FAILED, CheckStatus.ERROR, CheckStatus.TIMEOUT):
+                        self.progress.failed_count += 1
+                    else:
+                        self.progress.skipped_count += 1
                 if index < len(order):
                     time.sleep(TestConstants.TEST_PAUSE_INTERVAL_SEC)
         except Exception as e:
@@ -828,24 +880,29 @@ class ThresholdTestEngine:
             )
 
     def _test_pid_levels(self, pid: PIDConfig, group: List[PIDLevelEntry],
-                         target_address: int, domain: str) -> TestResult:
-        """同一 PID 的使能等级依次触发并回读，最后统一解除"""
+                         target_address: int, domain: str) -> List[TestResult]:
+        """同一 PID 的使能等级依次触发并回读，最后统一解除；每个等级一条结果"""
         levels = [e.level for e in group]
         pid_label = f"0x{pid.pid:04X}"
-        result = TestResult(
-            test_id=f"threshold_{pid_label}_{datetime.now().strftime('%H%M%S')}",
-            test_type="threshold",
-            fault_name=pid.alarm_category,
-            pid_name=pid_label,
-            bms_address=target_address,
-            domain_type=domain,
-            metadata={
-                "pid": hex(pid.pid),
-                "levels": ",".join(str(x) for x in levels),
-                "test_type": self._test_type,
-            },
-        )
-        result.start()
+        stamp = datetime.now().strftime('%H%M%S')
+        per_level: Dict[int, TestResult] = {}
+        for lv in levels:
+            item = TestResult(
+                test_id=f"threshold_{pid_label}:{lv}_{stamp}",
+                test_type="threshold",
+                fault_name=f"{pid.alarm_category} L{lv}",
+                pid_name=f"{pid_label}:{lv}",
+                bms_address=target_address,
+                domain_type=domain,
+                metadata={
+                    "pid": hex(pid.pid),
+                    "level": str(lv),
+                    "levels": str(lv),
+                    "test_type": self._test_type,
+                },
+            )
+            item.start()
+            per_level[lv] = item
 
         try:
             self.can_manager.clear_signal_cache()
@@ -865,65 +922,93 @@ class ThresholdTestEngine:
         env_check.start()
         if env is None:
             env_check.fail("环境实际值读取失败")
-            result.add_check(env_check)
-            result.fail("环境实际值读取失败")
-            return result
-        env_check.pass_check(f"env={env}")
+            for item in per_level.values():
+                item.add_check(_copy_check(env_check))
+                item.complete()
+                self._emit_result(item)
+            logger.info(f"PID {pid_label} {pid.alarm_category} 环境实际值读取失败")
+            return list(per_level.values())
+        env_check.pass_check(f"env={env}", actual_value=env)
 
-        trigger_failed = False
-        first_level = True
+        tested = set()
         for level in levels:
             if self.stop_requested:
                 break
+            tested.add(level)
             self.progress.current_level = level
             self.progress.current_state = ThresholdTestState.SETTING
             self._update_progress()
 
             ok_set, set_check = self._set_thresholds_for_level(pid, level, env, target_address)
-            if first_level:
-                result.add_check(env_check)
-                first_level = False
-            result.add_check(set_check)
-            if not ok_set:
-                trigger_failed = True
-                continue
+            per_level[level].add_check(_copy_check(env_check))
+            per_level[level].add_check(set_check)
+            if ok_set:
+                wait_t = self._alarm_wait_time_sec or 5.0
+                if pid.mature_time and pid.mature_time > 0:
+                    wait_t = max(wait_t, float(pid.mature_time))
+                logger.debug(f"等待报警成熟: {wait_t}s")
+                time.sleep(wait_t)
 
-            wait_t = self._alarm_wait_time_sec or 5.0
-            if pid.mature_time and pid.mature_time > 0:
-                wait_t = max(wait_t, float(pid.mature_time))
-            logger.debug(f"等待报警成熟: {wait_t}s")
-            time.sleep(wait_t)
+                self.progress.current_state = ThresholdTestState.VERIFYING
+                self._update_progress()
+                verify_result = self._verify_level(pid, level, target_address, domain)
+                # 合并 verifier 检查项
+                for c in verify_result.checks:
+                    per_level[level].add_check(c)
 
-            self.progress.current_state = ThresholdTestState.VERIFYING
+            # 该等级跑完立刻出结果并推进一格，别攒到最后一起冒出来
+            per_level[level].complete()
+            self._emit_result(per_level[level])
+            self.progress.current_index += 1
             self._update_progress()
-            verify_result = self._verify_level(pid, level, target_address, domain)
-            # 合并 verifier 检查项
-            for c in verify_result.checks:
-                result.add_check(c)
-            if verify_result.overall_status != CheckStatus.PASSED:
-                trigger_failed = True
 
         self.progress.current_state = ThresholdTestState.RELEASING
         self._update_progress()
+        rel_check = None
         if not self.stop_requested:
-            ok_rel, rel_check = self._release_all_thresholds(pid, env, target_address)
-            result.add_check(rel_check)
+            _ok_rel, rel_check = self._release_all_thresholds(pid, env, target_address, domain)
+        if rel_check is not None:
+            # 解除是 PID 级收尾：通过则不改动各等级结论，失败则把结论压成失败
+            release_failed = rel_check.status != CheckStatus.PASSED
+            for level in tested:
+                item = per_level[level]
+                item.add_check(_copy_check(rel_check))
+                if release_failed:
+                    item.complete()
+                    self._emit_result(item)
 
-        result.complete()
-        if trigger_failed and result.overall_status == CheckStatus.PASSED:
-            result.overall_status = CheckStatus.FAILED
-        logger.info(f"PID {pid_label} {pid.alarm_category} 测试完成: {result.overall_status.value}")
-        return result
+        results: List[TestResult] = []
+        for level in levels:
+            item = per_level[level]
+            if level not in tested:
+                item.overall_status = CheckStatus.SKIPPED
+                item.error_message = "测试被停止，未执行"
+                item.end_time = datetime.now()
+                self._emit_result(item)
+            results.append(item)
+
+        summary = ", ".join(f"L{lv}={per_level[lv].overall_status.value}" for lv in levels)
+        logger.info(f"PID {pid_label} {pid.alarm_category} 测试完成: {summary}")
+        return results
 
     def _test_single_level(self, pid: PIDConfig, level: int,
                            target_address: int, domain: str,
                            release: bool = True) -> Optional[TestResult]:
-        return self._test_pid_levels(
+        results = self._test_pid_levels(
             pid,
             [PIDLevelEntry(pid, level, target_address, domain)],
             target_address,
             domain,
         )
+        return results[0] if results else None
+
+    def _emit_result(self, result: TestResult) -> None:
+        """逐条上报结果，让界面随测试进度实时出结论"""
+        if self.on_test_result:
+            try:
+                self.on_test_result(result)
+            except Exception:
+                pass
 
     def _update_progress(self):
         self.progress.elapsed_time = time.time() - self.progress.start_time if self.progress.start_time else 0

@@ -230,7 +230,7 @@ QSpinBox:focus, QDoubleSpinBox:focus {{
 QSpinBox::up-button, QDoubleSpinBox::up-button {{
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 16px;
+    width: 24px;
     border: none;
     border-left: 1px solid {COLORS['border']};
     border-bottom: 1px solid {COLORS['border']};
@@ -248,14 +248,14 @@ QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed {{
 
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
     image: url(__SPIN_UP_ARROW__);
-    width: 9px;
+    width: 10px;
     height: 9px;
 }}
 
 QSpinBox::down-button, QDoubleSpinBox::down-button {{
     subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 16px;
+    width: 24px;
     border: none;
     border-left: 1px solid {COLORS['border']};
     border-bottom-right-radius: 4px;
@@ -272,7 +272,7 @@ QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
 
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
     image: url(__SPIN_DOWN_ARROW__);
-    width: 9px;
+    width: 10px;
     height: 9px;
 }}
 
@@ -422,6 +422,15 @@ QTableWidget::item:alternate {{
 QTableWidget::item:alternate:selected {{
     background-color: {COLORS['accent']};
     color: #ffffff;
+}}
+
+/* 表格左上角（行号列与列头交叉处）跟随面板底色，避免深色模式下出现亮块 */
+QTableView::corner-button, QTableWidget::corner-button, QTableCornerButton::section {{
+    background: {COLORS['bg_panel']};
+    background-color: {COLORS['bg_panel']};
+    border: none;
+    border-right: 1px solid {COLORS['border']};
+    border-bottom: 1px solid {COLORS['border']};
 }}
 
 QHeaderView::section {{

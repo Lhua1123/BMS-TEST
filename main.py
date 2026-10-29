@@ -21,9 +21,17 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 配置文件日志
-_log_dir = Path(__file__).parent / "logs"
-_log_dir.mkdir(exist_ok=True)
+from shared.utils import get_db_path, get_log_dir
+
+# 配置文件日志：打包后必须落在 exe 同目录（_MEIPASS 是临时目录，进程退出即删）
+_log_dir = Path(get_log_dir())
+try:
+    _log_dir.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # exe 放在只读目录时的兜底：至少保证软件能起来
+    import tempfile
+    _log_dir = Path(tempfile.gettempdir()) / "BMS测试-log"
+    _log_dir.mkdir(parents=True, exist_ok=True)
 _log_file = _log_dir / "bms_test.log"
 _handler = logging.FileHandler(str(_log_file), encoding='utf-8', mode='w')
 _handler.setLevel(logging.INFO)
@@ -631,8 +639,8 @@ class MainWindow(QMainWindow):
     def _scheduled_cleanup(self):
         try:
             run_cleanup(
-                log_dir="logs",
-                db_path="data/test_results.db",
+                log_dir=str(_log_dir),
+                db_path=get_db_path(),
                 days_to_keep=LOG_RETENTION_DAYS,
                 max_file_size_mb=LOG_MAX_SIZE_MB,
             )
@@ -675,8 +683,8 @@ def main():
     _progress("清理过期日志/测试记录...")
     try:
         run_cleanup(
-            log_dir="logs",
-            db_path="data/test_results.db",
+            log_dir=str(_log_dir),
+            db_path=get_db_path(),
             days_to_keep=LOG_RETENTION_DAYS,
             max_file_size_mb=LOG_MAX_SIZE_MB,
         )

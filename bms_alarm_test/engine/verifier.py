@@ -7,7 +7,7 @@
 import logging
 import re
 import time
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
@@ -607,7 +607,7 @@ class BMSVerifier:
             channel = self._get_outer_channel()
             value = self._wait_for_signal(
                 channel, "BMS_Msg15", signal_name,
-                None, self.config.timeout_sec
+                fault.outer_warning_expected, self.config.timeout_sec
             )
 
             if value is not None:
@@ -629,17 +629,40 @@ class BMSVerifier:
 
         return check
 
-    def _get_latest_frame_desc(self, channel: int) -> str:
-        """取该通道最近一帧原始报文的描述（ID+数据），无则返回空串"""
+    def wait_signal_cleared(self, signal_name: str, channel: int,
+                            timeout: float = 5.0) -> Tuple[bool, Optional[Any]]:
+        """
+        等待对内告警类信号回到 Normal（0），用于阈值解除后的确认。
+
+        只把解除帧发出去不算恢复成功——必须回读确认告警真的消失。
+        这些告警位在 DBC VAL_ 里一律 0="Normal"，故以 0 为已清零判据。
+        查不到信号定义时不阻断（返回已清零），避免 DBC 缺项卡死整个恢复流程。
+        """
+        message_name = self._find_inner_message_for_signal(signal_name)
+        if not message_name:
+            return True, None
+        value = self._wait_for_signal(channel, message_name, signal_name, 0, timeout)
+        return (value == 0), value
+
+    def _get_latest_frame_desc(self, channel: int, message_name: str = "") -> str:
+        """取指定消息最近一帧原始报文的描述（ID+数据），无则返回空串"""
         try:
             listener = getattr(self.can_manager, "_listener", None)
             if listener is None:
                 return ""
             can_ch = CANChannel.CH1 if channel == 1 else CANChannel.CH2
-            recent = listener.get_recent_messages(can_ch, 1)
+            recent = listener.get_recent_messages(can_ch, 200)
             if not recent:
                 return ""
             msg, _ts = recent[-1]
+            if message_name:
+                msg_def = self.can_manager.dbc_loader.get_message(can_ch.get_dbc_type(), message_name)
+                if msg_def is not None:
+                    want = msg_def.frame_id & 0x1FFFFFFF
+                    matched = [m for m, _ in recent if (m.arbitration_id & 0x1FFFFFFF) == want]
+                    if not matched:
+                        return ""
+                    msg = matched[-1]
             data_hex = ' '.join(f'{b:02X}' for b in msg.data)
             return f"ID=0x{msg.arbitration_id:08X} 数据=[{data_hex}]"
         except Exception:
@@ -716,7 +739,7 @@ class BMSVerifier:
                 if poll_count == 1 or poll_count % 40 == 0:
                     logger.info(f"[verifier] 轮询 {signal_name} (msg={message_name} ch={channel}): "
                                 f"第{poll_count}次, 值={value}, 期望={expected_value}")
-                    frame_desc = self._get_latest_frame_desc(channel)
+                    frame_desc = self._get_latest_frame_desc(channel, message_name)
                     if frame_desc:
                         logger.info(f"[回读报文] CH{channel} {message_name}.{signal_name}={value} {frame_desc}")
                 if value is not None:
@@ -727,7 +750,7 @@ class BMSVerifier:
                     if expected_value is None or self._match_signal_value(signal_name, value, expected_value):
                         logger.info(f"[verifier] 信号匹配成功: {signal_name}={value} "
                                     f"(期望={expected_value}, 轮询{poll_count}次)")
-                        frame_desc = self._get_latest_frame_desc(channel)
+                        frame_desc = self._get_latest_frame_desc(channel, message_name)
                         if frame_desc:
                             logger.info(f"[回读报文] CH{channel} {message_name}.{signal_name}={value} {frame_desc}")
                         return value

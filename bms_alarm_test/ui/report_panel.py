@@ -593,7 +593,8 @@ class ReportPanel(QWidget):
         detail_table.verticalHeader().setDefaultSectionSize(48)
         detail_table.setStyleSheet(
             table_qss()
-            + "\nQTableWidget { font-size: 12px; background-color: #ffffff; }"
+            + f"\nQTableWidget {{ font-size: 12px; background-color: {COLORS['bg_panel']}; }}"
+            + f"\nQTableWidget::item:alternate {{ background-color: {COLORS['bg_panel']}; }}"
             + "\nQTableWidget::item { padding: 6px 4px; }"
         )
         LeftAlignDelegate.attach(detail_table, [0, 4, 5], detail_table)

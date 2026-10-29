@@ -48,13 +48,15 @@ class CanParserTab(QWidget):
         dbc_row.addWidget(self.btn_import_dbc)
 
         self.lst_dbc_files = QListWidget()
-        self.lst_dbc_files.setStyleSheet(f"font-size: {FONTS['body'][1]}pt; min-height: 36px;")
-        self.lst_dbc_files.setMaximumHeight(80)
+        self.lst_dbc_files.setStyleSheet(f"font-size: {FONTS['body'][1]}pt;")
+        # 与两侧按钮等高（按钮高度由全局样式决定）
+        self.lst_dbc_files.setFixedHeight(self.btn_import_dbc.sizeHint().height())
         dbc_row.addWidget(self.lst_dbc_files, 1)
 
         self.btn_remove_dbc = QPushButton("删除选中")
         self.btn_remove_dbc.setCursor(Qt.PointingHandCursor)
         self.btn_remove_dbc.setMaximumWidth(140)
+        self.btn_remove_dbc.setMinimumHeight(38)
         self.btn_remove_dbc.setEnabled(False)
         dbc_row.addWidget(self.btn_remove_dbc)
 

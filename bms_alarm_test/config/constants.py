@@ -78,6 +78,7 @@ class TimingConstants:
     BASELINE_READ_TIME_SEC = 2.0  # 基线读取时间
     ALARM_WAIT_TIME_SEC = 5.0  # 报警等待时间
     RESTORE_DELAY_SEC = 1.0  # 恢复延迟
+    THRESHOLD_FRAME_INTERVAL_MS = 500  # 阈值5帧帧间隔（实测BLF为1s；50ms太快BMS不生效）
 
 
 # 验证常量

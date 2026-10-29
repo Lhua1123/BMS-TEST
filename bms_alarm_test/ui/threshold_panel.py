@@ -12,18 +12,19 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QPushButton, QSpinBox, QComboBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QProgressBar, QTextEdit, QLineEdit, QSplitter, QCheckBox,
-    QAbstractItemView, QDoubleSpinBox,
+    QAbstractItemView, QDoubleSpinBox, QInputDialog, QMessageBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QColor
 
 from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
 from bms_alarm_test.ui.panel_style import (
-    compact_qss, table_qss, LeftAlignDelegate,
+    compact_qss, table_qss, LeftAlignDelegate, RowButton,
     btn_primary, btn_warning, btn_success, btn_danger, btn_neutral,
+    button_fixed_size_qss,
 )
 from bms_alarm_test.config.pid_table import PIDTable, PIDConfig
-from bms_alarm_test.models.test_result import TestResult, CheckStatus
+from bms_alarm_test.models.test_result import TestResult, CheckStatus, CheckType
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,8 @@ class ThresholdTestPanel(QWidget):
         self.pid_table = pid_table
         self.threshold_engine = None
         self._test_logger = None
+        self._last_project_name = ""
+        self._current_project_name = ""
         self._can_manager = None
         self._row_index: Dict[tuple, int] = {}  # (pid, level) -> row
         self.test_results: List[TestResult] = []
@@ -123,7 +126,7 @@ class ThresholdTestPanel(QWidget):
         left_c = QWidget()
         left_c.setLayout(left)
         left_c.setMinimumWidth(460)
-        root.addWidget(left_c, 3)
+        root.addWidget(left_c, 2)
 
         # 右：控制 + 详情（控制区竖向：按钮→进度条→状态横排）
         right = QVBoxLayout()
@@ -132,41 +135,55 @@ class ThresholdTestPanel(QWidget):
         right.addWidget(self.create_detail_group(), 1)
         right_c = QWidget()
         right_c.setLayout(right)
-        root.addWidget(right_c, 2)
+        root.addWidget(right_c, 3)
 
     def create_config_group(self) -> QGroupBox:
+        from PyQt5.QtWidgets import QSizePolicy
+
         group = QGroupBox("阈值测试配置")
         layout = QGridLayout()
+        layout.setHorizontalSpacing(6)
+        layout.setVerticalSpacing(6)
+        # 输入列均分整行宽度，避免控件挤在左侧
+        for col in (1, 3, 5):
+            layout.setColumnStretch(col, 1)
 
+        def _fill(widget, min_w: int):
+            widget.setMinimumWidth(min_w)
+            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            return widget
+
+        # 第一行：地址 + 域类型 + 测试类型
         layout.addWidget(QLabel("BMS地址:"), 0, 0)
         self.addr_spin = QSpinBox()
         self.addr_spin.setRange(1, 255)
         self.addr_spin.setValue(161)
-        layout.addWidget(self.addr_spin, 0, 1)
+        layout.addWidget(_fill(self.addr_spin, 90), 0, 1)
 
         layout.addWidget(QLabel("域类型:"), 0, 2)
         self.domain_combo = QComboBox()
         self.domain_combo.addItems(["NBCMU", "SBCMU"])
-        layout.addWidget(self.domain_combo, 0, 3)
+        layout.addWidget(_fill(self.domain_combo, 120), 0, 3)
 
-        layout.addWidget(QLabel("测试类型:"), 1, 0)
+        layout.addWidget(QLabel("测试类型:"), 0, 4)
         self.test_type_combo = QComboBox()
         self.test_type_combo.addItems(["上限测试", "下限测试", "上下限测试"])
         self.test_type_combo.setCurrentText("上下限测试")
-        layout.addWidget(self.test_type_combo, 1, 1, 1, 3)
+        layout.addWidget(_fill(self.test_type_combo, 120), 0, 5)
 
-        layout.addWidget(QLabel("阈值偏移:"), 2, 0)
+        # 第二行：阈值偏移 + 报警等待
+        layout.addWidget(QLabel("阈值偏移:"), 1, 0)
         self.offset_spin = QDoubleSpinBox()
         self.offset_spin.setDecimals(2)
         self.offset_spin.setRange(0.01, 10000.0)
         self.offset_spin.setValue(1.0)
-        layout.addWidget(self.offset_spin, 2, 1)
+        layout.addWidget(_fill(self.offset_spin, 90), 1, 1)
 
-        layout.addWidget(QLabel("报警等待(s):"), 2, 2)
+        layout.addWidget(QLabel("报警等待(s):"), 1, 2)
         self.wait_spin = QSpinBox()
         self.wait_spin.setRange(1, 60)
         self.wait_spin.setValue(5)
-        layout.addWidget(self.wait_spin, 2, 3)
+        layout.addWidget(_fill(self.wait_spin, 90), 1, 3)
 
         group.setLayout(layout)
         return group
@@ -176,31 +193,40 @@ class ThresholdTestPanel(QWidget):
         layout = QVBoxLayout()
 
         bar = QHBoxLayout()
-        for text, slot in (
-            ("全选", self.select_all_pids),
-            ("全不选", self.select_none_pids),
-            ("反选", self.invert_selection),
-            ("刷新", self.refresh_pid_list),
+        for text, slot, style in (
+            ("全选", self.select_all_pids, btn_primary),
+            ("全不选", self.select_none_pids, btn_primary),
+            ("反选", self.invert_selection, btn_primary),
+            ("重置列表", self.refresh_pid_list, btn_warning),
         ):
             btn = QPushButton(text)
-            themed_qss(btn, btn_neutral)
+            themed_qss(btn, style)
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(slot)
             bar.addWidget(btn)
         bar.addWidget(QLabel("搜索:"))
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("PID / 名称")
+        self.search_edit.setFixedHeight(34)  # 与同排按钮等高
         self.search_edit.textChanged.connect(self.filter_pid_list)
         bar.addWidget(self.search_edit, 1)
         layout.addLayout(bar)
 
         self.pid_table_widget = QTableWidget()
-        self.pid_table_widget.setColumnCount(12)
+        self.pid_table_widget.setColumnCount(8)
         self.pid_table_widget.setHorizontalHeaderLabels([
-            "选择", "PID", "名称", "告警使能", "确认时间",
-            "上限", "下限", "充放等级", "精度", "状态", "设置故障", "清除故障",
+            "选择", "PID", "名称", "告警使能", "确认时间", "状态", "设置", "清除",
         ])
         self.pid_table_widget.verticalHeader().setVisible(False)
+        self.pid_table_widget.verticalHeader().setDefaultSectionSize(38)  # 与故障码列表一致
+        # 与故障码列表同一套字号/内边距，保证两边观感一致
+        # item 内边距会一起压缩单元格控件区域，把行内按钮裁掉，故设为 0
+        themed_qss(self.pid_table_widget, lambda: (
+            table_qss()
+            + "\nQTableWidget { font-size: 12px; }"
+            + "\nQTableWidget::item { padding: 0px; }"
+            + "\nQHeaderView::section { font-size: 12px; padding: 7px 8px; }"
+        ))
         self.pid_table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.pid_table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         header = self.pid_table_widget.horizontalHeader()
@@ -208,8 +234,8 @@ class ThresholdTestPanel(QWidget):
         # 自适应列宽：按内容/权重分配，避免 PID 列表被挤得显示不全
         header.setSectionResizeMode(QHeaderView.Fixed)
         header.setStretchLastSection(False)
-        self._pid_column_weights = [0.6, 0.95, 2.1, 0.9, 0.9, 0.85, 0.85, 1.0, 0.75, 0.8, 1.15, 1.15]
-        self._pid_column_min_widths = [48, 68, 130, 70, 70, 64, 64, 80, 64, 70, 88, 88]
+        self._pid_column_weights = [0.6, 0.95, 2.1, 0.9, 0.9, 0.85, 0.85, 0.85]
+        self._pid_column_min_widths = [44, 56, 110, 56, 56, 56, 84, 84]
         layout.addWidget(self.pid_table_widget, 1)
         LeftAlignDelegate.attach(self.pid_table_widget, [2], self.pid_table_widget)
         group.setLayout(layout)
@@ -228,7 +254,7 @@ class ThresholdTestPanel(QWidget):
 
         btns = QHBoxLayout()
         btns.setSpacing(8)
-        self.btn_start = QPushButton("开始阈值测试")
+        self.btn_start = QPushButton("开始")
         themed_qss(self.btn_start, btn_primary)
         self.btn_start.setCursor(Qt.PointingHandCursor)
         self.btn_start.clicked.connect(self.start_test)
@@ -343,7 +369,7 @@ class ThresholdTestPanel(QWidget):
         self._badge_style_cache = style
         if hasattr(self, "pid_table_widget"):
             for row in range(self.pid_table_widget.rowCount()):
-                item = self.pid_table_widget.item(row, 9)
+                item = self.pid_table_widget.item(row, 5)
                 if item and item.text() == "待测试":
                     item.setForeground(QColor(COLORS["text"]))
 
@@ -351,6 +377,9 @@ class ThresholdTestPanel(QWidget):
         group = QGroupBox("测试详情")
         layout = QVBoxLayout()
         splitter = QSplitter(Qt.Vertical)
+        # 上下两块之间要留缝隙：默认 handle 只有 2px，看着像贴死
+        splitter.setHandleWidth(8)
+        splitter.setStyleSheet("QSplitter::handle { background: transparent; }")
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -433,28 +462,14 @@ class ThresholdTestPanel(QWidget):
         return "上下限"
 
     @staticmethod
-    def _format_threshold(value) -> str:
-        if value is None:
-            return "—"
-        return f"{value:g}"
-
-    @staticmethod
     def _format_mature_time(value) -> str:
         if value is None:
             return "—"
         return f"{value:g}"
 
-    @staticmethod
-    def _format_precision(pid: PIDConfig) -> str:
-        prec = pid.precision
-        unit = pid.unit or ""
-        if prec is None:
-            return unit or "—"
-        return f"{prec:g}{unit}"
-
     def _make_checkbox(self) -> QCheckBox:
         cb = QCheckBox()
-        cb.setChecked(True)
+        cb.setChecked(False)  # 默认全不选
         wrapper = QWidget()
         lay = QHBoxLayout(wrapper)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -464,19 +479,28 @@ class ThresholdTestPanel(QWidget):
         return wrapper
 
     @staticmethod
+    def _make_row_button(text: str, style, slot) -> QWidget:
+        """单元格内的操作按钮：统一尺寸、文字居中"""
+        from PyQt5.QtWidgets import QSizePolicy
+
+        btn = RowButton(text)
+        themed_qss(btn, lambda: style() + button_fixed_size_qss(72, 32))
+        btn.setFixedSize(72, 32)
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(slot)
+        wrapper = QWidget()
+        lay = QHBoxLayout(wrapper)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setAlignment(Qt.AlignCenter)
+        lay.addWidget(btn)
+        wrapper.button = btn
+        return wrapper
+
+    @staticmethod
     def _get_checkbox(table: QTableWidget, row: int) -> Optional[QCheckBox]:
         w = table.cellWidget(row, 0)
         return getattr(w, "checkbox", None) if w else None
-
-    @staticmethod
-    def _charge_level_hint(pid: PIDConfig, level: int) -> str:
-        hx = getattr(pid, "threshold_hex", None)
-        if not hx or len(hx) < 17:
-            return "—"
-        idx = {3: 6, 2: 11, 1: 16}.get(level)
-        if idx is None:
-            return "—"
-        return str(hx[idx])
 
     def refresh_pid_list(self):
         table = self.pid_table_widget
@@ -490,8 +514,7 @@ class ThresholdTestPanel(QWidget):
         rows = self.pid_table.get_level_rows()
         test_type_filter = self.test_type_combo.currentText()
         table.setRowCount(len(rows))
-        for i, (pid, level, threshold) in enumerate(rows):
-            inferred = self._infer_pid_test_type(pid)
+        for i, (pid, level, _) in enumerate(rows):
             # 行隐藏过滤在 filter / test_type 中处理
             wrapper = self._make_checkbox()
             table.setCellWidget(i, 0, wrapper)
@@ -514,57 +537,26 @@ class ThresholdTestPanel(QWidget):
             mature_item.setTextAlignment(Qt.AlignCenter)
             table.setItem(i, 4, mature_item)
 
-            upper = pid.level3_threshold if inferred != "下限" else None
-            lower = pid.level1_threshold if inferred != "上限" else None
-            # 显示该级阈值
-            up_item = QTableWidgetItem(self._format_threshold(
-                threshold if inferred in ("上限", "上下限") and threshold is not None else None
-            ))
-            lo_item = QTableWidgetItem(self._format_threshold(
-                threshold if inferred in ("下限", "上下限") and threshold is not None else (
-                    threshold if inferred == "下限" else None
-                )
-            ))
-            if inferred == "上限":
-                up_item = QTableWidgetItem(self._format_threshold(threshold))
-                lo_item = QTableWidgetItem("—")
-            elif inferred == "下限":
-                up_item = QTableWidgetItem("—")
-                lo_item = QTableWidgetItem(self._format_threshold(threshold))
-            else:
-                up_item = QTableWidgetItem(self._format_threshold(threshold))
-                lo_item = QTableWidgetItem(self._format_threshold(threshold))
-            up_item.setTextAlignment(Qt.AlignCenter)
-            lo_item.setTextAlignment(Qt.AlignCenter)
-            table.setItem(i, 5, up_item)
-            table.setItem(i, 6, lo_item)
-
-            chg = QTableWidgetItem(self._charge_level_hint(pid, level))
-            chg.setTextAlignment(Qt.AlignCenter)
-            table.setItem(i, 7, chg)
-
-            prec = QTableWidgetItem(self._format_precision(pid))
-            prec.setTextAlignment(Qt.AlignCenter)
-            table.setItem(i, 8, prec)
-
             status = QTableWidgetItem("待测试")
             status.setTextAlignment(Qt.AlignCenter)
-            table.setItem(i, 9, status)
+            table.setItem(i, 5, status)
 
-            btn_set = QPushButton("设置")
-            themed_qss(btn_set, btn_primary)
-            btn_clr = QPushButton("清除")
-            themed_qss(btn_clr, btn_neutral)
             key = (pid.pid, level)
-            btn_set.clicked.connect(lambda _, r=i, k=key: self._operate_fault(r, "set", k[1]))
-            btn_clr.clicked.connect(lambda _, r=i, k=key: self._operate_fault(r, "clear", k[1]))
-            table.setCellWidget(i, 10, btn_set)
-            table.setCellWidget(i, 11, btn_clr)
-            self._oper_buttons[key] = [btn_set, btn_clr]
+            cell_set = self._make_row_button(
+                "设置", btn_primary,
+                lambda _, r=i, k=key: self._operate_fault(r, "set", k[1]),
+            )
+            cell_clr = self._make_row_button(
+                "清除", btn_warning,
+                lambda _, r=i, k=key: self._operate_fault(r, "clear", k[1]),
+            )
+            table.setCellWidget(i, 6, cell_set)
+            table.setCellWidget(i, 7, cell_clr)
+            self._oper_buttons[key] = [cell_set.button, cell_clr.button]
             self._row_index[key] = i
 
         self.filter_pid_list()
-        self.log_message(f"已加载 PID 等级行: {len(rows)}（默认全部勾选）")
+        self.log_message(f"已加载 PID 等级行: {len(rows)}（默认全不选）")
         self._resize_pid_columns()
 
     def _resize_pid_columns(self):
@@ -575,6 +567,8 @@ class ThresholdTestPanel(QWidget):
         viewport_width = table.viewport().width()
         if viewport_width <= 0:
             viewport_width = max(520, table.width())
+        # 预留竖向滚动条宽度：滚动条出现时视口变窄，否则又会多出横向滚动
+        viewport_width = max(240, viewport_width - 14)
         minimums = self._pid_column_min_widths
         weights = self._pid_column_weights
         minimum_total = sum(minimums)
@@ -690,6 +684,25 @@ class ThresholdTestPanel(QWidget):
         if not codes:
             self.log_message("错误: 请先勾选 PID", "ERROR")
             return
+
+        # 开始前填写项目名称（写入测试报告，与故障码测试一致）
+        project_name, ok = QInputDialog.getText(
+            self,
+            "项目名称",
+            "请输入本次测试的项目名称（将写入测试报告）:",
+            QLineEdit.Normal,
+            self._last_project_name or "",
+        )
+        if not ok:
+            self.log_message("已取消：未填写项目名称", "WARNING")
+            return
+        project_name = (project_name or "").strip()
+        if not project_name:
+            QMessageBox.warning(self, "提示", "项目名称不能为空。")
+            return
+        self._last_project_name = project_name
+        self._current_project_name = project_name
+
         cfg = self._current_config()
         ok = self.threshold_engine.start_test(pid_codes=codes, **cfg)
         if not ok:
@@ -705,7 +718,13 @@ class ThresholdTestPanel(QWidget):
         self.stat_label.setText("通过: 0  失败: 0")
         self.progress_label.setText(f"状态=准备中 | 进度: 0/{len(codes)} | —")
         self.test_started.emit()
-        self.log_message(f"开始阈值测试: {len(codes)} 个PID, {cfg}")
+        self.log_message(
+            f"开始阈值测试：共 {len(codes)} 个 PID，测试对象为 "
+            f"{self.domain_combo.currentText()} 地址 {self.addr_spin.value()}，"
+            f"测试类型 {self.test_type_combo.currentText()}，"
+            f"阈值偏移 {float(self.offset_spin.value()):g}，"
+            f"报警等待 {float(self.wait_spin.value()):g} 秒"
+        )
 
     def stop_test(self):
         if self.threshold_engine:
@@ -737,10 +756,9 @@ class ThresholdTestPanel(QWidget):
 
         def worker():
             try:
-                result = self.threshold_engine.run_single_pid(codes[0], **cfg)
-                self._sig_result.emit(result)
-                if result:
-                    self._sig_complete.emit([result])
+                # 结果由引擎逐级经 on_test_result 实时上报，这里只负责收尾
+                results = self.threshold_engine.run_single_pid(codes[0], **cfg) or []
+                self._sig_complete.emit(results)
             except Exception as e:
                 self.log_message(f"单步测试异常: {e}", "ERROR")
                 self._sig_complete.emit([])
@@ -797,7 +815,7 @@ class ThresholdTestPanel(QWidget):
         msg = f"[{'设置' if data.get('op')=='set' else '清除'}] {data.get('pid_code')} L{data.get('level')}: {'成功' if ok else '失败'}"
         self.log_message(msg, "INFO" if ok else "ERROR")
         if 0 <= row < self.pid_table_widget.rowCount():
-            item = self.pid_table_widget.item(row, 9)
+            item = self.pid_table_widget.item(row, 5)
             if item:
                 item.setText("成功" if ok else "失败")
                 item.setForeground(QColor(COLORS["success"] if ok else COLORS["error"]))
@@ -838,10 +856,15 @@ class ThresholdTestPanel(QWidget):
         self.test_results.append(result)
         status = result.overall_status
         status_text = status.value if status else "未知"
-        self.log_message(
-            f"[结果] {getattr(result, 'pid_name', '')} "
-            f"{getattr(result, 'fault_name', '')}: {status_text}"
-        )
+        meta = getattr(result, "metadata", {}) or {}
+        level = str(meta.get("level") or "")
+        name = str(getattr(result, "fault_name", "") or "")
+        # fault_name 形如「单体电压过高 L1」，尾部的 Ln 改写成「1 级」更易读
+        if level and name.endswith(f" L{level}"):
+            name = f"{name[:-(len(level) + 2)]} {level} 级"
+        pid_hex = str(meta.get("pid") or "")
+        suffix = f"（PID {pid_hex}）" if pid_hex else ""
+        self.log_message(f"[结果] {name}{suffix}：{status_text}")
         self.update_pid_table_status(result)
         self.update_param_table(result)
 
@@ -861,7 +884,7 @@ class ThresholdTestPanel(QWidget):
         self.progress_label.setText(
             f"状态=已完成 | 进度: {self.progress_bar.value()}/{total}"
         )
-        self.log_message(f"阈值测试完成，共 {len(results or [])} 条 PID 结果")
+        self.log_message(f"阈值测试完成，共 {len(results or [])} 条等级结果")
         self._save_results(results or [])
         self.test_completed.emit(results or [])
 
@@ -869,7 +892,11 @@ class ThresholdTestPanel(QWidget):
         if not self._test_logger or not results:
             return
         try:
-            self._test_logger.log_test_batch(results, test_type="threshold")
+            self._test_logger.log_test_batch(
+                results,
+                test_type="threshold",
+                project_name=self._current_project_name or "",
+            )
         except Exception as e:
             self.log_message(f"保存阈值测试报告失败: {e}", "ERROR")
 
@@ -894,7 +921,7 @@ class ThresholdTestPanel(QWidget):
             # 按该 PID 所有已知行更新
             for (p, lv), row in self._row_index.items():
                 if p == pid_val:
-                    item = self.pid_table_widget.item(row, 9)
+                    item = self.pid_table_widget.item(row, 5)
                     if item:
                         item.setText(status_text)
                         item.setForeground(color)
@@ -903,36 +930,70 @@ class ThresholdTestPanel(QWidget):
             row = self._row_index.get((pid_val, lv))
             if row is None:
                 continue
-            item = self.pid_table_widget.item(row, 9)
+            item = self.pid_table_widget.item(row, 5)
             if item:
                 item.setText(status_text)
                 item.setForeground(color)
 
     def update_param_table(self, result: TestResult):
         table = self.param_table
-        row = table.rowCount()
-        table.insertRow(row)
         pid_name = getattr(result, "pid_name", "") or ""
+        # 同一参数重复上报（如解除失败后回填结论）时更新原行，避免刷出重复行
+        row = -1
+        for r in range(table.rowCount()):
+            item = table.item(r, 0)
+            if item and item.text() == pid_name:
+                row = r
+                break
+        if row < 0:
+            row = table.rowCount()
+            table.insertRow(row)
         checks = getattr(result, "checks", []) or []
+
+        def fmt(v):
+            if v is None:
+                return ""
+            if isinstance(v, float) and v.is_integer():
+                return str(int(v))
+            return str(v)
+
+        verify_types = (
+            CheckType.INNER_SYS_FAIL_STA, CheckType.INNER_ERR_TAB, CheckType.INNER_SPECIFIC,
+            CheckType.OUTER_SYS_FAIL_STA, CheckType.OUTER_SPECIFIC, CheckType.OUTER_WARNING,
+            CheckType.INTERNAL_VERIFICATION, CheckType.EXTERNAL_VERIFICATION,
+        )
+        specific_types = (CheckType.INNER_SPECIFIC, CheckType.OUTER_SPECIFIC)
+
         env_val = ""
         set_val = ""
         alarm_val = ""
         alarm_st = ""
         release_val = ""
+        verify_checks = []
         for c in checks:
             n = c.name or ""
+            ctype = getattr(c, "check_type", None)
             if "环境" in n:
-                env_val = str(c.actual_value if c.actual_value is not None else "")
+                env_val = fmt(c.actual_value)
             elif "阈值设置" in n:
-                set_val = c.message or str(c.expected_value or "")
+                set_val = fmt(c.actual_value)
             elif "阈值恢复" in n or "解除" in n:
-                release_val = c.message or str(c.actual_value or "")
-            elif c.check_type and "验证" in getattr(c.check_type, "value", ""):
-                alarm_val = str(c.actual_value if c.actual_value is not None else "")
-                alarm_st = c.status.value if c.status else ""
-            elif c.check_type and "对外" in getattr(c.check_type, "value", ""):
-                alarm_val = str(c.actual_value if c.actual_value is not None else "")
-                alarm_st = c.status.value if c.status else ""
+                release_val = fmt(c.actual_value)
+            elif ctype in verify_types:
+                verify_checks.append(c)
+
+        # 实际报警值优先取 specific 信号（如 CellVolt_HighWarning 的告警等级）
+        for c in verify_checks:
+            if getattr(c, "check_type", None) in specific_types and c.actual_value is not None:
+                alarm_val = fmt(c.actual_value)
+                break
+        if not alarm_val:
+            for c in verify_checks:
+                if c.actual_value is not None:
+                    alarm_val = fmt(c.actual_value)
+                    break
+        if verify_checks:
+            alarm_st = "通过" if all(c.status == CheckStatus.PASSED for c in verify_checks) else "失败"
 
         values = [
             pid_name,
@@ -980,7 +1041,7 @@ class ThresholdTestPanel(QWidget):
             self.stat_label.setText("通过: 0  失败: 0")
         self.progress_label.setText("状态=就绪 | 进度: 0/0 | —")
         for row in range(self.pid_table_widget.rowCount()):
-            item = self.pid_table_widget.item(row, 9)
+            item = self.pid_table_widget.item(row, 5)
             if item:
                 item.setText("待测试")
                 item.setForeground(QColor(COLORS["text"]))

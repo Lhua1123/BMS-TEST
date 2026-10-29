@@ -300,7 +300,7 @@ class FaultTestEngine:
                 if self.stop_requested:
                     # 用户在准备阶段点了停止：属于中断，不是失败
                     self.stop_reason = (
-                        "用户在准备阶段点击了「停止故障测试」，本次测试已中断，"
+                        "用户在准备阶段点击了「停止」，本次测试已中断，"
                         "未测试任何故障码。"
                     )
                     logger.info("准备阶段收到停止请求，中断测试")
@@ -322,7 +322,7 @@ class FaultTestEngine:
 
         if self.stop_requested:
             self.stop_reason = (
-                "用户在测试开始前点击了「停止故障测试」，本次测试已中断，未测试任何故障码。"
+                "用户在测试开始前点击了「停止」，本次测试已中断，未测试任何故障码。"
             )
             self.is_running = False
             self.progress.current_state = TestState.COMPLETED
@@ -342,7 +342,7 @@ class FaultTestEngine:
                 if self.stop_requested:
                     logger.info("测试被用户停止")
                     self.stop_reason = (
-                        f"用户在第 {i + 1}/{len(faults)} 个故障处点击了「停止故障测试」，"
+                        f"用户在第 {i + 1}/{len(faults)} 个故障处点击了「停止」，"
                         f"本次测试已中断（已测部分的结果见统计）。"
                     )
                     break

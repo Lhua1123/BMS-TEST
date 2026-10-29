@@ -13,7 +13,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 
-from shared.utils import infer_datatype, get_protocol_config_path
+from shared.utils import (
+    infer_datatype, get_protocol_config_path, get_protocol_config_read_path,
+)
 from shared.style import COLORS
 
 
@@ -55,11 +57,18 @@ class ProtocolConfigDialog(QDialog):
                     'datatype': infer_datatype(bit_len, bit_start, factor, desc)
                 }
 
+    def _read_config_path(self) -> str:
+        """读基础配置的位置：exe 同目录还没有用户配置时，读打包进去的默认配置；
+        保存仍然写 self.user_config_path（exe 同目录）。"""
+        if os.path.exists(self.user_config_path):
+            return self.user_config_path
+        return get_protocol_config_read_path()
+
     def _load_user_overrides(self):
-        if not os.path.exists(self.user_config_path):
+        if not os.path.exists(self._read_config_path()):
             return
         try:
-            with open(self.user_config_path, 'r', encoding='utf-8') as f:
+            with open(self._read_config_path(), 'r', encoding='utf-8') as f:
                 data = json.load(f)
             self.user_overrides = data.get(self.mode, {}).get('signals', {})
         except (json.JSONDecodeError, OSError) as e:
@@ -302,9 +311,10 @@ class ProtocolConfigDialog(QDialog):
         data = self._collect_table_data()
 
         config = {}
-        if os.path.exists(self.user_config_path):
+        read_path = self._read_config_path()
+        if os.path.exists(read_path):
             try:
-                with open(self.user_config_path, 'r', encoding='utf-8') as f:
+                with open(read_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
             except (json.JSONDecodeError, OSError):
                 config = {}
@@ -352,9 +362,10 @@ class ProtocolConfigDialog(QDialog):
             return
 
         config = {}
-        if os.path.exists(self.user_config_path):
+        read_path = self._read_config_path()
+        if os.path.exists(read_path):
             try:
-                with open(self.user_config_path, 'r', encoding='utf-8') as f:
+                with open(read_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
             except Exception:
                 config = {}

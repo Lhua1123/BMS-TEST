@@ -6,25 +6,99 @@ BMS报警测试Tab
 
 import logging
 import atexit
+import math
+import time
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget,
                              QPushButton, QFrame, QLabel, QSizePolicy,
                              QMessageBox, QApplication, QStyle, QStyleOptionButton, QStylePainter)
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtCore import Qt, QSize, QTimer
+from PyQt5.QtGui import QFont, QIcon, QPainter, QColor, QRadialGradient
 
-from shared.style import COLORS, FONTS, themed_qss, on_theme_changed
+from shared.style import COLORS, themed_qss, on_theme_changed
+from shared.utils import get_db_path
 
 logger = logging.getLogger(__name__)
 
 
 class _NavButton(QPushButton):
-    """导航按钮：强制文字左对齐"""
+    """导航按钮：文字居中"""
     def paintEvent(self, event):
         painter = QStylePainter(self)
         option = QStyleOptionButton()
         self.initStyleOption(option)
-        option.textAlignment = Qt.AlignLeft | Qt.AlignVCenter
+        option.textAlignment = Qt.AlignCenter
         painter.drawControl(QStyle.CE_PushButton, option)
+
+
+class _StatusLamp(QWidget):
+    """CAN 状态呼吸灯：未连接=灰，已连接无通讯=红，有通讯=绿呼吸"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._state = 'off'  # off=未连接 / idle=已连接无通讯 / active=通讯中
+        self._phase = 0.0
+        self.setFixedSize(22, 22)
+        self.setToolTip("CAN: 未连接")
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start(60)
+
+    def set_state(self, state: str, tip: str = ""):
+        if tip:
+            self.setToolTip(tip)
+        if state != self._state:
+            self._state = state
+            self.update()
+
+    def _tick(self):
+        if self._state == 'active':
+            self._phase = (self._phase + 0.055) % 1.0
+            self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect()
+
+        if self._state == 'active':
+            # 呼吸：绿 ↔ 灰，颜色随相位在两者间过渡
+            breath = 0.5 + 0.5 * math.sin(self._phase * 2 * math.pi)
+            green = QColor(COLORS['success'])
+            gray = QColor(COLORS['text_dim'])
+            base = QColor(
+                round(green.red() * breath + gray.red() * (1 - breath)),
+                round(green.green() * breath + gray.green() * (1 - breath)),
+                round(green.blue() * breath + gray.blue() * (1 - breath)),
+            )
+            glow = 0.30 + 0.70 * breath
+        elif self._state == 'idle':
+            base = QColor(COLORS['error'])
+            glow = 0.9
+        else:
+            base = QColor(COLORS['text_dim'])
+            glow = 0.5
+
+        # 外圈光晕
+        center = rect.center()
+        radius = rect.width() / 2
+        gradient = QRadialGradient(center, radius)
+        outer = QColor(base)
+        outer.setAlphaF(0.30 * glow)
+        gradient.setColorAt(0.0, outer)
+        edge = QColor(base)
+        edge.setAlphaF(0.0)
+        gradient.setColorAt(1.0, edge)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(gradient)
+        painter.drawEllipse(rect)
+
+        # 灯体
+        core = rect.adjusted(5, 5, -5, -5)
+        body = QColor(base)
+        body.setAlphaF(0.55 + 0.45 * glow)
+        painter.setBrush(body)
+        painter.drawEllipse(core)
+        painter.end()
 
 
 # 以下样式都是函数，每次调用读取当前主题颜色（切换主题后由 themed_qss 重新生成）
@@ -53,9 +127,9 @@ def _nav_btn_qss() -> str:
         f"color: {COLORS['text']};"
         f"border: 1px solid {COLORS['border']};"
         f"border-radius: 4px;"
-        f"padding: 8px 8px 8px 24px;"
+        f"padding: 6px 18px;"
         f"font-weight: bold;"
-        f"text-align: left;"
+        f"text-align: center;"
         f"}}"
         f"QPushButton:hover {{ background: {COLORS['bg_hover']}; }}"
         f"QPushButton:checked {{"
@@ -100,7 +174,7 @@ class BmsAlarmTestTab(QWidget):
             self._fault_mapping = FaultMapping()
 
             # 初始化测试结果数据库
-            self._test_logger = TestLogger("data/test_results.db")
+            self._test_logger = TestLogger(get_db_path())
             atexit.register(self._force_cleanup)
         except Exception as e:
             logger.error(f"报警测试后端初始化失败: {e}")
@@ -123,30 +197,20 @@ class BmsAlarmTestTab(QWidget):
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(8)
 
-        # CAN 连接控制栏
-        can_bar = self._create_can_control_bar()
-        root.addWidget(can_bar)
+        # 顶部：左侧页面导航 + 右侧 CAN 控制与状态灯
+        header = self._create_header_bar()
+        root.addWidget(header)
 
-        # 主体：左侧导航 + 右侧内容
-        body = QHBoxLayout()
-        body.setSpacing(8)
-
-        # 左侧导航
-        nav = self._create_nav()
-        body.addWidget(nav, 0)
-
-        # 右侧内容区
+        # 内容区
         self.stack = QStackedWidget()
         self._create_pages()
-        body.addWidget(self.stack, 1)
-
-        root.addLayout(body, 1)
+        root.addWidget(self.stack, 1)
 
     # ------------------------------------------------------------------
-    # CAN 连接控制
+    # 顶部栏
     # ------------------------------------------------------------------
-    def _create_can_control_bar(self) -> QWidget:
-        """顶部 CAN 连接控制栏"""
+    def _create_header_bar(self) -> QWidget:
+        """顶部栏：左侧页面导航 + 右侧 CAN 控制与状态呼吸灯"""
         frame = QFrame()
         themed_qss(frame, lambda: (
             f"QFrame {{ border: 1px solid {COLORS['border']}; border-radius: 6px; "
@@ -154,20 +218,40 @@ class BmsAlarmTestTab(QWidget):
         ))
         bar = QHBoxLayout(frame)
         bar.setContentsMargins(12, 8, 12, 8)
-        bar.setSpacing(12)
+        bar.setSpacing(8)
 
+        # 左：页面导航
+        self.nav_buttons = []
+        for idx, (name, key) in enumerate([
+            ("故障码测试", "fault"),
+            ("阈值测试", "threshold"),
+            ("测试报告", "report"),
+        ]):
+            btn = _NavButton(name)
+            btn.setCheckable(True)
+            themed_qss(btn, _nav_btn_qss)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setMinimumHeight(34)
+            if idx == 0:
+                btn.setChecked(True)
+            btn.clicked.connect(lambda checked, k=key, i=idx: self._switch_page(k, i))
+            bar.addWidget(btn)
+            self.nav_buttons.append(btn)
+
+        bar.addStretch()
+
+        # 右：CAN 控制
         self.btn_connect = QPushButton("连接 CAN")
         themed_qss(self.btn_connect, _btn_primary_qss)
         self.btn_connect.setCursor(Qt.PointingHandCursor)
         self.btn_connect.clicked.connect(self._on_connect_clicked)
+        bar.addWidget(self.btn_connect)
 
         self.btn_disconnect = QPushButton("断开 CAN")
         themed_qss(self.btn_disconnect, _btn_danger_qss)
         self.btn_disconnect.setCursor(Qt.PointingHandCursor)
         self.btn_disconnect.setEnabled(False)
         self.btn_disconnect.clicked.connect(self._on_disconnect_clicked)
-
-        bar.addWidget(self.btn_connect)
         bar.addWidget(self.btn_disconnect)
 
         self.btn_config = QPushButton("CAN 配置")
@@ -180,84 +264,19 @@ class BmsAlarmTestTab(QWidget):
         self.btn_config.clicked.connect(self._on_config_clicked)
         bar.addWidget(self.btn_config)
 
-        self.btn_clear_all = QPushButton("一键清除所有故障")
-        themed_qss(self.btn_clear_all, lambda: (
-            f"QPushButton {{ background-color: {COLORS['warning']}; color: white; "
-            f"padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background-color: #d97706; }}"
-            f"QPushButton:disabled {{ background-color: {COLORS['border']}; color: {COLORS['text_dim']}; }}"
-        ))
-        self.btn_clear_all.setCursor(Qt.PointingHandCursor)
-        self.btn_clear_all.clicked.connect(self._on_clear_all_clicked)
-        bar.addWidget(self.btn_clear_all)
+        # 右端：通讯状态呼吸灯
+        self._lamp = _StatusLamp()
+        bar.addWidget(self._lamp, 0, Qt.AlignVCenter)
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.VLine)
-        themed_qss(sep, lambda: f"color: {COLORS['border']};")
-        bar.addWidget(sep)
+        self._can_tip = "CAN: 未连接"
+        self._last_counts = None
+        self._last_activity = None
 
-        self.can_status_label = QLabel("CAN: 未连接")
-        # 状态文字颜色用「颜色名」记录（error / warning / success），切换主题时按当前色表重画
-        self._can_status_key = 'error'
-        themed_qss(self.can_status_label, self._can_status_qss)
-        bar.addWidget(self.can_status_label)
-
-        bar.addStretch()
-
-        self.tx_count_label = QLabel("TX: 0")
-        self.rx_count_label = QLabel("RX: 0")
-        for lbl in (self.tx_count_label, self.rx_count_label):
-            themed_qss(lbl, lambda: f"color: {COLORS['text_dim']}; font-family: {FONTS['mono'][0]};")
-            # 固定宽度：TX/RX 数字位数增长时不推挤顶栏布局
-            lbl.setMinimumWidth(lbl.fontMetrics().horizontalAdvance("TX: 99999999") + 8)
-            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            bar.addWidget(lbl)
-
-        # TX/RX 定时刷新
-        self._refresh_timer = __import__('PyQt5.QtCore', fromlist=['QTimer']).QTimer(self)
-        self._refresh_timer.timeout.connect(self._refresh_counts)
+        # 状态灯定时刷新（含通讯活动检测）
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.timeout.connect(self._update_status_lamp)
         self._refresh_timer.start(500)
 
-        return frame
-
-    def _can_status_qss(self) -> str:
-        return f"color: {COLORS[self._can_status_key]}; font-weight: bold; font-size: 13px;"
-
-    def _set_can_status_color(self, key: str):
-        """改变 CAN 状态文字颜色：key 为 COLORS 里的颜色名"""
-        self._can_status_key = key
-        self.can_status_label.setStyleSheet(self._can_status_qss())
-
-    def _create_nav(self) -> QFrame:
-        """左侧导航区"""
-        frame = QFrame()
-        themed_qss(frame, lambda: (
-            f"QFrame {{ border: 1px solid {COLORS['border']}; border-radius: 6px; "
-            f"background: {COLORS['bg_panel']}; }}"
-        ))
-        nav = QVBoxLayout(frame)
-        nav.setContentsMargins(8, 8, 8, 8)
-        nav.setSpacing(6)
-
-        self.nav_buttons = []
-        pages = [
-            ("故障码测试", "fault"),
-            ("阈值测试", "threshold"),
-            ("测试报告", "report"),
-        ]
-        for idx, (name, key) in enumerate(pages):
-            btn = _NavButton(name)
-            btn.setCheckable(True)
-            themed_qss(btn, _nav_btn_qss)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setMinimumHeight(44)
-            if idx == 0:
-                btn.setChecked(True)
-            btn.clicked.connect(lambda checked, k=key, i=idx: self._switch_page(k, i))
-            nav.addWidget(btn)
-            self.nav_buttons.append(btn)
-
-        nav.addStretch(1)
         return frame
 
     def _switch_page(self, key: str, index: int):
@@ -329,11 +348,12 @@ class BmsAlarmTestTab(QWidget):
             self.stack.addWidget(error_label)
 
     # ------------------------------------------------------------------
-    # CAN 计数刷新
+    # 状态灯刷新
     # ------------------------------------------------------------------
-    def _refresh_counts(self):
-        """从 CAN 管理器刷新 TX/RX 计数"""
+    def _update_status_lamp(self):
+        """按连接状态与收发活动刷新呼吸灯：未连接=灰，已连接无通讯=红，有通讯=绿呼吸"""
         if not self._can_manager:
+            self._lamp.set_state('off', "CAN: 不可用")
             return
         try:
             total_tx, total_rx = 0, 0
@@ -343,8 +363,24 @@ class BmsAlarmTestTab(QWidget):
                     counts = status.message_count
                     total_tx += counts.get("tx", 0)
                     total_rx += counts.get("rx", 0)
-            self.tx_count_label.setText(f"TX: {total_tx}")
-            self.rx_count_label.setText(f"RX: {total_rx}")
+
+            now = time.time()
+            if not self._can_manager.is_connected():
+                self._last_counts = None
+                self._last_activity = None
+                self._lamp.set_state('off', self._can_tip)
+                return
+
+            counts_now = (total_tx, total_rx)
+            if self._last_counts is not None and counts_now != self._last_counts:
+                self._last_activity = now
+            self._last_counts = counts_now
+
+            counter = f"TX={total_tx}  RX={total_rx}"
+            if self._last_activity is not None and now - self._last_activity < 2.0:
+                self._lamp.set_state('active', f"{self._can_tip}\n通讯中 | {counter}")
+            else:
+                self._lamp.set_state('idle', f"{self._can_tip}\n无通讯 | {counter}")
         except Exception:
             pass
 
@@ -367,8 +403,8 @@ class BmsAlarmTestTab(QWidget):
             QMessageBox.critical(self, "CAN 不可用", msg)
             return
         self.btn_connect.setEnabled(False)
-        self.can_status_label.setText("CAN: 连接中...")
-        self._set_can_status_color('warning')
+        self._can_tip = "CAN: 连接中..."
+        self._lamp.set_state('off', self._can_tip)
         from PyQt5.QtCore import QThread, pyqtSignal
 
         class _ConnectWorker(QThread):
@@ -392,8 +428,8 @@ class BmsAlarmTestTab(QWidget):
     def _on_connect_finished(self, ok, err_msg):
         """CAN 连接完成回调"""
         if not ok:
-            self.can_status_label.setText("CAN: 连接失败")
-            self._set_can_status_color('error')
+            self._can_tip = "CAN: 连接失败"
+            self._lamp.set_state('off', self._can_tip)
             self.btn_connect.setEnabled(True)
             self.btn_disconnect.setEnabled(False)
             if err_msg:
@@ -417,13 +453,13 @@ class BmsAlarmTestTab(QWidget):
                 status = self._can_manager.get_status(ch)
                 err = status.last_error if status and status.last_error else "未知错误"
                 err_msgs.append(f"CH{ch}: {err}")
-            self.can_status_label.setText(f"CAN: 连接失败 — {'; '.join(err_msgs)}")
-            self._set_can_status_color('error')
+            self._can_tip = f"CAN: 连接失败 — {'; '.join(err_msgs)}"
+            self._lamp.set_state('off', self._can_tip)
             logger.error(f"CAN连接失败: {'; '.join(err_msgs)}")
         else:
             ch_str = ",".join(f"CH{ch}" for ch in real_channels)
-            self.can_status_label.setText(f"CAN: 已连接 ({ch_str})")
-            self._set_can_status_color('success')
+            self._can_tip = f"CAN: 已连接 ({ch_str})"
+            self._lamp.set_state('idle', self._can_tip)
             if failed_channels:
                 for ch in failed_channels:
                     status = self._can_manager.get_status(ch)
@@ -449,84 +485,11 @@ class BmsAlarmTestTab(QWidget):
         """断开 CAN"""
         if self._can_manager:
             self._can_manager.disconnect()
-        self.can_status_label.setText("CAN: 未连接")
-        self._set_can_status_color('error')
+        self._can_tip = "CAN: 未连接"
+        self._lamp.set_state('off', self._can_tip)
         self.btn_connect.setEnabled(True)
         self.btn_disconnect.setEnabled(False)
         logger.info("CAN 已断开")
-
-    def _on_clear_all_clicked(self):
-        """一键清除所有故障（后台线程执行，进度展示在故障测试面板）"""
-        logger.info("[一键清除] 按钮被点击")
-        if not self._can_manager or not self._can_manager.is_connected():
-            logger.info("[一键清除] CAN未连接，退出")
-            QMessageBox.warning(self, "提示", "请先连接 CAN")
-            return
-
-        reply = QMessageBox.question(
-            self, "确认清除",
-            f"将清除目标地址 0x{self.fault_panel.nbcmu_spin.value():X} 的所有故障（1-96）\n是否继续？",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        if reply != QMessageBox.Yes:
-            logger.info("[一键清除] 用户取消")
-            return
-
-        if getattr(self, "_clear_all_worker", None) and self._clear_all_worker.isRunning():
-            logger.warning("[一键清除] 已有清除任务在执行")
-            return
-
-        self.btn_clear_all.setEnabled(False)
-        self.btn_clear_all.setText("清除中...")
-
-        # 切到故障测试面板并展示清除进度（状态徽章 + 进度条）
-        # （引擎的 on_progress_update 已由 set_fault_engine 接到面板信号，无需额外转接）
-        self._switch_page("fault", 0)
-        self.fault_panel.show_clearing_state(True)
-
-        from PyQt5.QtCore import QThread, pyqtSignal as _pyqtSignal
-
-        class _ClearAllWorker(QThread):
-            finished = _pyqtSignal(bool, str)
-
-            def __init__(self, engine, addr, parent=None):
-                super().__init__(parent)
-                self.engine = engine
-                self.addr = addr
-
-            def run(self):
-                try:
-                    # 遗留的停止标志（上次点过「停止」）会让全清立即中断，必须先复位
-                    self.engine.clear_stop_request()
-                    ok = self.engine.clear_all_faults(self.addr)
-                    self.finished.emit(bool(ok), "" if ok else "部分故障清除失败，请查看日志")
-                except Exception as e:
-                    self.finished.emit(False, f"清除故障异常: {e}")
-
-        # 域处理：clear_all_faults 接受 int 地址（按 NBCMU 域处理，与原行为一致）
-        engine = self.fault_panel.fault_engine
-        if engine is None:
-            self.btn_clear_all.setEnabled(True)
-            self.btn_clear_all.setText("一键清除所有故障")
-            self.fault_panel.show_clearing_state(False)
-            QMessageBox.warning(self, "错误", "故障引擎未初始化")
-            return
-
-        self._clear_all_worker = _ClearAllWorker(engine, self.fault_panel.nbcmu_spin.value())
-        self._clear_all_worker.finished.connect(self._on_clear_all_finished)
-        self._clear_all_worker.start()
-
-    def _on_clear_all_finished(self, ok: bool, err_msg: str):
-        """一键清除完成回调"""
-        self.btn_clear_all.setEnabled(True)
-        self.btn_clear_all.setText("一键清除所有故障")
-        self.fault_panel.show_clearing_state(False)
-        if ok:
-            logger.info("[一键清除] 完成")
-            QMessageBox.information(self, "完成", "所有故障已清除")
-        else:
-            logger.error(f"[一键清除] 失败: {err_msg}")
-            QMessageBox.warning(self, "提示", err_msg or "部分故障清除失败，请查看日志")
 
     def _on_config_clicked(self):
         """打开CAN配置对话框"""

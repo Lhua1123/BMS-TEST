@@ -32,7 +32,7 @@ from shared.constants import (
     BMS_REGISTER_START_ADDR,
     REFRESH_INTERVAL_MS
 )
-from shared.utils import get_protocol_config_path
+from shared.utils import get_protocol_config_read_path
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +308,7 @@ class BmsMonitorTab(QWidget):
         self._load_user_config()
 
     def _load_user_config(self):
-        config_path = get_protocol_config_path()
+        config_path = get_protocol_config_read_path()
         if not os.path.exists(config_path):
             return
         try:
@@ -316,6 +316,7 @@ class BmsMonitorTab(QWidget):
                 data = json.load(f)
         except (json.JSONDecodeError, OSError):
             return
+        logger.info(f"[{self.mode}] 加载用户协议配置: {config_path}")
 
         mode_config = data.get(self.mode, {}).get('signals', {})
         saved_version = data.get(self.mode, {}).get('protocol_version', '')

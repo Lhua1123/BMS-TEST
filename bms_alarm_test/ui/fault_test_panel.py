@@ -17,12 +17,12 @@ from bms_alarm_test.ui.panel_style import (
     table_qss,
     compact_qss,
     LeftAlignDelegate,
+    RowButton,
     btn_primary,
     btn_warning,
+    btn_danger,
     btn_neutral,
     button_fixed_size_qss,
-    FAULT_CTRL_BTN_W,
-    FAULT_CTRL_BTN_H,
 )
 from bms_alarm_test.config.fault_mapping import FaultMapping, FaultDomain, Fault
 from bms_alarm_test.engine.fault_engine import FaultTestEngine
@@ -136,7 +136,7 @@ class FaultTestPanel(QWidget):
         left_container = QWidget()
         left_container.setLayout(left)
         left_container.setMinimumWidth(420)
-        root.addWidget(left_container, 3)
+        root.addWidget(left_container, 2)
 
         # 右侧：控制 + 测试详情（控制区不再横向堆叠进度条，避免挤占左侧）
         right = QVBoxLayout()
@@ -148,43 +148,53 @@ class FaultTestPanel(QWidget):
 
         right_container = QWidget()
         right_container.setLayout(right)
-        root.addWidget(right_container, 2)
+        root.addWidget(right_container, 3)
 
     def create_config_group(self) -> QGroupBox:
-        """创建测试配置区域"""
+        """创建测试配置区域（两行紧凑排布）"""
+        from PyQt5.QtWidgets import QSizePolicy
+
         group = QGroupBox("测试配置")
         layout = QGridLayout()
+        layout.setHorizontalSpacing(6)
+        layout.setVerticalSpacing(6)
+        # 输入列均分整行宽度，避免控件挤在左侧
+        for col in (1, 3, 5):
+            layout.setColumnStretch(col, 1)
 
-        # BMS地址 - NBCMU / SBCMU 分别配置
+        def _fill(widget, min_w: int):
+            widget.setMinimumWidth(min_w)
+            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            return widget
+
+        # 第一行：地址 + 测试范围
         layout.addWidget(QLabel("NBCMU地址:"), 0, 0)
         self.nbcmu_spin = QSpinBox()
         self.nbcmu_spin.setRange(1, 255)
         self.nbcmu_spin.setValue(161)
-        layout.addWidget(self.nbcmu_spin, 0, 1)
+        layout.addWidget(_fill(self.nbcmu_spin, 90), 0, 1)
 
         layout.addWidget(QLabel("SBCMU地址:"), 0, 2)
         self.sbcmu_spin = QSpinBox()
         self.sbcmu_spin.setRange(1, 255)
         self.sbcmu_spin.setValue(177)
-        layout.addWidget(self.sbcmu_spin, 0, 3)
+        layout.addWidget(_fill(self.sbcmu_spin, 90), 0, 3)
 
-        # 测试范围
-        layout.addWidget(QLabel("测试范围:"), 1, 0)
+        layout.addWidget(QLabel("测试范围:"), 0, 4)
         self.fault_range_combo = QComboBox()
         self.fault_range_combo.addItems(["所有故障", "NBCMU故障", "SBCMU故障", "共有故障", "自定义选择"])
-        layout.addWidget(self.fault_range_combo, 1, 1, 1, 3)
+        layout.addWidget(_fill(self.fault_range_combo, 120), 0, 5)
 
-        # 故障等级过滤
-        layout.addWidget(QLabel("故障等级:"), 2, 0)
+        # 第二行：故障等级 + 失败处理 + 是否读取对外报文
+        layout.addWidget(QLabel("故障等级:"), 1, 0)
         self.fault_level_combo = QComboBox()
         self.fault_level_combo.addItems(["所有等级", "等级1", "等级2", "等级3"])
-        layout.addWidget(self.fault_level_combo, 2, 1, 1, 3)
+        layout.addWidget(_fill(self.fault_level_combo, 120), 1, 1)
 
-        # 失败处理方式
-        layout.addWidget(QLabel("失败处理:"), 3, 0)
+        layout.addWidget(QLabel("失败处理:"), 1, 2)
         self.fail_handling_combo = QComboBox()
         self.fail_handling_combo.addItems(["跳过继续", "中断测试"])
-        layout.addWidget(self.fail_handling_combo, 3, 1, 1, 3)
+        layout.addWidget(_fill(self.fail_handling_combo, 120), 1, 3)
 
         # 是否读取对外报文（对外无报文时可取消勾选，跳过对外回读验证）
         self.read_outer_check = QCheckBox("读取对外报文（对外验证）")
@@ -193,7 +203,7 @@ class FaultTestPanel(QWidget):
             "勾选时读取对外CAN报文做对外验证（SysFailSta/对外specific/Warning汇总）。\n"
             "若测试时对外无报文，可不勾选，跳过对外回读。"
         )
-        layout.addWidget(self.read_outer_check, 4, 0, 1, 4)
+        layout.addWidget(self.read_outer_check, 1, 4, 1, 2)
 
         group.setLayout(layout)
         return group
@@ -207,24 +217,27 @@ class FaultTestPanel(QWidget):
         control_layout = QHBoxLayout()
 
         self.select_all_btn = QPushButton("全选")
+        themed_qss(self.select_all_btn, btn_primary)
         control_layout.addWidget(self.select_all_btn)
 
         self.select_none_btn = QPushButton("全不选")
+        themed_qss(self.select_none_btn, btn_primary)
         control_layout.addWidget(self.select_none_btn)
 
         self.invert_selection_btn = QPushButton("反选")
+        themed_qss(self.invert_selection_btn, btn_primary)
         control_layout.addWidget(self.invert_selection_btn)
 
-        self.refresh_list_btn = QPushButton("刷新列表")
+        self.refresh_list_btn = QPushButton("重置列表")
+        themed_qss(self.refresh_list_btn, btn_warning)
         control_layout.addWidget(self.refresh_list_btn)
-
-        control_layout.addStretch()
 
         # 搜索框
         control_layout.addWidget(QLabel("搜索:"))
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("搜索故障码或名称...")
-        control_layout.addWidget(self.search_edit)
+        self.search_edit.setFixedHeight(34)  # 与同排按钮等高
+        control_layout.addWidget(self.search_edit, 1)
 
         layout.addLayout(control_layout)
 
@@ -233,7 +246,7 @@ class FaultTestPanel(QWidget):
         self.fault_table.setColumnCount(7)
         self.fault_table.setHorizontalHeaderLabels([
             "选择", "故障码", "故障名称", "故障等级", "域类型",
-            "设置故障", "清除故障"
+            "设置", "清除"
         ])
         self.fault_table.verticalHeader().setVisible(False)
         header = self.fault_table.horizontalHeader()
@@ -241,12 +254,13 @@ class FaultTestPanel(QWidget):
         header.setSectionResizeMode(QHeaderView.Fixed)
         header.setStretchLastSection(False)
         # 先保证故障列表在常见宽度下能完整显示，不出现横向滚动
-        self._fault_column_weights = [0.7, 0.85, 2.2, 1.0, 1.05, 1.1, 1.1]
-        self._fault_column_min_widths = [48, 56, 140, 64, 78, 88, 88]
+        self._fault_column_weights = [0.7, 0.85, 2.2, 1.0, 1.05, 0.8, 0.8]
+        self._fault_column_min_widths = [48, 56, 140, 64, 78, 84, 84]
         themed_qss(self.fault_table, lambda: (
             table_qss()
             + "\nQTableWidget { font-size: 12px; }"
-            + "\nQTableWidget::item { padding: 6px 8px; }"
+            # item 内边距会一起压缩单元格控件区域，把行内按钮裁掉，故设为 0
+            + "\nQTableWidget::item { padding: 0px; }"
             + "\nQHeaderView::section { font-size: 12px; padding: 7px 8px; }"
         ))
         self.fault_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -273,39 +287,30 @@ class FaultTestPanel(QWidget):
         outer.setSpacing(6)
 
         # —— 按钮行（仅按钮，不放进度控件）——
+        # 与阈值测试一致：按文字自适应宽度，不锁死尺寸，间距紧凑
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        w, h = FAULT_CTRL_BTN_W, FAULT_CTRL_BTN_H
-        lock = button_fixed_size_qss(w, h)
 
-        def _fix_btn(btn: QPushButton, base_style):
-            # base_style 是返回样式串的函数（如 btn_primary），切换主题时重新生成
-            themed_qss(btn, lambda: base_style() + lock)
-            btn.setFixedSize(w, h)
-            btn.setMinimumSize(w, h)
-            btn.setMaximumSize(w, h)
-            btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        self.start_test_btn = QPushButton("开始故障测试")
+        self.start_test_btn = QPushButton("开始")
         self.start_test_btn.setEnabled(False)
-        _fix_btn(self.start_test_btn, btn_primary)
+        themed_qss(self.start_test_btn, btn_primary)
         btn_row.addWidget(self.start_test_btn)
 
-        self.stop_test_btn = QPushButton("停止故障测试")
+        self.stop_test_btn = QPushButton("停止")
         self.stop_test_btn.setEnabled(False)
-        _fix_btn(self.stop_test_btn, btn_warning)
+        themed_qss(self.stop_test_btn, btn_danger)
         btn_row.addWidget(self.stop_test_btn)
 
         self.step_test_btn = QPushButton("单步测试")
         self.step_test_btn.setEnabled(False)
-        _fix_btn(self.step_test_btn, btn_primary)
+        themed_qss(self.step_test_btn, btn_warning)
         btn_row.addWidget(self.step_test_btn)
 
-        self.verify_cfg_btn = QPushButton("验证配置")
+        self.verify_cfg_btn = QPushButton("配置验证")
         self.verify_cfg_btn.setToolTip(
             "合并配置：①CAN 信号回读协议（ID/位定义/DBC） ②故障期望值与额外回读"
         )
-        _fix_btn(self.verify_cfg_btn, btn_primary)
+        themed_qss(self.verify_cfg_btn, btn_primary)
         self.verify_cfg_btn.clicked.connect(self._open_verify_config)
         btn_row.addWidget(self.verify_cfg_btn)
 
@@ -384,37 +389,36 @@ class FaultTestPanel(QWidget):
 
         # 使用分割器
         splitter = QSplitter(Qt.Vertical)
+        # 上下两块之间要留缝隙：默认 handle 只有 2px，看着像贴死
+        splitter.setHandleWidth(8)
+        splitter.setStyleSheet("QSplitter::handle { background: transparent; }")
 
-        # 实时日志
-        log_group = QGroupBox("实时日志")
-        log_layout = QVBoxLayout()
+        # 实时日志（与阈值测试一致：不套分组框，用占位文字标示）
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QFont(*FONTS['mono_large']))
-        log_layout.addWidget(self.log_text)
-        log_group.setLayout(log_layout)
-        splitter.addWidget(log_group)
+        self.log_text.setPlaceholderText("实时日志")
+        splitter.addWidget(self.log_text)
 
         # 验证详情
-        detail_group = QGroupBox("验证详情")
-        detail_layout = QVBoxLayout()
         self.detail_table = QTableWidget()
         self.detail_table.setColumnCount(7)
         self.detail_table.setHorizontalHeaderLabels([
             "故障名", "检查类型", "检查域", "期望值", "实际值", "状态", "备注"
         ])
         self.detail_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.detail_table.verticalHeader().setVisible(False)
         themed_qss(self.detail_table, lambda: (
             table_qss()
             + "\nQTableWidget { font-size: 12px; }"
             + "\nQTableWidget::item { padding: 6px 8px; }"
         ))
         LeftAlignDelegate.attach(self.detail_table, [0, 1, 6], self.detail_table)
-        detail_layout.addWidget(self.detail_table)
-        detail_group.setLayout(detail_layout)
-        splitter.addWidget(detail_group)
+        splitter.addWidget(self.detail_table)
 
         # 设置分割器比例（等分）
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
         splitter.setSizes([1, 1])
 
         layout.addWidget(splitter)
@@ -526,6 +530,8 @@ class FaultTestPanel(QWidget):
         viewport_width = self.fault_table.viewport().width()
         if viewport_width <= 0:
             return
+        # 预留竖向滚动条宽度：滚动条出现时视口变窄，否则又会多出横向滚动
+        viewport_width = max(240, viewport_width - 14)
         minimums = self._fault_column_min_widths
         weights = self._fault_column_weights
         minimum_total = sum(minimums)
@@ -583,19 +589,23 @@ class FaultTestPanel(QWidget):
             item.setTextAlignment(Qt.AlignCenter)
             self.fault_table.setItem(i, 4, item)
 
-            # 设置故障按钮
-            inject_btn = QPushButton("设置故障")
-            themed_qss(inject_btn, btn_primary)
-            inject_btn.setMinimumHeight(32)
-            inject_btn.clicked.connect(lambda checked, f=fault: self._on_inject_single(f))
-            self.fault_table.setCellWidget(i, 5, inject_btn)
+            # 设置按钮
+            self.fault_table.setCellWidget(
+                i, 5,
+                self._make_row_button(
+                    "设置", btn_primary,
+                    lambda _, f=fault: self._on_inject_single(f),
+                ),
+            )
 
-            # 清除故障按钮
-            clear_btn = QPushButton("清除故障")
-            themed_qss(clear_btn, btn_warning)
-            clear_btn.setMinimumHeight(32)
-            clear_btn.clicked.connect(lambda checked, f=fault: self._on_clear_single(f))
-            self.fault_table.setCellWidget(i, 6, clear_btn)
+            # 清除按钮
+            self.fault_table.setCellWidget(
+                i, 6,
+                self._make_row_button(
+                    "清除", btn_warning,
+                    lambda _, f=fault: self._on_clear_single(f),
+                ),
+            )
 
         self._resize_fault_columns()
 
@@ -609,7 +619,27 @@ class FaultTestPanel(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
         cb = QCheckBox()
+        cb.setChecked(False)  # 默认全不选
         lay.addWidget(cb, 0, Qt.AlignCenter)
+        return container
+
+    @staticmethod
+    def _make_row_button(text: str, style, slot) -> QWidget:
+        """单元格内的操作按钮：统一尺寸、文字居中"""
+        from PyQt5.QtWidgets import QSizePolicy
+
+        btn = RowButton(text)
+        themed_qss(btn, lambda: style() + button_fixed_size_qss(72, 32))
+        btn.setFixedSize(72, 32)
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(slot)
+        container = QWidget()
+        lay = QHBoxLayout(container)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setAlignment(Qt.AlignCenter)
+        lay.addWidget(btn)
+        container.button = btn
         return container
 
     @staticmethod

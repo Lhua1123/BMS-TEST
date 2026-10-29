@@ -11,6 +11,7 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 
 from bms_alarm_test.config.settings import BaudRate
+from shared.utils import get_log_dir
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,9 @@ _DLL_SEARCH_PATHS = [
     os.path.join(os.path.dirname(__file__), '..', '..', 'ControlCAN.dll'),
 ]
 
-# 日志文件路径
-_LOG_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+# 日志文件路径：与主程序一致，日志落在程序数据根目录（exe 同目录 / 项目根目录），
+# 不能用模块相对路径——打包后模块在 _MEIPASS 临时目录里，退出即删。
+_LOG_DIR = get_log_dir()
 _LOG_FILE = os.path.join(_LOG_DIR, 'can_driver.log')
 
 

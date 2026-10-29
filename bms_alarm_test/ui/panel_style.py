@@ -2,7 +2,34 @@
 报警测试面板共享工具
 """
 
-from PyQt5.QtWidgets import QLabel, QSizePolicy
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPalette
+from PyQt5.QtWidgets import QLabel, QSizePolicy, QPushButton
+
+
+class RowButton(QPushButton):
+    """表格行内操作按钮：强制文字居中绘制（QSS 的 text-align 对按钮不可靠）"""
+
+    def paintEvent(self, event):
+        from PyQt5.QtWidgets import QStyle, QStyleOptionButton, QStylePainter
+
+        painter = QStylePainter(self)
+        option = QStyleOptionButton()
+        self.initStyleOption(option)
+        option.rect = self.rect()
+        option.textAlignment = Qt.AlignCenter
+        text = option.text
+        option.text = ""
+        painter.drawControl(QStyle.CE_PushButton, option)
+        option.text = text
+        painter.drawItemText(
+            self.rect(),
+            int(Qt.AlignCenter),
+            option.palette,
+            self.isEnabled(),
+            text,
+            QPalette.ButtonText,
+        )
 
 from shared.style import COLORS
 from shared.style import combo_arrow_url, spin_up_arrow_url, spin_down_arrow_url
@@ -16,10 +43,6 @@ def button_fixed_size_qss(width: int, height: int) -> str:
         f"padding: 0px; margin: 0px;"
     )
 
-
-# 报警测试「测试控制」四按钮统一尺寸
-FAULT_CTRL_BTN_W = 132
-FAULT_CTRL_BTN_H = 34
 
 # 按钮样式：都是函数，每次调用读取当前主题颜色（切换主题后重新生成）
 def btn_primary() -> str:
@@ -76,6 +99,16 @@ QGroupBox::title {{
     color: {COLORS['accent']};
     font-size: 12px;
 }}
+/* 面板内控件统一字号/字体，保证输入框、下拉框、复选框与外部标签一致 */
+QLabel, QPushButton, QSpinBox, QDoubleSpinBox, QComboBox, QLineEdit, QCheckBox {{
+    font-size: 12px;
+    font-family: 'Microsoft YaHei', 'Segoe UI';
+}}
+QCheckBox {{
+    background-color: transparent;
+    spacing: 8px;
+    padding: 2px 0px;
+}}
 QTableWidget {{
     font-size: 11px;
     gridline-color: {COLORS['border']};
@@ -105,14 +138,26 @@ QLabel {{
 }}
 QSpinBox, QDoubleSpinBox {{
     font-size: 12px;
-    padding: 2px 26px 2px 6px;
+    min-height: 30px;
+    max-height: 30px;
+    padding: 2px 26px 2px 8px;
+}}
+QComboBox {{
+    min-height: 30px;
+    max-height: 30px;
+    padding: 2px 26px 2px 8px;
+}}
+QLineEdit {{
+    min-height: 30px;
+    max-height: 30px;
+    padding: 2px 8px;
 }}
 /* 注意：不能给 up-button/down-button 设 height，否则 Qt 会把两个按钮
    的点击区域都算到顶部，点哪个箭头都是增加（与全局样式保持一致）。 */
 QSpinBox::up-button, QDoubleSpinBox::up-button {{
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 14px;
+    width: 24px;
     border: none;
     border-left: 1px solid {COLORS['border']};
     border-bottom: 1px solid {COLORS['border']};
@@ -127,13 +172,13 @@ QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed {{
 }}
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
     image: url(__SPIN_UP_ARROW__);
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
 }}
 QSpinBox::down-button, QDoubleSpinBox::down-button {{
     subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 14px;
+    width: 24px;
     border: none;
     border-left: 1px solid {COLORS['border']};
     border-top: 1px solid {COLORS['border']};
@@ -148,8 +193,8 @@ QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {{
 }}
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
     image: url(__SPIN_DOWN_ARROW__);
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
 }}
 """
 

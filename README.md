@@ -16,11 +16,11 @@
 
 - **判断标准**：内置编辑器生成的接收模板；可从 **DBC 导入** 或 **Excel 导入**，编辑后保存
 - **DBC 导入**：默认将文档 ID `&0x1FFFFFFF` 映射为总线 ID（如 `0x98A3FFA1`→`0x18A3FFA1`）；「必须出现」默认否，由测试范围手改
-- **内置编辑器**：中栏可改报文 ID/名称/DLC/是否必须；选中报文后可增删信号；支持「按实报补齐缺失 ID」
-- **报文来源**：离线 `.asc`/`.blf`/宽松 HEX `.txt`，或 ZLG 通道+波特率实时采集
+- **模板编辑**：点「编辑模板…」打开弹窗，改报文 ID/名称/DLC/是否必须；选中报文后可增删信号；支持「按实报补齐缺失 ID」；点「应用」才写回主界面，「取消」放弃修改
+- **报文来源**：离线 `.asc`/`.blf`/宽松 HEX `.txt`，或 ZLG 通道+波特率实时采集（收在「实时采集 ▾」折叠面板里）
 - **核对规则**：协议外 ID、必须出现但缺失、DLC 不一致、信号位段无法解码（Intel/Motorola 按 DBC 规则）
-- **界面**：左=模板/设备，中=编辑器，右=实报统计，底=异常列表
-- **新增代码**：`protocol_check/` + `tabs/protocol_check_tab.py`
+- **界面**：顶部三步流程条「① 核对标准 → ② 实报来源 → ③ 开始核对」，下方大块核对结果；报文 ID 统计/帧明细收在结果区底部的「报文明细」抽屉
+- **新增代码**：`protocol_check/` + `tabs/protocol_check_tab.py` + `tabs/protocol_template_dialog.py` + `tabs/protocol_check_ui.py`
 
 ### 协议配置功能说明
 
@@ -80,7 +80,9 @@ BMS测试-整合版/
 │   ├── can_parser_tab.py          # CAN 报文解析标签页
 │   ├── bms_monitor_tab.py         # L2/L3 BMS 监控标签页
 │   ├── bms_alarm_test_tab.py      # 报警测试标签页
-│   ├── protocol_check_tab.py      # 协议核对标签页
+│   ├── protocol_check_tab.py      # 协议核对标签页（三步流程 + 核对结果）
+│   ├── protocol_check_ui.py       # 协议核对共用 UI 常量与控件工厂
+│   ├── protocol_template_dialog.py# 核对模板编辑弹窗
 │   └── protocol_config_dialog.py  # 协议配置编辑弹窗
 │
 ├── protocol_check/                 # CAN 协议核对引擎
